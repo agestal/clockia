@@ -3,112 +3,167 @@
 @section('title', 'Chat Test')
 
 @section('content_header_extra')
-    <div>
-        <h1 class="mb-1">Chat Test</h1>
-        <p class="text-muted mb-0">Prueba conversacional del motor de reservas.</p>
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="mb-0" style="font-size:1.4rem;">Chat Test</h1>
+        </div>
     </div>
 @stop
 
 @section('content_body')
     <style>
-        .chat-container { display: flex; flex-direction: column; height: 520px; border: 1px solid #dee2e6; border-radius: 6px; background: #f8f9fa; overflow: hidden; }
-        .chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
-        .chat-input-area { border-top: 1px solid #dee2e6; padding: 12px; background: #fff; display: flex; gap: 8px; }
-        .chat-input-area textarea { flex: 1; border: 1px solid #dee2e6; border-radius: 6px; padding: 8px 12px; font-size: 0.9rem; resize: none; }
-        .chat-input-area button { border-radius: 6px; white-space: nowrap; }
+        /* ─── Layout ─── */
+        .chat-wrapper { display: flex; gap: 16px; height: calc(100vh - 180px); min-height: 500px; }
+        .chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        .chat-sidebar { width: 340px; flex-shrink: 0; display: flex; flex-direction: column; overflow: hidden; }
 
-        .msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
-        .msg-user { background: #007bff; color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
-        .msg-assistant { background: #fff; color: #1a1a1a; align-self: flex-start; border: 1px solid #e0e0e0; border-bottom-left-radius: 4px; }
-        .msg-clarification { background: #fff8e1; border-color: #ffe082; }
-        .msg-error { background: #ffeef0; border-color: #f5c6cb; color: #721c24; }
-        .msg-tool-tag { font-size: 0.65rem; color: #999; margin-top: 4px; }
+        /* ─── Top bar ─── */
+        .chat-topbar { background: #fff; border: 1px solid #e0e0e0; border-radius: 12px 12px 0 0; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .chat-topbar-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+        .negocio-select { appearance: none; background: #f5f6f8 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 10px center; border: 1px solid #ddd; border-radius: 8px; padding: 6px 30px 6px 12px; font-size: 0.85rem; font-weight: 500; color: #333; cursor: pointer; max-width: 240px; text-overflow: ellipsis; transition: border-color 0.15s; }
+        .negocio-select:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
+        .mcp-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #888; user-select: none; cursor: pointer; white-space: nowrap; }
+        .mcp-toggle input { display: none; }
+        .mcp-toggle .toggle-track { width: 34px; height: 18px; background: #ccc; border-radius: 9px; position: relative; transition: background 0.2s; flex-shrink: 0; }
+        .mcp-toggle .toggle-track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: #fff; border-radius: 50%; transition: transform 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+        .mcp-toggle input:checked + .toggle-track { background: #007bff; }
+        .mcp-toggle input:checked + .toggle-track::after { transform: translateX(16px); }
+        .btn-new-chat { background: none; border: 1px solid #ddd; border-radius: 8px; padding: 5px 12px; font-size: 0.78rem; color: #666; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+        .btn-new-chat:hover { background: #f5f5f5; border-color: #bbb; color: #333; }
 
-        .debug-panel { border: 1px solid #dee2e6; border-radius: 4px; margin-top: 0.75rem; background: #fff; }
-        .debug-panel summary { padding: 8px 12px; cursor: pointer; font-weight: 600; font-size: 0.8rem; color: #6c757d; list-style: none; display: flex; justify-content: space-between; align-items: center; }
-        .debug-panel summary::-webkit-details-marker { display: none; }
-        .debug-panel summary::after { content: '\f078'; font-family: 'Font Awesome 5 Free'; font-weight: 900; font-size: 0.65rem; color: #adb5bd; transition: transform 0.2s; }
-        .debug-panel[open] summary { border-bottom: 1px solid #dee2e6; }
-        .debug-panel[open] summary::after { transform: rotate(180deg); }
-        .debug-panel .debug-body { padding: 8px 12px; }
-        .json-block { background: #f4f6f9; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.75rem; line-height: 1.4; white-space: pre-wrap; word-break: break-word; overflow: auto; max-height: 350px; color: #212529; }
-        .exec-badge { font-size: 0.65rem; padding: 2px 6px; border-radius: 3px; font-weight: 600; }
-        .exec-badge-direct { background: #e2e3e5; color: #383d41; }
-        .exec-badge-mcp { background: #cce5ff; color: #004085; }
+        /* ─── Messages ─── */
+        .chat-body { flex: 1; overflow-y: auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 8px; background: #f5f6f8; border-left: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0; }
+        .msg { max-width: 82%; padding: 10px 14px; font-size: 0.88rem; line-height: 1.65; white-space: pre-wrap; word-break: break-word; animation: msgIn 0.2s ease-out; }
+        @keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .msg-user { background: #007bff; color: #fff; align-self: flex-end; border-radius: 16px 16px 4px 16px; }
+        .msg-assistant { background: #fff; color: #1a1a1a; align-self: flex-start; border-radius: 16px 16px 16px 4px; border: 1px solid #e8e8e8; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+        .msg-clarification { background: #fffcf0; border-color: #f0e6c0; }
+        .msg-error { background: #fff5f5; border-color: #f5c6cb; color: #721c24; }
+        .msg-tool-tag { font-size: 0.62rem; color: #aaa; margin-top: 5px; letter-spacing: 0.02em; }
+        .msg-typing { color: #999; font-style: italic; font-size: 0.82rem; }
+        .chat-empty-state { text-align: center; padding: 60px 20px; color: #bbb; }
+        .chat-empty-state i { font-size: 2.5rem; opacity: 0.25; }
+        .chat-empty-state p { font-size: 0.85rem; margin-top: 12px; }
+
+        /* ─── Input ─── */
+        .chat-input-bar { background: #fff; border: 1px solid #e0e0e0; border-radius: 0 0 12px 12px; padding: 10px 12px; display: flex; gap: 8px; align-items: flex-end; }
+        .chat-input-bar textarea { flex: 1; border: 1px solid #e8e8e8; border-radius: 10px; padding: 8px 14px; font-size: 0.88rem; resize: none; background: #fafafa; transition: border-color 0.15s, background 0.15s; line-height: 1.5; }
+        .chat-input-bar textarea:focus { outline: none; border-color: #007bff; background: #fff; box-shadow: 0 0 0 3px rgba(0,123,255,0.08); }
+        .chat-input-bar textarea::placeholder { color: #bbb; }
+        .btn-send { width: 38px; height: 38px; border-radius: 50%; background: #007bff; color: #fff; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s, transform 0.1s; flex-shrink: 0; }
+        .btn-send:hover { background: #0069d9; }
+        .btn-send:active { transform: scale(0.93); }
+        .btn-send:disabled { background: #a0cfff; cursor: not-allowed; }
+
+        /* ─── Quick actions ─── */
+        .quick-actions { padding: 8px 12px; background: #fff; border-left: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0; display: flex; flex-wrap: wrap; gap: 4px; }
+        .quick-btn { background: #f0f2f5; border: none; border-radius: 14px; padding: 4px 12px; font-size: 0.73rem; color: #555; cursor: pointer; transition: all 0.15s; }
+        .quick-btn:hover { background: #e2e6ea; color: #222; }
+
+        /* ─── Debug sidebar ─── */
+        .debug-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 12px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+        .debug-header { padding: 12px 14px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; }
+        .debug-header h3 { font-size: 0.82rem; font-weight: 600; color: #666; margin: 0; }
+        .debug-badges { display: flex; gap: 4px; }
+        .dbg-badge { font-size: 0.65rem; padding: 2px 7px; border-radius: 4px; font-weight: 600; }
+        .dbg-badge-mode { background: #d4edda; color: #155724; }
+        .dbg-badge-mcp { background: #cce5ff; color: #004085; }
+        .dbg-badge-direct { background: #e9ecef; color: #495057; }
+        .dbg-badge-error { background: #f8d7da; color: #721c24; }
+        .dbg-badge-clarification { background: #fff3cd; color: #856404; }
+        .debug-body { flex: 1; overflow-y: auto; padding: 0; }
+        .debug-section { border-bottom: 1px solid #f0f0f0; }
+        .debug-section summary { padding: 8px 14px; cursor: pointer; font-weight: 600; font-size: 0.76rem; color: #888; list-style: none; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+        .debug-section summary::-webkit-details-marker { display: none; }
+        .debug-section summary::after { content: '\f078'; font-family: 'Font Awesome 5 Free'; font-weight: 900; font-size: 0.6rem; color: #ccc; transition: transform 0.15s; }
+        .debug-section[open] summary::after { transform: rotate(180deg); }
+        .debug-section .debug-inner { padding: 6px 14px 12px; }
+        .json-block { background: #f8f9fb; border: 1px solid #eee; border-radius: 6px; padding: 8px 10px; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.7rem; line-height: 1.4; white-space: pre-wrap; word-break: break-word; overflow: auto; max-height: 280px; color: #333; }
+        .debug-empty { text-align: center; padding: 40px 16px; color: #ccc; }
+        .debug-empty i { font-size: 1.5rem; opacity: 0.3; }
+        .debug-empty p { font-size: 0.78rem; margin-top: 8px; }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 1100px) {
+            .chat-wrapper { flex-direction: column; height: auto; }
+            .chat-sidebar { width: 100%; max-height: 350px; }
+            .chat-body { min-height: 350px; }
+        }
     </style>
 
-    <div class="row">
-        {{-- Left: Chat --}}
-        <div class="col-lg-7">
-            <div class="card shadow-sm border-0 mb-2">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
-                    <div class="d-flex align-items-center">
-                        <select id="negocio_id" class="form-control form-control-sm mr-2" style="width:auto;">
-                            @foreach($negocios as $negocio)
-                                <option value="{{ $negocio->id }}">{{ $negocio->nombre }}</option>
-                            @endforeach
-                        </select>
-                        <select id="exec_mode" class="form-control form-control-sm" style="width:auto;">
-                            <option value="mcp" selected>MCP</option>
-                            <option value="direct">Directo</option>
-                        </select>
-                    </div>
-                    <button type="button" id="btn-clear" class="btn btn-xs btn-outline-secondary"><i class="fas fa-eraser"></i> Nueva conversación</button>
+    <div class="chat-wrapper">
+        {{-- Main chat area --}}
+        <div class="chat-main">
+            <div class="chat-topbar">
+                <div class="chat-topbar-left">
+                    <select id="negocio_id" class="negocio-select">
+                        @foreach($negocios as $negocio)
+                            <option value="{{ $negocio->id }}">{{ $negocio->nombre }}</option>
+                        @endforeach
+                    </select>
+                    <label class="mcp-toggle" title="Ejecutar tools a través del MCP bridge">
+                        <input type="checkbox" id="mcp_toggle" checked>
+                        <span class="toggle-track"></span>
+                        <span>MCP</span>
+                    </label>
                 </div>
-                <div class="chat-container">
-                    <div class="chat-messages" id="chat-messages">
-                        <div class="text-center text-muted py-4" id="chat-empty">
-                            <i class="fas fa-comments" style="font-size:2rem;opacity:0.3;"></i>
-                            <p class="mt-2 mb-0" style="font-size:0.85rem;">Escribe un mensaje para empezar</p>
-                        </div>
-                    </div>
-                    <div class="chat-input-area">
-                        <textarea id="message" rows="2" placeholder="Escribe tu mensaje..."></textarea>
-                        <button type="button" id="btn-send" class="btn btn-primary btn-sm"><i class="fas fa-paper-plane"></i></button>
-                    </div>
+                <button type="button" id="btn-clear" class="btn-new-chat">
+                    <i class="fas fa-plus"></i> Nueva
+                </button>
+            </div>
+
+            <div class="chat-body" id="chat-messages">
+                <div class="chat-empty-state" id="chat-empty">
+                    <i class="fas fa-comments"></i>
+                    <p>Escribe un mensaje para empezar la conversación</p>
                 </div>
-                <div class="card-footer bg-white py-2">
-                    <div class="d-flex flex-wrap">
-                        <button class="btn btn-xs btn-light border mr-1 mb-1 js-example" data-msg="Hola, queremos reservar una mesa">Reservar</button>
-                        <button class="btn btn-xs btn-light border mr-1 mb-1 js-example" data-msg="Quiero cenar mañana, somos 4">Cena 4p</button>
-                        <button class="btn btn-xs btn-light border mr-1 mb-1 js-example" data-msg="¿Qué servicios tenéis?">Servicios</button>
-                        <button class="btn btn-xs btn-light border mr-1 mb-1 js-example" data-msg="¿Cuánto cuesta la cena para 4?">Precio</button>
-                        <button class="btn btn-xs btn-light border mr-1 mb-1 js-example" data-msg="¿Puedo cancelar?">Cancelar</button>
-                        <button class="btn btn-xs btn-light border mr-1 mb-1 js-example" data-msg="¿Dónde estáis?">Dirección</button>
-                    </div>
-                </div>
+            </div>
+
+            <div class="quick-actions">
+                <button class="quick-btn js-example" data-msg="Hola, queremos reservar">Reservar</button>
+                <button class="quick-btn js-example" data-msg="Quiero cenar mañana, somos 4">Cena 4p</button>
+                <button class="quick-btn js-example" data-msg="¿Qué servicios tenéis?">Servicios</button>
+                <button class="quick-btn js-example" data-msg="¿Cuánto cuesta?">Precio</button>
+                <button class="quick-btn js-example" data-msg="¿Puedo cancelar?">Cancelar</button>
+                <button class="quick-btn js-example" data-msg="¿Dónde estáis?">Dirección</button>
+                <button class="quick-btn js-example" data-msg="Me da igual, la que puedas">Delegar</button>
+            </div>
+
+            <div class="chat-input-bar">
+                <textarea id="message" rows="1" placeholder="Escribe tu mensaje..."></textarea>
+                <button type="button" id="btn-send" class="btn-send"><i class="fas fa-paper-plane" style="font-size:0.85rem;margin-left:1px;"></i></button>
             </div>
         </div>
 
-        {{-- Right: Debug --}}
-        <div class="col-lg-5">
-            <div id="debug-area">
-                <div class="text-muted text-center py-4" id="debug-empty" style="font-size:0.85rem;">
-                    <i class="fas fa-bug" style="font-size:1.5rem;opacity:0.2;"></i>
-                    <p class="mt-2 mb-0">El debug aparecerá aquí tras enviar un mensaje</p>
+        {{-- Debug sidebar --}}
+        <div class="chat-sidebar">
+            <div class="debug-card">
+                <div class="debug-header">
+                    <h3><i class="fas fa-bug mr-1"></i> Debug</h3>
+                    <div class="debug-badges" id="debug-badges"></div>
                 </div>
-                <div id="debug-content-area" class="d-none">
-                    <div class="d-flex align-items-center mb-2">
-                        <span class="font-weight-bold mr-2" style="font-size:0.8rem;">Última ejecución</span>
-                        <span id="exec-badge" class="exec-badge"></span>
-                        <span id="mode-badge" class="exec-badge ml-1"></span>
+                <div class="debug-body">
+                    <div class="debug-empty" id="debug-empty">
+                        <i class="fas fa-terminal"></i>
+                        <p>Envía un mensaje para ver el debug</p>
                     </div>
-
-                    <details class="debug-panel">
-                        <summary>Tool + Params</summary>
-                        <div class="debug-body">
-                            <div class="mb-2"><strong style="font-size:0.8rem;">Tool:</strong> <code id="d-tool" style="font-size:0.8rem;"></code></div>
-                            <pre id="d-params" class="json-block"></pre>
-                        </div>
-                    </details>
-                    <details class="debug-panel">
-                        <summary>Resultado tool</summary>
-                        <div class="debug-body"><pre id="d-result" class="json-block"></pre></div>
-                    </details>
-                    <details class="debug-panel">
-                        <summary>Debug completo</summary>
-                        <div class="debug-body"><pre id="d-debug" class="json-block"></pre></div>
-                    </details>
+                    <div id="debug-content-area" class="d-none">
+                        <details class="debug-section" open>
+                            <summary>Tool + Params</summary>
+                            <div class="debug-inner">
+                                <div class="mb-2"><strong style="font-size:0.75rem;">Tool:</strong> <code id="d-tool" style="font-size:0.75rem;"></code></div>
+                                <pre id="d-params" class="json-block"></pre>
+                            </div>
+                        </details>
+                        <details class="debug-section">
+                            <summary>Resultado</summary>
+                            <div class="debug-inner"><pre id="d-result" class="json-block"></pre></div>
+                        </details>
+                        <details class="debug-section">
+                            <summary>Debug completo</summary>
+                            <div class="debug-inner"><pre id="d-debug" class="json-block"></pre></div>
+                        </details>
+                    </div>
                 </div>
             </div>
         </div>
@@ -124,13 +179,20 @@
             const btnSend = document.getElementById('btn-send');
             const btnClear = document.getElementById('btn-clear');
             const negocioEl = document.getElementById('negocio_id');
-            const modeEl = document.getElementById('exec_mode');
+            const mcpToggle = document.getElementById('mcp_toggle');
             const debugEmpty = document.getElementById('debug-empty');
             const debugArea = document.getElementById('debug-content-area');
+            const debugBadges = document.getElementById('debug-badges');
             let conversationId = null;
 
             const fmt = (o) => { try { return JSON.stringify(o, null, 2); } catch { return String(o); } };
-            const modeLabels = { tool_result: 'Tool ejecutada', clarification: 'Aclaración', error: 'Error', ready: 'Lista', respond: 'Respuesta' };
+            const modeLabels = { tool_result: 'Tool', clarification: 'Aclaración', error: 'Error', respond: 'Respuesta', greeting: 'Saludo', confirmation: 'Confirmación', confirmed: 'Confirmado' };
+
+            // Auto-resize textarea
+            msgEl.addEventListener('input', () => {
+                msgEl.style.height = 'auto';
+                msgEl.style.height = Math.min(msgEl.scrollHeight, 100) + 'px';
+            });
 
             function addMessage(role, text, meta) {
                 emptyEl.classList.add('d-none');
@@ -141,45 +203,38 @@
                 if (role === 'assistant' && meta?.tool) {
                     const tag = document.createElement('div');
                     tag.className = 'msg-tool-tag';
-                    tag.textContent = `${meta.tool}${meta.execMode === 'mcp' ? ' [MCP]' : ''}`;
+                    tag.textContent = meta.tool + (meta.execMode === 'mcp' ? ' · MCP' : '');
                     el.appendChild(tag);
                 }
                 chatEl.appendChild(el);
                 chatEl.scrollTop = chatEl.scrollHeight;
             }
 
-            function renderHistory(history) {
-                chatEl.innerHTML = '';
-                if (!history || history.length === 0) { emptyEl.classList.remove('d-none'); chatEl.appendChild(emptyEl); return; }
-                emptyEl.classList.add('d-none');
-                history.forEach(h => addMessage(h.role, h.text, { mode: h.mode, tool: h.tool }));
-            }
-
             function updateDebug(data) {
                 debugEmpty.classList.add('d-none');
                 debugArea.classList.remove('d-none');
+
                 const execMode = data.execution_mode || 'direct';
-                const execBadge = document.getElementById('exec-badge');
-                execBadge.textContent = execMode === 'mcp' ? 'MCP' : 'Directo';
-                execBadge.className = `exec-badge exec-badge-${execMode}`;
-                const modeBadge = document.getElementById('mode-badge');
                 const mode = data.mode || 'tool_result';
-                modeBadge.textContent = modeLabels[mode] || mode;
-                modeBadge.className = 'exec-badge';
-                modeBadge.style.background = mode === 'clarification' ? '#fff3cd' : (mode === 'error' ? '#f8d7da' : '#d4edda');
-                modeBadge.style.color = mode === 'clarification' ? '#856404' : (mode === 'error' ? '#721c24' : '#155724');
+
+                const badgeClass = mode === 'error' ? 'dbg-badge-error' : (mode === 'clarification' ? 'dbg-badge-clarification' : 'dbg-badge-mode');
+                debugBadges.innerHTML = `
+                    <span class="dbg-badge ${execMode === 'mcp' ? 'dbg-badge-mcp' : 'dbg-badge-direct'}">${execMode === 'mcp' ? 'MCP' : 'Direct'}</span>
+                    <span class="dbg-badge ${badgeClass}">${modeLabels[mode] || mode}</span>
+                `;
+
                 document.getElementById('d-tool').textContent = data.tool || '—';
                 document.getElementById('d-params').textContent = data.params ? fmt(data.params) : '—';
-                document.getElementById('d-result').textContent = data.tool_result ? fmt(data.tool_result) : (mode === 'clarification' ? 'No ejecutada — pendiente de datos' : '—');
+                document.getElementById('d-result').textContent = data.tool_result ? fmt(data.tool_result) : (mode === 'clarification' ? 'Pendiente de datos' : '—');
                 document.getElementById('d-debug').textContent = data.debug ? fmt(data.debug) : '—';
             }
 
-            document.querySelectorAll('.js-example').forEach(b => b.addEventListener('click', () => { msgEl.value = b.dataset.msg; msgEl.focus(); }));
+            document.querySelectorAll('.js-example').forEach(b => b.addEventListener('click', () => { msgEl.value = b.dataset.msg; msgEl.focus(); msgEl.dispatchEvent(new Event('input')); }));
 
             btnClear.addEventListener('click', async () => {
                 await fetch('{{ route("admin.chat-test.clear-context") }}', { method: 'DELETE', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' } });
                 chatEl.innerHTML = ''; emptyEl.classList.remove('d-none'); chatEl.appendChild(emptyEl);
-                debugEmpty.classList.remove('d-none'); debugArea.classList.add('d-none');
+                debugEmpty.classList.remove('d-none'); debugArea.classList.add('d-none'); debugBadges.innerHTML = '';
                 conversationId = null;
             });
 
@@ -191,46 +246,33 @@
 
                 addMessage('user', text);
                 msgEl.value = '';
+                msgEl.style.height = 'auto';
                 btnSend.disabled = true;
 
-                // Typing indicator
                 const typing = document.createElement('div');
-                typing.className = 'msg msg-assistant';
-                typing.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Pensando...';
+                typing.className = 'msg msg-assistant msg-typing';
+                typing.innerHTML = '<i class="fas fa-circle-notch fa-spin mr-1"></i> Pensando...';
                 typing.id = 'typing';
                 chatEl.appendChild(typing);
                 chatEl.scrollTop = chatEl.scrollHeight;
 
                 try {
-                    const payload = {
-                        message: text,
-                        negocio_id: parseInt(negocioEl.value),
-                        mode: modeEl.value,
-                    };
-
-                    if (conversationId) {
-                        payload.conversation_id = conversationId;
-                    }
+                    const payload = { message: text, negocio_id: parseInt(negocioEl.value), mode: mcpToggle.checked ? 'mcp' : 'direct' };
+                    if (conversationId) payload.conversation_id = conversationId;
 
                     const res = await fetch('{{ route("admin.chat-test.execute") }}', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-Requested-With': 'XMLHttpRequest' },
                         body: JSON.stringify(payload),
                     });
-                    const rawText = await res.text();
-                    let data = null;
 
+                    const rawText = await res.text();
+                    let data;
                     try {
                         data = rawText ? JSON.parse(rawText) : {};
-                    } catch (parseError) {
-                        const looksLikeHtml = /^\s*</.test(rawText || '');
-                        throw new Error(
-                            looksLikeHtml
-                                ? 'El servidor devolvió HTML en vez de JSON. Revisa si la sesión expiró o si hubo un error interno.'
-                                : ('Respuesta no válida del servidor: ' + (rawText || parseError.message))
-                        );
+                    } catch {
+                        throw new Error(/^\s*</.test(rawText) ? 'Sesión expirada o error interno.' : 'Respuesta no válida del servidor.');
                     }
-
                     if (!res.ok) throw new Error(data.message || 'Error del servidor');
 
                     conversationId = data.conversation_id || conversationId;

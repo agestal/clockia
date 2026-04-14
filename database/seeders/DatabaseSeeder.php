@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
             BaseCatalogsSeeder::class,
             DemoRestauranteSeeder::class,
             DemoBodegaSeeder::class,
+            DemoRentACarSeeder::class,
         ]);
     }
 }

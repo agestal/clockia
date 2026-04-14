@@ -294,6 +294,21 @@ body:not(.sidebar-collapse) .main-footer {
     position: relative;
 }
 
+.clockia-stat--link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.clockia-stat--link:hover {
+    color: inherit;
+    text-decoration: none;
+    border-color: rgba(13, 110, 253, 0.22);
+    box-shadow: 0 10px 24px rgba(15, 35, 95, 0.08);
+    transform: translateY(-1px);
+}
+
 .clockia-stat__label {
     color: var(--clockia-text-soft);
     font-size: 0.68rem;
@@ -310,6 +325,12 @@ body:not(.sidebar-collapse) .main-footer {
     letter-spacing: -0.03em;
     line-height: 1.1;
     margin: 0;
+}
+
+.clockia-stat__meta {
+    color: var(--clockia-text-soft);
+    font-size: 0.74rem;
+    margin-top: 0.45rem;
 }
 
 .clockia-stat__icon {
@@ -383,9 +404,24 @@ body:not(.sidebar-collapse) .main-footer {
 }
 
 .clockia-quick-link__arrow {
-    margin-left: auto;
     color: #c2cad6;
     font-size: 0.95rem;
+    margin-left: 0.1rem;
+}
+
+.clockia-quick-link__badge {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 24px;
+    padding: 0 0.5rem;
+    border-radius: 999px;
+    background: #f3f6fb;
+    color: var(--clockia-dark);
+    font-size: 0.73rem;
+    font-weight: 700;
 }
 
 .clockia-account {
@@ -434,6 +470,15 @@ body:not(.sidebar-collapse) .main-footer {
     border-bottom: 1px solid var(--clockia-border);
 }
 
+.clockia-meta-row--link {
+    display: block;
+    text-decoration: none;
+}
+
+.clockia-meta-row--link:hover {
+    text-decoration: none;
+}
+
 .clockia-meta-row:last-child {
     border-bottom: 0;
     padding-bottom: 0;
@@ -454,6 +499,121 @@ body:not(.sidebar-collapse) .main-footer {
     color: var(--clockia-dark);
     font-size: 0.82rem;
     font-weight: 500;
+}
+
+.clockia-chat-entry {
+    overflow: hidden;
+}
+
+.clockia-chat-entry .card-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    padding: 1.45rem 1.5rem;
+    background:
+        radial-gradient(circle at top right, rgba(13, 110, 253, 0.12), transparent 36%),
+        linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.clockia-chat-entry__content {
+    min-width: 0;
+}
+
+.clockia-chat-entry__eyebrow {
+    color: var(--clockia-accent);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 0.45rem;
+}
+
+.clockia-chat-entry__title {
+    color: var(--clockia-dark);
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.15;
+    margin: 0 0 0.5rem;
+}
+
+.clockia-chat-entry__description {
+    color: var(--clockia-text-soft);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0;
+    max-width: 44rem;
+}
+
+.clockia-chat-entry__meta {
+    color: var(--clockia-dark);
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-top: 0.8rem;
+}
+
+.clockia-chat-entry__actions {
+    flex: 0 0 auto;
+}
+
+.clockia-reservation-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-color: var(--clockia-border);
+    color: inherit;
+    text-decoration: none;
+}
+
+.clockia-reservation-link:hover {
+    background: #fbfdff;
+    color: inherit;
+    text-decoration: none;
+}
+
+.clockia-reservation-link__content,
+.clockia-reservation-link__meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.clockia-reservation-link__title {
+    color: var(--clockia-dark);
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.clockia-reservation-link__subtitle {
+    color: var(--clockia-text-soft);
+    font-size: 0.77rem;
+    margin-top: 0.2rem;
+}
+
+.clockia-reservation-link__meta {
+    text-align: right;
+    flex: 0 0 auto;
+}
+
+.clockia-reservation-link__schedule {
+    color: var(--clockia-dark);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.clockia-reservation-link__status {
+    color: var(--clockia-text-soft);
+    font-size: 0.74rem;
+    margin-top: 0.2rem;
+}
+
+.clockia-empty-state {
+    color: var(--clockia-text-soft);
+    font-size: 0.85rem;
+    padding: 1.2rem 1.25rem;
 }
 
 .clockia-dashboard {
@@ -514,6 +674,24 @@ body:not(.sidebar-collapse) .main-footer {
 
     .clockia-dashboard__panels > .col-lg-8 {
         margin-bottom: 1rem;
+    }
+
+    .clockia-chat-entry .card-body,
+    .clockia-reservation-link {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .clockia-chat-entry__actions {
+        width: 100%;
+    }
+
+    .clockia-chat-entry__actions .btn {
+        width: 100%;
+    }
+
+    .clockia-reservation-link__meta {
+        text-align: left;
     }
 }
 
