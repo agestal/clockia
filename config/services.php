@@ -43,6 +43,10 @@ return [
     'llm' => [
         'provider' => env('LLM_PROVIDER', 'openrouter'),
         'model' => env('LLM_MODEL', 'openai/gpt-4o-mini'),
+        'openrouter_fallback_models' => array_values(array_filter(array_map(
+            static fn (string $value) => trim($value),
+            explode(',', (string) env('LLM_OPENROUTER_FALLBACK_MODELS', 'openai/gpt-4o-mini,openai/gpt-4.1-nano'))
+        ))),
         'temperature' => (float) env('LLM_TEMPERATURE', 0.15),
         'max_tokens' => (int) env('LLM_MAX_TOKENS', 700),
         'timeout' => (int) env('LLM_TIMEOUT', 20),

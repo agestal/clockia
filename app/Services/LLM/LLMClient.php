@@ -9,6 +9,7 @@ class LLMClient
 {
     private string $provider;
     private string $model;
+    private array $openRouterFallbackModels;
     private float $temperature;
     private int $maxTokens;
     private int $timeout;
@@ -17,6 +18,7 @@ class LLMClient
     {
         $this->provider = config('services.llm.provider', 'openrouter');
         $this->model = config('services.llm.model', 'openai/gpt-4o-mini');
+        $this->openRouterFallbackModels = config('services.llm.openrouter_fallback_models', ['openai/gpt-4o-mini', 'openai/gpt-4.1-nano']);
         $this->temperature = (float) config('services.llm.temperature', 0.15);
         $this->maxTokens = (int) config('services.llm.max_tokens', 700);
         $this->timeout = (int) config('services.llm.timeout', 20);
@@ -73,37 +75,56 @@ class LLMClient
             $headers['X-Title'] = 'Clockia';
         }
 
-        $payload = [
+        $attempts = [[
             'model' => $this->model,
-            'temperature' => $this->temperature,
             'max_tokens' => $this->maxTokens,
-            'messages' => [
-                ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user', 'content' => $userMessage],
-            ],
-        ];
+        ]];
+        $queuedAttempts = [];
+        $lastError = null;
 
-        $response = Http::timeout($this->timeout)
-            ->withHeaders($headers)
-            ->post($url, $payload);
+        while ($attempt = array_shift($attempts)) {
+            $attemptKey = $attempt['model'].'|'.$attempt['max_tokens'];
 
-        if (! $response->successful() && $this->provider === 'openrouter' && $response->status() === 402) {
-            $fallbackMaxTokens = $this->resolveAffordableRetryMaxTokens($response->body(), (int) $payload['max_tokens']);
+            if (isset($queuedAttempts[$attemptKey])) {
+                continue;
+            }
 
-            if ($fallbackMaxTokens !== null) {
-                $payload['max_tokens'] = $fallbackMaxTokens;
+            $queuedAttempts[$attemptKey] = true;
 
-                $response = Http::timeout($this->timeout)
-                    ->withHeaders($headers)
-                    ->post($url, $payload);
+            $payload = [
+                'model' => $attempt['model'],
+                'temperature' => $this->temperature,
+                'max_tokens' => $attempt['max_tokens'],
+                'messages' => [
+                    ['role' => 'system', 'content' => $systemPrompt],
+                    ['role' => 'user', 'content' => $userMessage],
+                ],
+            ];
+
+            $response = Http::timeout($this->timeout)
+                ->withHeaders($headers)
+                ->post($url, $payload);
+
+            if ($response->successful()) {
+                return $response->json('choices.0.message.content', '');
+            }
+
+            $lastError = "[{$this->provider}] API error {$response->status()}: {$response->body()}";
+
+            if ($this->provider !== 'openrouter' || $response->status() !== 402) {
+                break;
+            }
+
+            foreach ($this->buildOpenRouterRetryAttempts($response->body(), $attempt) as $retryAttempt) {
+                $retryKey = $retryAttempt['model'].'|'.$retryAttempt['max_tokens'];
+
+                if (! isset($queuedAttempts[$retryKey])) {
+                    $attempts[] = $retryAttempt;
+                }
             }
         }
 
-        if (! $response->successful()) {
-            throw new RuntimeException("[{$this->provider}] API error {$response->status()}: {$response->body()}");
-        }
-
-        return $response->json('choices.0.message.content', '');
+        throw new RuntimeException($lastError ?? "[{$this->provider}] API request failed.");
     }
 
     private function callAnthropic(string $systemPrompt, string $userMessage, array $config): string
@@ -148,5 +169,47 @@ class LLMClient
         return $retryMaxTokens > 0 && $retryMaxTokens < $currentMaxTokens
             ? $retryMaxTokens
             : null;
+    }
+
+    /**
+     * @return array<int, array{model: string, max_tokens: int}>
+     */
+    private function buildOpenRouterRetryAttempts(string $responseBody, array $attempt): array
+    {
+        $retries = [];
+        $currentModel = (string) ($attempt['model'] ?? $this->model);
+        $currentMaxTokens = (int) ($attempt['max_tokens'] ?? $this->maxTokens);
+        $fallbackMaxTokens = $this->resolveAffordableRetryMaxTokens($responseBody, $currentMaxTokens);
+        $isPromptAffordabilityError = str_contains(strtolower($responseBody), 'prompt tokens limit exceeded');
+
+        if ($fallbackMaxTokens !== null && ! $isPromptAffordabilityError) {
+            $retries[] = [
+                'model' => $currentModel,
+                'max_tokens' => $fallbackMaxTokens,
+            ];
+        }
+
+        foreach ($this->resolveOpenRouterFallbackModels($currentModel) as $fallbackModel) {
+            $retries[] = [
+                'model' => $fallbackModel,
+                'max_tokens' => $fallbackMaxTokens ?? min($currentMaxTokens, 500),
+            ];
+        }
+
+        return $retries;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function resolveOpenRouterFallbackModels(string $currentModel): array
+    {
+        return array_values(array_filter(
+            array_unique(array_map(
+                static fn ($value) => trim((string) $value),
+                $this->openRouterFallbackModels
+            )),
+            static fn (string $model) => $model !== '' && $model !== $currentModel
+        ));
     }
 }
