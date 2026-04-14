@@ -24,6 +24,7 @@ class StoreNegocioRequest extends FormRequest
         $maxRecursosCombinables = trim((string) $this->input('max_recursos_combinables', ''));
         $chatPersonality = trim((string) $this->input('chat_personality', ''));
         $chatRequiredFields = trim((string) $this->input('chat_required_fields', ''));
+        $chatBehaviorOverrides = $this->buildChatBehaviorOverrides();
 
         $this->merge([
             'nombre' => $nombre !== '' ? $nombre : null,
@@ -40,6 +41,7 @@ class StoreNegocioRequest extends FormRequest
             'chat_personality' => $chatPersonality !== '' ? $chatPersonality : null,
             'chat_required_fields' => $chatRequiredFields !== '' ? $chatRequiredFields : null,
             'chat_system_rules' => trim((string) $this->input('chat_system_rules', '')) !== '' ? trim((string) $this->input('chat_system_rules', '')) : null,
+            'chat_behavior_overrides' => $chatBehaviorOverrides !== [] ? $chatBehaviorOverrides : null,
         ]);
     }
 
@@ -91,6 +93,16 @@ class StoreNegocioRequest extends FormRequest
                 },
             ],
             'chat_system_rules' => ['nullable', 'string'],
+            'chat_behavior_overrides' => ['nullable', 'array'],
+            'chat_behavior_overrides.human_role' => ['nullable', 'string', 'max:255'],
+            'chat_behavior_overrides.default_register' => ['nullable', 'string'],
+            'chat_behavior_overrides.question_style' => ['nullable', 'string'],
+            'chat_behavior_overrides.option_style' => ['nullable', 'string'],
+            'chat_behavior_overrides.offer_naming_style' => ['nullable', 'string'],
+            'chat_behavior_overrides.inventory_exposure_policy' => ['nullable', 'in:hide_internal_resources,show_only_customer_safe_descriptors,allow_detailed_inventory'],
+            'chat_behavior_overrides.no_availability_policy' => ['nullable', 'string'],
+            'chat_behavior_overrides.vocabulary_hints' => ['nullable', 'array'],
+            'chat_behavior_overrides.vocabulary_hints.*' => ['nullable', 'string', 'max:100'],
         ];
     }
 
@@ -135,11 +147,41 @@ class StoreNegocioRequest extends FormRequest
             'max_recursos_combinables.integer' => 'El máximo de recursos combinables debe ser un número entero.',
             'max_recursos_combinables.min' => 'El máximo de recursos combinables debe ser al menos 1.',
             'max_recursos_combinables.max' => 'El máximo de recursos combinables no puede superar 5.',
+            'chat_behavior_overrides.human_role.max' => 'El rol humano no puede superar los 255 caracteres.',
+            'chat_behavior_overrides.inventory_exposure_policy.in' => 'La política de exposición de inventario seleccionada no es válida.',
+            'chat_behavior_overrides.vocabulary_hints.*.max' => 'Cada pista de vocabulario no puede superar los 100 caracteres.',
         ];
     }
 
     private function normalizeBoolean(mixed $value): bool
     {
         return in_array($value, [true, 1, '1', 'true', 'on', 'yes'], true);
+    }
+
+    private function buildChatBehaviorOverrides(): array
+    {
+        $fields = [
+            'human_role' => trim((string) $this->input('chat_behavior_human_role', '')),
+            'default_register' => trim((string) $this->input('chat_behavior_default_register', '')),
+            'question_style' => trim((string) $this->input('chat_behavior_question_style', '')),
+            'option_style' => trim((string) $this->input('chat_behavior_option_style', '')),
+            'offer_naming_style' => trim((string) $this->input('chat_behavior_offer_naming_style', '')),
+            'inventory_exposure_policy' => trim((string) $this->input('chat_behavior_inventory_exposure_policy', '')),
+            'no_availability_policy' => trim((string) $this->input('chat_behavior_no_availability_policy', '')),
+        ];
+
+        $vocabularyHints = collect(preg_split('/[\r\n,]+/u', (string) $this->input('chat_behavior_vocabulary_hints', '')) ?: [])
+            ->map(fn ($item) => trim((string) $item))
+            ->filter()
+            ->values()
+            ->all();
+
+        $overrides = array_filter($fields, fn ($value) => $value !== '');
+
+        if ($vocabularyHints !== []) {
+            $overrides['vocabulary_hints'] = $vocabularyHints;
+        }
+
+        return $overrides;
     }
 }

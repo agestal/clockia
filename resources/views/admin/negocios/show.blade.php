@@ -66,10 +66,12 @@
                         <dd class="col-sm-7">{{ $negocio->maxRecursosCombinablesEfectivo() }}</dd>
                         <dt class="col-sm-5">Personalidad chat</dt>
                         <dd class="col-sm-7">{{ $negocio->chat_personality ?: 'Default del sistema' }}</dd>
-                        <dt class="col-sm-5">Reglas sistema</dt>
-                        <dd class="col-sm-7">{{ $negocio->chat_system_rules ? 'Configuradas' : 'Sin reglas' }}</dd>
+                        <dt class="col-sm-5">Prompt base</dt>
+                        <dd class="col-sm-7">{{ $negocio->chat_system_rules ? 'Configurado' : 'Sin prompt editable' }}</dd>
                         <dt class="col-sm-5">Campos chat</dt>
                         <dd class="col-sm-7">{{ $negocio->chat_required_fields ? 'Personalizado' : 'Defaults del sistema' }}</dd>
+                        <dt class="col-sm-5">Política convers.</dt>
+                        <dd class="col-sm-7">{{ $negocio->chat_behavior_overrides ? 'Personalizada' : 'Automática por sector' }}</dd>
                         <dt class="col-sm-5">Creado</dt>
                         <dd class="col-sm-7">{{ optional($negocio->created_at)->format('d/m/Y H:i') }}</dd>
                         <dt class="col-sm-5">Actualizado</dt>
@@ -175,6 +177,38 @@
                 <div class="card shadow-sm border-0">
                     <div class="card-header bg-white"><h3 class="card-title mb-0">Política de cancelación</h3></div>
                     <div class="card-body"><p class="mb-0 text-muted">{{ $negocio->politica_cancelacion }}</p></div>
+                </div>
+            @endif
+
+            @if($negocio->chat_behavior_overrides)
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white"><h3 class="card-title mb-0">Política conversacional</h3></div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">Rol humano</dt>
+                            <dd class="col-sm-8">{{ data_get($negocio->chat_behavior_overrides, 'human_role') ?: 'Auto por sector' }}</dd>
+                            <dt class="col-sm-4">Registro</dt>
+                            <dd class="col-sm-8">{{ data_get($negocio->chat_behavior_overrides, 'default_register') ?: 'Auto por sector' }}</dd>
+                            <dt class="col-sm-4">Preguntas</dt>
+                            <dd class="col-sm-8">{{ data_get($negocio->chat_behavior_overrides, 'question_style') ?: 'Auto por sector' }}</dd>
+                            <dt class="col-sm-4">Opciones</dt>
+                            <dd class="col-sm-8">{{ data_get($negocio->chat_behavior_overrides, 'option_style') ?: 'Auto por sector' }}</dd>
+                            <dt class="col-sm-4">Nombrar oferta</dt>
+                            <dd class="col-sm-8">{{ data_get($negocio->chat_behavior_overrides, 'offer_naming_style') ?: 'Auto por sector' }}</dd>
+                            <dt class="col-sm-4">Inventario</dt>
+                            <dd class="col-sm-8">{{ data_get($negocio->chat_behavior_overrides, 'inventory_exposure_policy') ?: 'Auto por sector' }}</dd>
+                            <dt class="col-sm-4">Sin disponibilidad</dt>
+                            <dd class="col-sm-8">{{ data_get($negocio->chat_behavior_overrides, 'no_availability_policy') ?: 'Auto por sector' }}</dd>
+                            <dt class="col-sm-4">Vocabulario</dt>
+                            <dd class="col-sm-8">
+                                @if(data_get($negocio->chat_behavior_overrides, 'vocabulary_hints'))
+                                    {{ implode(', ', data_get($negocio->chat_behavior_overrides, 'vocabulary_hints')) }}
+                                @else
+                                    Sin pistas personalizadas
+                                @endif
+                            </dd>
+                        </dl>
+                    </div>
                 </div>
             @endif
         </div>

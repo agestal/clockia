@@ -32,4 +32,31 @@ class ConversationBehaviorProfileResolverTest extends TestCase
         $this->assertSame('Camarero, maître o persona de sala', $profile->humanRole);
         $this->assertStringContainsString('No enumeres mesas concretas', implode(' ', $profile->specialNotes));
     }
+
+    public function test_it_applies_business_specific_conversation_overrides(): void
+    {
+        $businessType = TipoNegocio::create([
+            'nombre' => 'Restaurante',
+        ]);
+
+        $business = Negocio::create([
+            'nombre' => 'Restaurante Demo',
+            'tipo_negocio_id' => $businessType->id,
+            'zona_horaria' => 'Europe/Madrid',
+            'activo' => true,
+            'chat_behavior_overrides' => [
+                'human_role' => 'Host de sala',
+                'default_register' => 'Elegante y premium.',
+                'inventory_exposure_policy' => 'allow_detailed_inventory',
+                'vocabulary_hints' => ['maridaje', 'carta'],
+            ],
+        ]);
+
+        $profile = app(ConversationBehaviorProfileResolver::class)->resolve($business);
+
+        $this->assertSame('Host de sala', $profile->humanRole);
+        $this->assertSame('Elegante y premium.', $profile->defaultRegister);
+        $this->assertSame('allow_detailed_inventory', $profile->inventoryExposurePolicy);
+        $this->assertSame(['maridaje', 'carta'], $profile->vocabularyHints);
+    }
 }

@@ -27,6 +27,30 @@ class GetServiceDetailsTool extends ToolDefinition
         return 'Devuelve el detalle completo de un servicio, adaptando la respuesta a la complejidad del negocio.';
     }
 
+    public function whenToUse(): array
+    {
+        return [
+            'Cuando el usuario ya ha mostrado interés por un servicio concreto y necesita más detalle.',
+            'Cuando necesitas responder dudas sobre duración, precio, condiciones o notas públicas de un servicio.',
+        ];
+    }
+
+    public function whenNotToUse(): array
+    {
+        return [
+            'No la uses para listar toda la oferta del negocio.',
+            'No la uses para comprobar disponibilidad real por fecha.',
+        ];
+    }
+
+    public function responseGuidance(): array
+    {
+        return [
+            'Prioriza descripción, duración, precio y condiciones relevantes para el cliente.',
+            'Si el negocio usa recursos internos, no conviertas la respuesta en un inventario técnico salvo que el usuario lo pida.',
+        ];
+    }
+
     public function inputSchema(): array
     {
         return [
@@ -114,5 +138,23 @@ class GetServiceDetailsTool extends ToolDefinition
         }
 
         return ToolResult::ok($data);
+    }
+
+    public function resultExplanation(array $input, \App\Tools\ToolResult $result): array
+    {
+        $serviceName = data_get($result->data, 'servicio.nombre');
+
+        return [
+            'tool_name' => $this->name(),
+            'what_this_tool_does' => 'Devuelve el detalle real de un servicio concreto del negocio.',
+            'status' => $result->success ? 'success' : 'error',
+            'conversation_memory_hint' => $serviceName !== null
+                ? "Ya dispones del detalle del servicio {$serviceName} para seguir la conversación sin volver a pedir información base."
+                : 'Se intentó consultar el detalle de un servicio concreto.',
+            'next_step_hint' => 'Usa solo los datos relevantes para la duda del usuario. No conviertas cada respuesta en una ficha técnica completa.',
+            'public_summary' => $serviceName !== null
+                ? "Se ha recuperado el detalle del servicio {$serviceName}."
+                : 'Se ha recuperado el detalle de un servicio.',
+        ];
     }
 }

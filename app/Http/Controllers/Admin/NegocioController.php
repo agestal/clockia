@@ -59,6 +59,7 @@ class NegocioController extends Controller
             ]),
             'selectedTipoNegocio' => $this->resolveSelectedTipoNegocio(),
             'timezones' => $this->timezoneOptions(),
+            'conversationBehaviorOptions' => $this->conversationBehaviorOptions(),
         ]);
     }
 
@@ -108,6 +109,7 @@ class NegocioController extends Controller
             'negocio' => $negocio,
             'selectedTipoNegocio' => $this->resolveSelectedTipoNegocio($negocio),
             'timezones' => $this->timezoneOptions(),
+            'conversationBehaviorOptions' => $this->conversationBehaviorOptions(),
         ]);
     }
 
@@ -202,5 +204,48 @@ class NegocioController extends Controller
         }
 
         return TipoNegocio::query()->select(['id', 'nombre'])->find($selectedId);
+    }
+
+    private function conversationBehaviorOptions(): array
+    {
+        return [
+            'default_register' => [
+                '' => 'Auto según sector',
+                'Serio y profesional.' => 'Serio / profesional',
+                'Cercano y amable.' => 'Cercano / amable',
+                'Coloquial pero respetuoso.' => 'Coloquial / natural',
+                'Elegante y premium.' => 'Elegante / premium',
+            ],
+            'question_style' => [
+                '' => 'Auto según sector',
+                'Pregunta de forma abierta y natural, sin encadenar opciones si no hacen falta.' => 'Pregunta abierta',
+                'Guía con preguntas concretas paso a paso para cerrar datos rápido.' => 'Guiado paso a paso',
+                'Ofrece opciones concretas siempre que falte un dato importante.' => 'Con opciones frecuentes',
+            ],
+            'option_style' => [
+                '' => 'Auto según sector',
+                'Da opciones solo cuando ayuden de verdad a decidir.' => 'Opciones solo si ayudan',
+                'Prefiere recomendar una opción clara en vez de listar varias.' => 'Recomendación directa',
+                'Muestra varias alternativas cuando haya más de una opción comercialmente útil.' => 'Varias alternativas',
+            ],
+            'offer_naming_style' => [
+                '' => 'Auto según sector',
+                'Habla de servicios cuando sea natural para el cliente.' => 'Hablar de servicios',
+                'Habla de lo que ofrecemos o de la oferta del negocio, evitando sonar técnico.' => 'Hablar de lo que ofrecemos',
+                'Habla en términos comerciales del sector, no de recursos internos.' => 'Hablar en términos comerciales',
+            ],
+            'inventory_exposure_policy' => [
+                '' => 'Auto según sector',
+                'hide_internal_resources' => 'Ocultar inventario interno',
+                'show_only_customer_safe_descriptors' => 'Mostrar solo descriptores públicos',
+                'allow_detailed_inventory' => 'Permitir opciones detalladas si aportan valor',
+            ],
+            'no_availability_policy' => [
+                '' => 'Auto según sector',
+                'Si no hay disponibilidad, dilo claramente y ofrece alternativas cercanas.' => 'Decirlo y ofrecer alternativas',
+                'Si no hay disponibilidad, dilo claramente sin forzar alternativas si no están claras.' => 'Decirlo sin forzar alternativas',
+                'Si no hay disponibilidad, prioriza proponer reformulación o flexibilidad de fecha u hora.' => 'Pedir flexibilidad primero',
+            ],
+        ];
     }
 }

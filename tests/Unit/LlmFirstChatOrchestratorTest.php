@@ -13,6 +13,7 @@ use App\Services\Conversation\ChatbotProfileResolver;
 use App\Services\Conversation\ConversationBehaviorProfileResolver;
 use App\Services\Conversation\ConversationState;
 use App\Services\Conversation\ConversationStatePatcher;
+use App\Services\Conversation\ConversationUserMessageNormalizer;
 use App\Services\Conversation\LlmTurnEngine;
 use App\Services\Conversation\TurnPromptBuilder;
 use App\Services\LLM\LLMClient;
@@ -133,6 +134,7 @@ class LlmFirstChatOrchestratorTest extends TestCase
             new TurnPromptBuilder(),
             new LlmTurnEngine($llmClient),
             new ConversationStatePatcher(),
+            new ConversationUserMessageNormalizer(),
         );
 
         $result = $orchestrator->handle(
@@ -224,6 +226,7 @@ class LlmFirstChatOrchestratorTest extends TestCase
             new TurnPromptBuilder(),
             new LlmTurnEngine($llmClient),
             new ConversationStatePatcher(),
+            new ConversationUserMessageNormalizer(),
         );
 
         $result = $orchestrator->handle(
@@ -310,6 +313,7 @@ class LlmFirstChatOrchestratorTest extends TestCase
             new TurnPromptBuilder(),
             new LlmTurnEngine($llmClient),
             new ConversationStatePatcher(),
+            new ConversationUserMessageNormalizer(),
         );
 
         $result = $orchestrator->handle(

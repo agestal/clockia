@@ -73,17 +73,31 @@ class LLMClient
             $headers['X-Title'] = 'Clockia';
         }
 
+        $payload = [
+            'model' => $this->model,
+            'temperature' => $this->temperature,
+            'max_tokens' => $this->maxTokens,
+            'messages' => [
+                ['role' => 'system', 'content' => $systemPrompt],
+                ['role' => 'user', 'content' => $userMessage],
+            ],
+        ];
+
         $response = Http::timeout($this->timeout)
             ->withHeaders($headers)
-            ->post($url, [
-                'model' => $this->model,
-                'temperature' => $this->temperature,
-                'max_tokens' => $this->maxTokens,
-                'messages' => [
-                    ['role' => 'system', 'content' => $systemPrompt],
-                    ['role' => 'user', 'content' => $userMessage],
-                ],
-            ]);
+            ->post($url, $payload);
+
+        if (! $response->successful() && $this->provider === 'openrouter' && $response->status() === 402) {
+            $fallbackMaxTokens = $this->resolveAffordableRetryMaxTokens($response->body(), (int) $payload['max_tokens']);
+
+            if ($fallbackMaxTokens !== null) {
+                $payload['max_tokens'] = $fallbackMaxTokens;
+
+                $response = Http::timeout($this->timeout)
+                    ->withHeaders($headers)
+                    ->post($url, $payload);
+            }
+        }
 
         if (! $response->successful()) {
             throw new RuntimeException("[{$this->provider}] API error {$response->status()}: {$response->body()}");
@@ -115,5 +129,24 @@ class LLMClient
         }
 
         return $response->json('content.0.text', '');
+    }
+
+    private function resolveAffordableRetryMaxTokens(string $responseBody, int $currentMaxTokens): ?int
+    {
+        if (! preg_match('/can only afford\s+(\d+)/i', $responseBody, $matches)) {
+            return null;
+        }
+
+        $affordableMaxTokens = (int) ($matches[1] ?? 0);
+
+        if ($affordableMaxTokens <= 0) {
+            return null;
+        }
+
+        $retryMaxTokens = min($currentMaxTokens - 1, max(128, $affordableMaxTokens - 64));
+
+        return $retryMaxTokens > 0 && $retryMaxTokens < $currentMaxTokens
+            ? $retryMaxTokens
+            : null;
     }
 }

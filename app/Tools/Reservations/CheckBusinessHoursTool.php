@@ -30,6 +30,30 @@ class CheckBusinessHoursTool extends ToolDefinition
         return 'Devuelve los horarios de un negocio y/o servicio, adaptándose al nivel de detalle disponible.';
     }
 
+    public function whenToUse(): array
+    {
+        return [
+            'Cuando el usuario pregunta por horarios, apertura o disponibilidad general de un día sin buscar todavía un hueco exacto.',
+            'Cuando necesitas aclarar si un negocio o servicio opera en una fecha concreta.',
+        ];
+    }
+
+    public function whenNotToUse(): array
+    {
+        return [
+            'No la uses para sustituir la búsqueda real de disponibilidad si el usuario ya está intentando reservar.',
+            'No la uses para crear o confirmar reservas.',
+        ];
+    }
+
+    public function responseGuidance(): array
+    {
+        return [
+            'Presenta los horarios de forma clara y breve.',
+            'Si la herramienta solo ofrece nivel simple, dilo con naturalidad y no aparentes agenda detallada.',
+        ];
+    }
+
     public function inputSchema(): array
     {
         return [
@@ -212,6 +236,27 @@ class CheckBusinessHoursTool extends ToolDefinition
                     });
             })
             ->exists();
+    }
+
+    public function resultExplanation(array $input, \App\Tools\ToolResult $result): array
+    {
+        $mode = data_get($result->data, 'availability_mode', 'simple');
+        $date = data_get($result->data, 'fecha_consultada.fecha');
+
+        return [
+            'tool_name' => $this->name(),
+            'what_this_tool_does' => 'Aporta el contexto horario operativo del negocio o servicio consultado.',
+            'status' => $result->success ? 'success' : 'error',
+            'conversation_memory_hint' => $date !== null
+                ? "Ya tienes contexto horario para {$date}."
+                : 'Ya tienes el contexto general de horarios del negocio.',
+            'next_step_hint' => $mode === 'scheduled'
+                ? 'Si el usuario quiere reservar, usa este resultado como contexto pero sigue necesitando la tool de disponibilidad para huecos reales.'
+                : 'Aclara que hay información general, no una agenda operativa cerrada.',
+            'public_summary' => $date !== null
+                ? "Se ha consultado el horario operativo para {$date}."
+                : 'Se han consultado los horarios generales del negocio.',
+        ];
     }
 
     private function resolveRecursoIds(CheckBusinessHoursInput $dto): array

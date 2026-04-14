@@ -5,18 +5,19 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Negocio;
 use App\Services\Chat\LlmFirstChatOrchestrator;
+use App\Services\Conversation\ConversationMemoryStore;
 use App\Services\Conversation\ConversationState;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class ChatTestController extends Controller
 {
-    private const CTX_KEY = 'chat_test_context';
-    private const HISTORY_KEY = 'chat_test_history';
-    private const STATE_KEY = 'chat_test_state';
-    private const MAX_TURNS = 10;
-    private const MAX_HISTORY = 30;
+    private const CONVERSATION_KEY = 'chat_test_conversation_ids';
 
     public function index(): View
     {
@@ -27,54 +28,85 @@ class ChatTestController extends Controller
 
     public function execute(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'message' => ['required', 'string', 'min:1', 'max:1000'],
-            'negocio_id' => ['required', 'integer', 'exists:negocios,id'],
-            'mode' => ['sometimes', 'string', 'in:direct,mcp'],
-        ]);
+        try {
+            $validated = $request->validate([
+                'message' => ['required', 'string', 'min:1', 'max:1000'],
+                'negocio_id' => ['required', 'integer', 'exists:negocios,id'],
+                'mode' => ['sometimes', 'string', 'in:direct,mcp'],
+                'conversation_id' => ['nullable', 'string', 'max:120'],
+            ]);
 
-        $negocioId = (int) $validated['negocio_id'];
-        $execMode = $validated['mode'] ?? 'mcp';
-        $context = $this->getContext($request, $negocioId);
-        $state = $this->getState($request, $negocioId);
+            $negocioId = (int) $validated['negocio_id'];
+            $execMode = $validated['mode'] ?? 'mcp';
+            $conversationId = $validated['conversation_id'] ?? $this->resolveConversationId($request, $negocioId);
+            $memoryStore = app(ConversationMemoryStore::class);
+            $memory = $memoryStore->load($conversationId, $negocioId);
+            $context = $memory['context'];
+            $history = $memory['history'];
+            $state = ConversationState::fromArray($memory['state']);
 
-        $result = $execMode === 'mcp'
-            ? $this->executeMcp($validated['message'], $negocioId, $context, $state)
-            : $this->executeDirect($validated['message'], $negocioId, $context, $state);
+            $result = $execMode === 'mcp'
+                ? $this->executeMcp($validated['message'], $negocioId, $context, $state)
+                : $this->executeDirect($validated['message'], $negocioId, $context, $state);
 
-        $result['execution_mode'] = $execMode;
+            $result['execution_mode'] = $execMode;
+            $result['conversation_id'] = $conversationId;
+            $result['conversation_ttl_minutes'] = $memoryStore->ttlMinutes();
 
-        // Persist updated state from result
-        $newState = isset($result['state']) ? ConversationState::fromArray($result['state']) : $state;
-        $this->saveState($request, $negocioId, $newState);
+            $newState = isset($result['state']) ? ConversationState::fromArray($result['state']) : $state;
 
-        // Save context
-        $context[] = [
-            'message' => $validated['message'],
-            'tool' => $result['tool'],
-            'params' => $result['params'],
-            'mode' => $result['mode'] ?? 'tool_result',
-            'assistant_response' => mb_substr($result['response'] ?? '', 0, 200),
-        ];
-        $this->saveContext($request, $negocioId, $context);
+            $context[] = [
+                'message' => $validated['message'],
+                'tool' => $result['tool'],
+                'params' => $result['params'],
+                'mode' => $result['mode'] ?? 'tool_result',
+                'assistant_response' => mb_substr($result['response'] ?? '', 0, 200),
+                'tool_result_summary' => data_get($result, 'tool_result.tool_result_explanation.public_summary'),
+            ];
 
-        // Save history
-        $history = $this->getHistory($request, $negocioId);
-        $history[] = ['role' => 'user', 'text' => $validated['message']];
-        $history[] = ['role' => 'assistant', 'text' => $result['response'], 'mode' => $result['mode'] ?? 'tool_result', 'tool' => $result['tool']];
-        $this->saveHistory($request, $negocioId, $history);
+            $history[] = ['role' => 'user', 'text' => $validated['message']];
+            $history[] = ['role' => 'assistant', 'text' => $result['response'], 'mode' => $result['mode'] ?? 'tool_result', 'tool' => $result['tool']];
 
-        $result['context_size'] = count($context);
-        $result['history'] = $history;
+            $memoryStore->save($conversationId, $negocioId, $context, $history, $newState);
 
-        return response()->json($result);
+            $result['context_size'] = count($context);
+            $result['history'] = $history;
+
+            return response()->json($result);
+        } catch (HttpResponseException $e) {
+            throw $e;
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => $e->validator->errors()->first() ?: 'La petición del chat no es válida.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Chat test execution failed.', [
+                'message' => $request->input('message'),
+                'negocio_id' => $request->input('negocio_id'),
+                'mode' => $request->input('mode', 'mcp'),
+                'exception' => $e,
+            ]);
+
+            return response()->json([
+                'message' => $this->resolveChatErrorMessage($e),
+                'error' => app()->hasDebugModeEnabled() ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 
     public function clearContext(Request $request): JsonResponse
     {
-        $request->session()->forget(self::CTX_KEY);
-        $request->session()->forget(self::HISTORY_KEY);
-        $request->session()->forget(self::STATE_KEY);
+        $allConversationIds = $request->session()->get(self::CONVERSATION_KEY, []);
+        $memoryStore = app(ConversationMemoryStore::class);
+
+        foreach ($allConversationIds as $negocioId => $conversationId) {
+            if (is_numeric($negocioId) && is_string($conversationId) && $conversationId !== '') {
+                $memoryStore->forget($conversationId, (int) $negocioId);
+            }
+        }
+
+        $request->session()->forget(self::CONVERSATION_KEY);
 
         return response()->json(['cleared' => true]);
     }
@@ -89,43 +121,32 @@ class ChatTestController extends Controller
         return app(LlmFirstChatOrchestrator::class)->handle($message, $negocioId, $context, $state, 'mcp');
     }
 
-    // ─── Session persistence ───
-
-    private function getContext(Request $request, int $negocioId): array
+    private function resolveConversationId(Request $request, int $negocioId): string
     {
-        return array_slice(($request->session()->get(self::CTX_KEY, [])[$negocioId] ?? []), -self::MAX_TURNS);
+        $all = $request->session()->get(self::CONVERSATION_KEY, []);
+        $conversationId = $all[$negocioId] ?? null;
+
+        if (! is_string($conversationId) || $conversationId === '') {
+            $conversationId = (string) Str::uuid();
+            $all[$negocioId] = $conversationId;
+            $request->session()->put(self::CONVERSATION_KEY, $all);
+        }
+
+        return $conversationId;
     }
 
-    private function saveContext(Request $request, int $negocioId, array $context): void
+    private function resolveChatErrorMessage(\Throwable $e): string
     {
-        $all = $request->session()->get(self::CTX_KEY, []);
-        $all[$negocioId] = array_slice($context, -self::MAX_TURNS);
-        $request->session()->put(self::CTX_KEY, $all);
-    }
+        $message = $e->getMessage();
 
-    private function getHistory(Request $request, int $negocioId): array
-    {
-        return array_slice(($request->session()->get(self::HISTORY_KEY, [])[$negocioId] ?? []), -self::MAX_HISTORY);
-    }
+        if (str_contains($message, 'API error 402') && str_contains($message, 'more credits')) {
+            return 'El proveedor LLM rechazó la petición por crédito insuficiente o por un límite de salida demasiado alto.';
+        }
 
-    private function saveHistory(Request $request, int $negocioId, array $history): void
-    {
-        $all = $request->session()->get(self::HISTORY_KEY, []);
-        $all[$negocioId] = array_slice($history, -self::MAX_HISTORY);
-        $request->session()->put(self::HISTORY_KEY, $all);
-    }
+        if (app()->hasDebugModeEnabled() && $message !== '') {
+            return $message;
+        }
 
-    private function getState(Request $request, int $negocioId): ConversationState
-    {
-        $data = ($request->session()->get(self::STATE_KEY, [])[$negocioId] ?? null);
-
-        return $data !== null ? ConversationState::fromArray($data) : new ConversationState(negocioId: $negocioId);
-    }
-
-    private function saveState(Request $request, int $negocioId, ConversationState $state): void
-    {
-        $all = $request->session()->get(self::STATE_KEY, []);
-        $all[$negocioId] = $state->toArray();
-        $request->session()->put(self::STATE_KEY, $all);
+        return 'El chat no pudo procesar la petición en este momento.';
     }
 }

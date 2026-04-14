@@ -14,12 +14,25 @@ class ChatbotProfileResolver
 
     public function resolve(Negocio $negocio): ChatbotProfile
     {
+        $negocio->loadMissing('tipoNegocio:id,nombre');
+
         return new ChatbotProfile(
             negocioId: $negocio->id,
             negocioNombre: $negocio->nombre,
+            tipoNegocioNombre: $negocio->tipoNegocio?->nombre,
             personality: $this->resolvePersonality($negocio),
             systemRules: $negocio->chat_system_rules,
             requiredFieldsOverrides: $negocio->chat_required_fields,
+            descripcionPublica: $negocio->descripcion_publica,
+            direccion: $negocio->direccion,
+            urlPublica: $negocio->url_publica,
+            telefono: $negocio->telefono,
+            email: $negocio->email,
+            zonaHoraria: $negocio->zona_horaria,
+            politicaCancelacion: $negocio->politica_cancelacion,
+            horasMinimasCancelacion: $negocio->horas_minimas_cancelacion,
+            permiteModificacion: $negocio->permite_modificacion,
+            maxRecursosCombinables: $negocio->max_recursos_combinables,
         );
     }
 

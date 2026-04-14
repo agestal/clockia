@@ -31,6 +31,44 @@ class SearchAvailabilityTool extends ToolDefinition
         return 'Busca huecos disponibles reales para un servicio en una fecha concreta, adaptándose a la complejidad del negocio.';
     }
 
+    public function whenToUse(): array
+    {
+        return [
+            'Cuando el usuario quiere reservar o saber si hay hueco real para un servicio en una fecha concreta.',
+            'Cuando ya tienes identificado el servicio y la fecha, y opcionalmente el número de personas.',
+            'Si el usuario habla de comer, cenar o brunch, primero interpreta esa intención como servicio si el catálogo del negocio lo permite.',
+        ];
+    }
+
+    public function whenNotToUse(): array
+    {
+        return [
+            'No la uses para crear la reserva: solo busca disponibilidad.',
+            'No la uses para responder políticas de cancelación, ubicación o precio si no se está consultando disponibilidad.',
+            'No uses los nombres internos de mesas o recursos como respuesta final por defecto si el negocio no quiere exponer inventario interno.',
+        ];
+    }
+
+    public function argumentGuidance(): array
+    {
+        return [
+            'negocio_id' => 'Siempre debe corresponder al negocio actual de la conversación.',
+            'servicio_id' => 'Debe ser un servicio real del negocio que encaje con la intención del usuario.',
+            'fecha' => 'Usa una fecha absoluta YYYY-MM-DD ya resuelta desde expresiones como mañana o pasado mañana.',
+            'numero_personas' => 'Si el usuario ya lo indicó, inclúyelo. Es clave para filtrar capacidad cuando aplica.',
+        ];
+    }
+
+    public function responseGuidance(): array
+    {
+        return [
+            'Si el resultado devuelve una sola opción realmente útil, propónla directamente.',
+            'Si hay varias opciones equivalentes para el cliente, resume por horas o descriptores públicos en vez de listar mesas técnicas.',
+            'Si el usuario pidió solo comida o cena y no una hora exacta, puedes proponer una hora real devuelta por la herramienta en vez de pedirla de nuevo por inercia.',
+            'No digas que la reserva está hecha: esta herramienta solo comprueba disponibilidad.',
+        ];
+    }
+
     public function inputSchema(): array
     {
         return [
@@ -138,6 +176,37 @@ class SearchAvailabilityTool extends ToolDefinition
             'complexity_level' => $nivel,
             'has_precise_slots' => true,
         ]);
+    }
+
+    public function resultExplanation(array $input, \App\Tools\ToolResult $result): array
+    {
+        $serviceName = data_get($result->data, 'servicio_nombre');
+        $date = data_get($result->data, 'fecha');
+        $totalSlots = (int) data_get($result->data, 'total_slots', 0);
+        $mode = data_get($result->data, 'availability_mode', 'simple');
+
+        $nextStepHint = match (true) {
+            $mode === 'simple' => 'La herramienta no ha podido devolver agenda detallada. Explícalo con naturalidad y guía al usuario sin fingir precisión.',
+            $totalSlots === 0 => 'No hay huecos disponibles con el criterio consultado. Sé claro y ofrece alternativas cercanas si las hay o si el negocio lo permite.',
+            $totalSlots === 1 => 'Hay una única opción clara. Propónla directamente en vez de recitar una lista.',
+            default => 'Si varias opciones comparten la misma franja o son equivalentes para el cliente, agrúpalas y evita repetir recursos internos.',
+        };
+
+        return [
+            'tool_name' => $this->name(),
+            'what_this_tool_does' => 'Comprueba huecos reales disponibles, no crea reservas.',
+            'status' => $result->success ? 'success' : 'error',
+            'conversation_memory_hint' => $serviceName !== null && $date !== null
+                ? "Ya tienes el resultado de disponibilidad de {$serviceName} para {$date}."
+                : 'Ya tienes un resultado real de disponibilidad para seguir la conversación.',
+            'next_step_hint' => $nextStepHint,
+            'public_summary' => match (true) {
+                $mode === 'simple' => 'La disponibilidad requiere seguimiento humano porque no hay agenda operativa detallada.',
+                $totalSlots === 0 => 'No se han encontrado huecos disponibles con el criterio consultado.',
+                $totalSlots === 1 => 'Se ha encontrado una opción de disponibilidad clara.',
+                default => "Se han encontrado {$totalSlots} huecos disponibles antes de agruparlos para el cliente.",
+            },
+        ];
     }
 
     /**

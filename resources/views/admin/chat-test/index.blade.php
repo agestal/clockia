@@ -127,6 +127,7 @@
             const modeEl = document.getElementById('exec_mode');
             const debugEmpty = document.getElementById('debug-empty');
             const debugArea = document.getElementById('debug-content-area');
+            let conversationId = null;
 
             const fmt = (o) => { try { return JSON.stringify(o, null, 2); } catch { return String(o); } };
             const modeLabels = { tool_result: 'Tool ejecutada', clarification: 'Aclaración', error: 'Error', ready: 'Lista', respond: 'Respuesta' };
@@ -179,6 +180,7 @@
                 await fetch('{{ route("admin.chat-test.clear-context") }}', { method: 'DELETE', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' } });
                 chatEl.innerHTML = ''; emptyEl.classList.remove('d-none'); chatEl.appendChild(emptyEl);
                 debugEmpty.classList.remove('d-none'); debugArea.classList.add('d-none');
+                conversationId = null;
             });
 
             negocioEl.addEventListener('change', () => btnClear.click());
@@ -200,14 +202,38 @@
                 chatEl.scrollTop = chatEl.scrollHeight;
 
                 try {
+                    const payload = {
+                        message: text,
+                        negocio_id: parseInt(negocioEl.value),
+                        mode: modeEl.value,
+                    };
+
+                    if (conversationId) {
+                        payload.conversation_id = conversationId;
+                    }
+
                     const res = await fetch('{{ route("admin.chat-test.execute") }}', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-Requested-With': 'XMLHttpRequest' },
-                        body: JSON.stringify({ message: text, negocio_id: parseInt(negocioEl.value), mode: modeEl.value }),
+                        body: JSON.stringify(payload),
                     });
-                    const data = await res.json();
+                    const rawText = await res.text();
+                    let data = null;
+
+                    try {
+                        data = rawText ? JSON.parse(rawText) : {};
+                    } catch (parseError) {
+                        const looksLikeHtml = /^\s*</.test(rawText || '');
+                        throw new Error(
+                            looksLikeHtml
+                                ? 'El servidor devolvió HTML en vez de JSON. Revisa si la sesión expiró o si hubo un error interno.'
+                                : ('Respuesta no válida del servidor: ' + (rawText || parseError.message))
+                        );
+                    }
+
                     if (!res.ok) throw new Error(data.message || 'Error del servidor');
 
+                    conversationId = data.conversation_id || conversationId;
                     document.getElementById('typing')?.remove();
                     addMessage('assistant', data.response || '—', { mode: data.mode, tool: data.tool, execMode: data.execution_mode });
                     updateDebug(data);

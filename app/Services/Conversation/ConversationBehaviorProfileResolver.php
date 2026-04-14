@@ -13,7 +13,7 @@ class ConversationBehaviorProfileResolver
 
         $typeName = Str::lower(trim((string) $negocio->tipoNegocio?->nombre));
 
-        return match (true) {
+        $defaultProfile = match (true) {
             str_contains($typeName, 'restaurante') => new ConversationBehaviorProfile(
                 sectorKey: 'restaurant',
                 sectorLabel: 'Restauración',
@@ -24,10 +24,12 @@ class ConversationBehaviorProfileResolver
                 offerNamingStyle: 'Habla de reserva, mesa, turno, zona o servicio solo cuando aporte valor al cliente. Evita lenguaje de backoffice.',
                 inventoryExposurePolicy: 'hide_internal_resources',
                 noAvailabilityPolicy: 'Si no hay hueco, dilo claramente y ofrece alternativas cercanas de hora, fecha o zona si el resultado lo permite.',
+                vocabularyHints: ['mesa', 'turno', 'zona', 'reserva', 'cena', 'comida'],
                 customerFacingDescriptors: ['interior', 'terraza', 'sala privada', 'mesa para grupo'],
                 specialNotes: [
                     'No enumeres mesas concretas salvo que el cliente lo pida expresamente.',
                     'No conviertas la conversación en un catálogo técnico de mesas.',
+                    'Si el cliente dice que quiere comer o cenar y todavía no dio hora exacta, no le preguntes la hora por reflejo si antes puedes consultar disponibilidad real y proponer una opción útil.',
                 ],
             ),
             str_contains($typeName, 'hotel') => new ConversationBehaviorProfile(
@@ -40,6 +42,7 @@ class ConversationBehaviorProfileResolver
                 offerNamingStyle: 'Habla de habitaciones, estancias, tarifas y servicios del hotel en términos comerciales.',
                 inventoryExposurePolicy: 'show_only_customer_safe_descriptors',
                 noAvailabilityPolicy: 'Si no hay disponibilidad, ofrece fechas o categorías alternativas cuando sea posible.',
+                vocabularyHints: ['habitación', 'estancia', 'huéspedes', 'tarifa', 'disponibilidad'],
                 customerFacingDescriptors: ['habitación doble', 'suite', 'habitaciones familiares'],
                 specialNotes: [
                     'No enseñes numeración interna de habitaciones salvo petición explícita.',
@@ -55,6 +58,7 @@ class ConversationBehaviorProfileResolver
                 offerNamingStyle: 'Habla de citas, tratamientos, sesiones, servicios o profesionales según encaje.',
                 inventoryExposurePolicy: 'show_only_customer_safe_descriptors',
                 noAvailabilityPolicy: 'Si no hay cita disponible, ofrece alternativas razonables y anima a flexibilizar fecha u hora.',
+                vocabularyHints: ['cita', 'hueco', 'profesional', 'sesión', 'tratamiento'],
                 customerFacingDescriptors: ['mañana', 'tarde', 'profesional disponible', 'cabina disponible'],
                 specialNotes: [
                     'No expongas recursos internos de agenda salvo que sean comercialmente relevantes para el cliente.',
@@ -70,6 +74,7 @@ class ConversationBehaviorProfileResolver
                 offerNamingStyle: 'Habla de salas, puestos, bonos, espacios o reservas en términos comerciales.',
                 inventoryExposurePolicy: 'show_only_customer_safe_descriptors',
                 noAvailabilityPolicy: 'Si no hay hueco, ofrece espacios o franjas cercanas cuando sea posible.',
+                vocabularyHints: ['sala', 'puesto', 'espacio', 'franja', 'reserva'],
                 customerFacingDescriptors: ['sala', 'puesto', 'espacio privado'],
             ),
             str_contains($typeName, 'gimnas') => new ConversationBehaviorProfile(
@@ -82,6 +87,7 @@ class ConversationBehaviorProfileResolver
                 offerNamingStyle: 'Habla de clases, sesiones, bonos o reservas en términos comerciales.',
                 inventoryExposurePolicy: 'show_only_customer_safe_descriptors',
                 noAvailabilityPolicy: 'Si no hay plaza, ofrece la siguiente clase o franja que tenga sentido.',
+                vocabularyHints: ['clase', 'plaza', 'sesión', 'horario'],
                 customerFacingDescriptors: ['clase disponible', 'franja disponible'],
             ),
             str_contains($typeName, 'taller') => new ConversationBehaviorProfile(
@@ -94,6 +100,7 @@ class ConversationBehaviorProfileResolver
                 offerNamingStyle: 'Habla de cita, revisión, intervención o servicio en términos claros.',
                 inventoryExposurePolicy: 'hide_internal_resources',
                 noAvailabilityPolicy: 'Si no hay hueco, ofrece la primera disponibilidad razonable o una alternativa cercana.',
+                vocabularyHints: ['cita', 'revisión', 'servicio', 'disponibilidad'],
             ),
             default => new ConversationBehaviorProfile(
                 sectorKey: 'generic',
@@ -105,8 +112,63 @@ class ConversationBehaviorProfileResolver
                 offerNamingStyle: 'Habla de la oferta en términos que entienda el cliente, no en jerga interna.',
                 inventoryExposurePolicy: 'show_only_customer_safe_descriptors',
                 noAvailabilityPolicy: 'Si no hay disponibilidad, dilo con claridad y ofrece alternativas si las hay.',
+                vocabularyHints: ['reserva', 'disponibilidad', 'opción', 'alternativa'],
                 customerFacingDescriptors: ['opción disponible', 'alternativa cercana'],
             ),
         };
+
+        return $this->applyOverrides($defaultProfile, $negocio->chat_behavior_overrides ?? []);
+    }
+
+    private function applyOverrides(ConversationBehaviorProfile $profile, mixed $overrides): ConversationBehaviorProfile
+    {
+        if (! is_array($overrides) || $overrides === []) {
+            return $profile;
+        }
+
+        $vocabularyHints = $this->normalizeStringList($overrides['vocabulary_hints'] ?? []);
+
+        return new ConversationBehaviorProfile(
+            sectorKey: $profile->sectorKey,
+            sectorLabel: $profile->sectorLabel,
+            humanRole: $this->pickString($overrides['human_role'] ?? null, $profile->humanRole),
+            defaultRegister: $this->pickString($overrides['default_register'] ?? null, $profile->defaultRegister),
+            questionStyle: $this->pickString($overrides['question_style'] ?? null, $profile->questionStyle),
+            optionStyle: $this->pickString($overrides['option_style'] ?? null, $profile->optionStyle),
+            offerNamingStyle: $this->pickString($overrides['offer_naming_style'] ?? null, $profile->offerNamingStyle),
+            inventoryExposurePolicy: $this->pickString($overrides['inventory_exposure_policy'] ?? null, $profile->inventoryExposurePolicy),
+            noAvailabilityPolicy: $this->pickString($overrides['no_availability_policy'] ?? null, $profile->noAvailabilityPolicy),
+            vocabularyHints: $vocabularyHints !== [] ? $vocabularyHints : $profile->vocabularyHints,
+            customerFacingDescriptors: $profile->customerFacingDescriptors,
+            specialNotes: $profile->specialNotes,
+        );
+    }
+
+    private function pickString(mixed $value, string $fallback): string
+    {
+        if (! is_string($value)) {
+            return $fallback;
+        }
+
+        $value = trim($value);
+
+        return $value !== '' ? $value : $fallback;
+    }
+
+    private function normalizeStringList(mixed $value): array
+    {
+        if (is_string($value)) {
+            $value = preg_split('/[\r\n,]+/u', $value) ?: [];
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return collect($value)
+            ->map(fn ($item) => trim((string) $item))
+            ->filter()
+            ->values()
+            ->all();
     }
 }

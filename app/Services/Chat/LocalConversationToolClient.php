@@ -22,6 +22,6 @@ class LocalConversationToolClient implements ConversationToolClient
 
     public function executeTool(string $tool, array $params): array
     {
-        return $this->toolRegistry->execute($tool, $params)->toArray();
+        return $this->toolRegistry->executeForConversation($tool, $params);
     }
 }

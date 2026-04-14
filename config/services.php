@@ -46,6 +46,9 @@ return [
         'temperature' => (float) env('LLM_TEMPERATURE', 0.15),
         'max_tokens' => (int) env('LLM_MAX_TOKENS', 700),
         'timeout' => (int) env('LLM_TIMEOUT', 20),
+        'conversation_ttl_minutes' => (int) env('LLM_CONVERSATION_TTL_MINUTES', 120),
+        'conversation_max_turns' => (int) env('LLM_CONVERSATION_MAX_TURNS', 12),
+        'conversation_max_history' => (int) env('LLM_CONVERSATION_MAX_HISTORY', 40),
     ],
 
     'openrouter' => [

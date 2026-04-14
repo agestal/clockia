@@ -4,6 +4,19 @@
     @method('PUT')
 @endif
 
+@php
+    $chatBehavior = old() ? [
+        'human_role' => old('chat_behavior_human_role'),
+        'default_register' => old('chat_behavior_default_register'),
+        'question_style' => old('chat_behavior_question_style'),
+        'option_style' => old('chat_behavior_option_style'),
+        'offer_naming_style' => old('chat_behavior_offer_naming_style'),
+        'inventory_exposure_policy' => old('chat_behavior_inventory_exposure_policy'),
+        'no_availability_policy' => old('chat_behavior_no_availability_policy'),
+        'vocabulary_hints' => old('chat_behavior_vocabulary_hints'),
+    ] : ($negocio->chat_behavior_overrides ?? []);
+@endphp
+
 <div class="card shadow-sm border-0">
     <div class="card-body">
         <div class="form-row">
@@ -248,7 +261,7 @@
             </div>
 
             <div class="form-group col-12">
-                <label for="chat_system_rules" class="form-label">Reglas del sistema / instrucciones del dueño</label>
+                <label for="chat_system_rules" class="form-label">Prompt base editable / instrucciones maestras</label>
                 <textarea
                     id="chat_system_rules"
                     name="chat_system_rules"
@@ -256,7 +269,7 @@
                     class="form-control @error('chat_system_rules') is-invalid @enderror"
                     placeholder="Ej: No ofrezcas reservas para más de 8 personas sin derivar a humano. Para el menú degustación, recuerda siempre que requiere señal. Pregunta siempre por alergias."
                 >{{ old('chat_system_rules', $negocio->chat_system_rules) }}</textarea>
-                <small class="form-text text-muted">Instrucciones específicas del negocio que el chatbot debe seguir siempre. Estas reglas se inyectan en el prompt del asistente.</small>
+                <small class="form-text text-muted">Bloque editable del prompt inicial del negocio. Aquí defines objetivos, límites, lenguaje y criterios que el LLM debe respetar siempre.</small>
                 @error('chat_system_rules')
                     <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
                 @enderror
@@ -274,6 +287,142 @@
                 >{{ old('chat_required_fields', $negocio->chat_required_fields ? json_encode($negocio->chat_required_fields, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : '') }}</textarea>
                 <small class="form-text text-muted">Opcional. Define qué campos debe recopilar el chatbot antes de ejecutar cada tool. Si se deja vacío, se usan los defaults del sistema.</small>
                 @error('chat_required_fields')
+                    <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-12">
+                <hr>
+                <h3 class="h6 text-uppercase text-muted mb-3">Política conversacional</h3>
+                <p class="text-muted small mb-0">Estos ajustes afinan cómo se expresa el asistente de este negocio sin depender solo de texto libre. Si se dejan vacíos, se aplica el comportamiento automático según el sector.</p>
+            </div>
+
+            <div class="form-group col-lg-6">
+                <label for="chat_behavior_human_role" class="form-label">Rol humano a imitar</label>
+                <input
+                    type="text"
+                    id="chat_behavior_human_role"
+                    name="chat_behavior_human_role"
+                    value="{{ old('chat_behavior_human_role', data_get($chatBehavior, 'human_role')) }}"
+                    class="form-control @error('chat_behavior_overrides.human_role') is-invalid @enderror"
+                    maxlength="255"
+                    placeholder="Ej: maître, recepcionista, community manager"
+                >
+                <small class="form-text text-muted">Opcional. Sirve para orientar el estilo del asistente hacia un rol real del negocio.</small>
+                @error('chat_behavior_overrides.human_role')
+                    <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-6">
+                <label for="chat_behavior_default_register" class="form-label">Registro / tono base</label>
+                <select
+                    id="chat_behavior_default_register"
+                    name="chat_behavior_default_register"
+                    class="form-control @error('chat_behavior_overrides.default_register') is-invalid @enderror"
+                >
+                    @foreach($conversationBehaviorOptions['default_register'] as $value => $label)
+                        <option value="{{ $value }}" @selected(old('chat_behavior_default_register', data_get($chatBehavior, 'default_register')) === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('chat_behavior_overrides.default_register')
+                    <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-6">
+                <label for="chat_behavior_question_style" class="form-label">Estilo de preguntas</label>
+                <select
+                    id="chat_behavior_question_style"
+                    name="chat_behavior_question_style"
+                    class="form-control @error('chat_behavior_overrides.question_style') is-invalid @enderror"
+                >
+                    @foreach($conversationBehaviorOptions['question_style'] as $value => $label)
+                        <option value="{{ $value }}" @selected(old('chat_behavior_question_style', data_get($chatBehavior, 'question_style')) === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('chat_behavior_overrides.question_style')
+                    <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-6">
+                <label for="chat_behavior_option_style" class="form-label">Cuándo ofrecer opciones</label>
+                <select
+                    id="chat_behavior_option_style"
+                    name="chat_behavior_option_style"
+                    class="form-control @error('chat_behavior_overrides.option_style') is-invalid @enderror"
+                >
+                    @foreach($conversationBehaviorOptions['option_style'] as $value => $label)
+                        <option value="{{ $value }}" @selected(old('chat_behavior_option_style', data_get($chatBehavior, 'option_style')) === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('chat_behavior_overrides.option_style')
+                    <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-6">
+                <label for="chat_behavior_offer_naming_style" class="form-label">Cómo nombrar la oferta</label>
+                <select
+                    id="chat_behavior_offer_naming_style"
+                    name="chat_behavior_offer_naming_style"
+                    class="form-control @error('chat_behavior_overrides.offer_naming_style') is-invalid @enderror"
+                >
+                    @foreach($conversationBehaviorOptions['offer_naming_style'] as $value => $label)
+                        <option value="{{ $value }}" @selected(old('chat_behavior_offer_naming_style', data_get($chatBehavior, 'offer_naming_style')) === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+                <small class="form-text text-muted">Ejemplo: hablar de “servicios”, de “lo que ofrecemos” o usar un lenguaje comercial del sector.</small>
+                @error('chat_behavior_overrides.offer_naming_style')
+                    <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-6">
+                <label for="chat_behavior_inventory_exposure_policy" class="form-label">Exposición del inventario interno</label>
+                <select
+                    id="chat_behavior_inventory_exposure_policy"
+                    name="chat_behavior_inventory_exposure_policy"
+                    class="form-control @error('chat_behavior_overrides.inventory_exposure_policy') is-invalid @enderror"
+                >
+                    @foreach($conversationBehaviorOptions['inventory_exposure_policy'] as $value => $label)
+                        <option value="{{ $value }}" @selected(old('chat_behavior_inventory_exposure_policy', data_get($chatBehavior, 'inventory_exposure_policy')) === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+                <small class="form-text text-muted">Controla si el asistente debe ocultar recursos internos como mesas concretas, cabinas o IDs técnicos.</small>
+                @error('chat_behavior_overrides.inventory_exposure_policy')
+                    <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-6">
+                <label for="chat_behavior_no_availability_policy" class="form-label">Qué hacer si no hay disponibilidad</label>
+                <select
+                    id="chat_behavior_no_availability_policy"
+                    name="chat_behavior_no_availability_policy"
+                    class="form-control @error('chat_behavior_overrides.no_availability_policy') is-invalid @enderror"
+                >
+                    @foreach($conversationBehaviorOptions['no_availability_policy'] as $value => $label)
+                        <option value="{{ $value }}" @selected(old('chat_behavior_no_availability_policy', data_get($chatBehavior, 'no_availability_policy')) === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+                @error('chat_behavior_overrides.no_availability_policy')
+                    <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-12">
+                <label for="chat_behavior_vocabulary_hints" class="form-label">Vocabulario / expresiones preferidas</label>
+                <textarea
+                    id="chat_behavior_vocabulary_hints"
+                    name="chat_behavior_vocabulary_hints"
+                    rows="3"
+                    class="form-control @error('chat_behavior_overrides.vocabulary_hints.*') is-invalid @enderror"
+                    placeholder="Una pista por línea o separadas por comas: mesa, turno, zona, sala..."
+                >{{ old('chat_behavior_vocabulary_hints', is_array(data_get($chatBehavior, 'vocabulary_hints')) ? implode("\n", data_get($chatBehavior, 'vocabulary_hints')) : data_get($chatBehavior, 'vocabulary_hints')) }}</textarea>
+                <small class="form-text text-muted">Opcional. Ayuda al LLM a sonar más cercano al lenguaje real del equipo humano.</small>
+                @error('chat_behavior_overrides.vocabulary_hints.*')
                     <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
                 @enderror
             </div>

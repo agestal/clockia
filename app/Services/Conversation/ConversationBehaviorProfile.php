@@ -14,6 +14,7 @@ class ConversationBehaviorProfile
         public readonly string $offerNamingStyle,
         public readonly string $inventoryExposurePolicy,
         public readonly string $noAvailabilityPolicy,
+        public readonly array $vocabularyHints = [],
         public readonly array $customerFacingDescriptors = [],
         public readonly array $specialNotes = [],
     ) {}
@@ -41,6 +42,10 @@ class ConversationBehaviorProfile
 
         if ($this->customerFacingDescriptors !== []) {
             $lines[] = 'DESCRIPTORES ORIENTADOS AL CLIENTE: '.implode(', ', $this->customerFacingDescriptors);
+        }
+
+        if ($this->vocabularyHints !== []) {
+            $lines[] = 'VOCABULARIO O EXPRESIONES PREFERIDAS: '.implode(', ', $this->vocabularyHints);
         }
 
         if ($this->specialNotes !== []) {

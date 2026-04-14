@@ -26,6 +26,30 @@ class GetCancellationPolicyTool extends ToolDefinition
         return 'Devuelve la política de cancelación aplicable a un negocio y/o servicio.';
     }
 
+    public function whenToUse(): array
+    {
+        return [
+            'Cuando el usuario pregunta si puede cancelar, modificar o recuperar un pago.',
+            'Cuando necesitas explicar condiciones de señal, reembolso o antelación mínima.',
+        ];
+    }
+
+    public function whenNotToUse(): array
+    {
+        return [
+            'No la uses para disponibilidad ni para listar servicios.',
+            'No la uses para crear una reserva.',
+        ];
+    }
+
+    public function responseGuidance(): array
+    {
+        return [
+            'Resume primero la política en lenguaje claro.',
+            'Si hay detalles técnicos, añádelos solo si el usuario los necesita.',
+        ];
+    }
+
     public function inputSchema(): array
     {
         return [
@@ -96,5 +120,19 @@ class GetCancellationPolicyTool extends ToolDefinition
         }
 
         return implode(' ', $partes);
+    }
+
+    public function resultExplanation(array $input, \App\Tools\ToolResult $result): array
+    {
+        $summary = data_get($result->data, 'resumen_humano');
+
+        return [
+            'tool_name' => $this->name(),
+            'what_this_tool_does' => 'Recupera la política real de cancelación, modificación y reembolso.',
+            'status' => $result->success ? 'success' : 'error',
+            'conversation_memory_hint' => 'Ya conoces la política de cancelación relevante para esta conversación.',
+            'next_step_hint' => 'Empieza por el resumen humano y desarrolla solo si el usuario pide más detalle.',
+            'public_summary' => $summary ?: 'Se ha recuperado la política de cancelación.',
+        ];
     }
 }

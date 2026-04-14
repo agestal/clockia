@@ -46,12 +46,12 @@ class McpBridgeController extends Controller
         }
 
         try {
-            $result = $this->toolRegistry->execute($toolName, $params);
+            $result = $this->toolRegistry->executeForConversation($toolName, $params);
         } catch (\Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
 
-        return response()->json($result->toArray());
+        return response()->json($result);
     }
 
     // ─── Resources ───
@@ -69,10 +69,16 @@ class McpBridgeController extends Controller
             'personality' => $profile->personality,
             'system_rules' => $profile->systemRules,
             'required_fields_overrides' => $profile->requiredFieldsOverrides,
+            'conversation_behavior_overrides' => $negocio->chat_behavior_overrides,
             'zona_horaria' => $negocio->zona_horaria,
             'telefono' => $negocio->telefono,
             'email' => $negocio->email,
             'direccion' => $negocio->direccion,
+            'descripcion_publica' => $negocio->descripcion_publica,
+            'politica_cancelacion' => $negocio->politica_cancelacion,
+            'horas_minimas_cancelacion' => $negocio->horas_minimas_cancelacion,
+            'permite_modificacion' => $negocio->permite_modificacion,
+            'max_recursos_combinables' => $negocio->max_recursos_combinables,
         ]);
     }
 

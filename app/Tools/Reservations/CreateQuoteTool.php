@@ -27,6 +27,30 @@ class CreateQuoteTool extends ToolDefinition
         return 'Calcula una estimación de precio para un servicio antes de reservar.';
     }
 
+    public function whenToUse(): array
+    {
+        return [
+            'Cuando el usuario pregunta cuánto cuesta un servicio o quiere una estimación antes de reservar.',
+            'Cuando necesitas explicar precio base, importe calculado o señal estimada.',
+        ];
+    }
+
+    public function whenNotToUse(): array
+    {
+        return [
+            'No la uses para comprobar horarios ni huecos disponibles.',
+            'No la uses como confirmación de reserva o de pago real.',
+        ];
+    }
+
+    public function responseGuidance(): array
+    {
+        return [
+            'Habla de estimación o presupuesto, no de cobro real.',
+            'Si hay señal o condiciones económicas, explícalas con claridad y sin dramatizar.',
+        ];
+    }
+
     public function inputSchema(): array
     {
         return [
@@ -127,5 +151,24 @@ class CreateQuoteTool extends ToolDefinition
             'Fijo' => 'Precio fijo: '.number_format($precioCalculado, 2, '.', ''),
             default => $tipoPrecio.': '.number_format($precioCalculado, 2, '.', ''),
         };
+    }
+
+    public function resultExplanation(array $input, \App\Tools\ToolResult $result): array
+    {
+        $serviceName = data_get($result->data, 'servicio_nombre');
+        $price = data_get($result->data, 'precio_calculado');
+
+        return [
+            'tool_name' => $this->name(),
+            'what_this_tool_does' => 'Calcula una estimación económica basada en la configuración real del servicio.',
+            'status' => $result->success ? 'success' : 'error',
+            'conversation_memory_hint' => $serviceName !== null
+                ? "Ya tienes una estimación de precio para {$serviceName}."
+                : 'Ya tienes una estimación económica para seguir la conversación.',
+            'next_step_hint' => 'Presenta el precio como estimación, menciona señal o reembolso solo si ayuda y evita sonar contractual salvo que el usuario pregunte.',
+            'public_summary' => $price !== null
+                ? "La estimación calculada es de {$price}."
+                : 'Se ha calculado una estimación económica.',
+        ];
     }
 }

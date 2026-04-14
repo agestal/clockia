@@ -50,6 +50,7 @@ class Negocio extends Model
         'chat_personality',
         'chat_required_fields',
         'chat_system_rules',
+        'chat_behavior_overrides',
     ];
 
     protected function casts(): array
@@ -61,6 +62,7 @@ class Negocio extends Model
             'permite_modificacion' => 'boolean',
             'max_recursos_combinables' => 'integer',
             'chat_required_fields' => 'array',
+            'chat_behavior_overrides' => 'array',
         ];
     }
 

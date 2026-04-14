@@ -9,6 +9,7 @@ use App\Services\Conversation\ConversationBehaviorProfileResolver;
 use App\Services\Conversation\ChatbotProfileResolver;
 use App\Services\Conversation\ConversationState;
 use App\Services\Conversation\ConversationStatePatcher;
+use App\Services\Conversation\ConversationUserMessageNormalizer;
 use App\Services\Conversation\LlmTurnDecision;
 use App\Services\Conversation\LlmTurnEngine;
 use App\Services\Conversation\TurnPromptBuilder;
@@ -24,6 +25,7 @@ class LlmFirstChatOrchestrator
         private readonly TurnPromptBuilder $promptBuilder,
         private readonly LlmTurnEngine $turnEngine,
         private readonly ConversationStatePatcher $statePatcher,
+        private readonly ConversationUserMessageNormalizer $messageNormalizer,
     ) {}
 
     public function handle(
@@ -38,6 +40,10 @@ class LlmFirstChatOrchestrator
         $behaviorProfile = $this->behaviorProfileResolver->resolve($negocio);
         $state ??= new ConversationState(negocioId: $negocioId);
         $toolClient = $this->toolClientResolver->resolve($toolMode);
+        $normalizedMessage = $this->messageNormalizer->normalize($message);
+        $llmMessage = $normalizedMessage === trim($message)
+            ? $message
+            : "Mensaje original del usuario:\n{$message}\n\nVersión normalizada para facilitar la interpretación:\n{$normalizedMessage}";
 
         $services = Servicio::query()
             ->where('negocio_id', $negocioId)
@@ -65,6 +71,7 @@ class LlmFirstChatOrchestrator
                 'human_role' => $behaviorProfile->humanRole,
                 'inventory_exposure_policy' => $behaviorProfile->inventoryExposurePolicy,
             ],
+            'normalized_message' => $normalizedMessage,
             'state_before' => $state->toArray(),
         ];
 
@@ -83,7 +90,7 @@ class LlmFirstChatOrchestrator
         $debug['tool_names'] = array_keys($tools);
 
         $initialPrompt = $this->promptBuilder->buildInitialPrompt($profile, $behaviorProfile, $state, $context, $tools, $services, $now);
-        $decision = $this->turnEngine->decide($initialPrompt, $message);
+        $decision = $this->turnEngine->decide($initialPrompt, $llmMessage);
         $state = $this->statePatcher->apply($state, $decision->statePatch);
 
         $debug['first_decision'] = $decision->raw;
@@ -93,7 +100,7 @@ class LlmFirstChatOrchestrator
             return $this->buildResultFromDecision($decision, null, null, null, $debug, $state);
         }
 
-        $toolValidation = $this->normalizeToolCall($decision->toolCall, $tools, $state);
+        $toolValidation = $this->normalizeToolCall($decision->toolCall, $tools, $state, $profile);
         $toolCall = $toolValidation['tool_call'];
 
         if ($toolCall === null) {
@@ -149,7 +156,7 @@ class LlmFirstChatOrchestrator
             $now,
         );
 
-        $finalDecision = $this->turnEngine->decide($toolPrompt, $message);
+        $finalDecision = $this->turnEngine->decide($toolPrompt, $llmMessage);
         $finalDecision = new LlmTurnDecision(
             assistantMessage: $finalDecision->assistantMessage !== '' ? $finalDecision->assistantMessage : $decision->assistantMessage,
             statePatch: $finalDecision->statePatch,
@@ -212,7 +219,7 @@ class LlmFirstChatOrchestrator
         ];
     }
 
-    private function normalizeToolCall(?ToolCall $toolCall, array $tools, ConversationState $state): array
+    private function normalizeToolCall(?ToolCall $toolCall, array $tools, ConversationState $state, ?\App\Services\Conversation\ChatbotProfile $profile = null): array
     {
         if ($toolCall === null || ! isset($tools[$toolCall->name])) {
             return ['tool_call' => null, 'missing_fields' => []];
@@ -247,7 +254,7 @@ class LlmFirstChatOrchestrator
         }
 
         $schema = $tools[$toolCall->name]['input_schema'] ?? [];
-        $required = $schema['required'] ?? [];
+        $required = $profile?->requiredFieldsFor($toolCall->name) ?? ($schema['required'] ?? []);
         $missingFields = [];
 
         foreach ($required as $requiredKey) {
@@ -268,12 +275,28 @@ class LlmFirstChatOrchestrator
 
     private function sanitizeToolResultForLlm(array $toolResult, ConversationBehaviorProfile $behaviorProfile): array
     {
+        $toolResult['tool_result_explanation'] = is_array($toolResult['tool_result_explanation'] ?? null)
+            ? $toolResult['tool_result_explanation']
+            : [];
+
         $toolResult['data']['llm_presentation_policy'] = [
             'sector_key' => $behaviorProfile->sectorKey,
             'inventory_exposure_policy' => $behaviorProfile->inventoryExposurePolicy,
             'no_availability_policy' => $behaviorProfile->noAvailabilityPolicy,
             'customer_facing_descriptors' => $behaviorProfile->customerFacingDescriptors,
+            'vocabulary_hints' => $behaviorProfile->vocabularyHints,
         ];
+
+        if (isset($toolResult['data']['servicios']) && is_array($toolResult['data']['servicios'])) {
+            $toolResult = $this->sanitizeServiceCatalogForLlm($toolResult, $behaviorProfile);
+        }
+
+        if (($toolResult['data']['availability_mode'] ?? null) === 'simple') {
+            $toolResult['data']['llm_no_availability_guidance'] = $this->buildNoAvailabilityGuidance($behaviorProfile, true);
+            $toolResult['tool_result_explanation']['customer_safe_status'] = 'simple_mode_followup_required';
+
+            return $toolResult;
+        }
 
         if (($toolResult['data']['availability_mode'] ?? null) !== 'precise' || ! isset($toolResult['data']['slots']) || ! is_array($toolResult['data']['slots'])) {
             return $toolResult;
@@ -336,8 +359,71 @@ class LlmFirstChatOrchestrator
         $toolResult['data']['slots'] = $sanitizedSlots;
         $toolResult['data']['llm_slot_summary'] = array_values($grouped);
         $toolResult['data']['llm_customer_safe_options'] = array_values($grouped);
+        $toolResult['tool_result_explanation']['customer_safe_option_groups'] = array_values($grouped);
+        $toolResult['tool_result_explanation']['public_summary'] = $this->buildAvailabilityPublicSummary(
+            (int) ($toolResult['data']['total_slots'] ?? 0),
+            array_values($grouped),
+        );
+
+        if (($toolResult['data']['total_slots'] ?? 0) === 0) {
+            $toolResult['data']['llm_no_availability_guidance'] = $this->buildNoAvailabilityGuidance($behaviorProfile, false);
+            $toolResult['tool_result_explanation']['customer_safe_status'] = 'no_availability';
+        }
 
         return $toolResult;
+    }
+
+    private function sanitizeServiceCatalogForLlm(array $toolResult, ConversationBehaviorProfile $behaviorProfile): array
+    {
+        $toolResult['data']['llm_catalog_term'] = $this->resolveCatalogTerm($behaviorProfile);
+        $toolResult['data']['llm_customer_safe_services'] = collect($toolResult['data']['servicios'])
+            ->map(function (array $service) {
+                return [
+                    'id' => $service['id'] ?? null,
+                    'name' => $service['nombre'] ?? null,
+                    'description' => $service['descripcion'] ?? null,
+                    'duration_label' => isset($service['duracion_minutos']) ? ((int) $service['duracion_minutos']).' minutos' : null,
+                    'price_label' => isset($service['precio_base']) ? number_format((float) $service['precio_base'], 2, ',', '.').' €' : null,
+                    'payment_required' => (bool) ($service['requiere_pago'] ?? false),
+                    'public_notes' => $service['notas_publicas'] ?? null,
+                ];
+            })
+            ->values()
+            ->all();
+
+        return $toolResult;
+    }
+
+    private function buildNoAvailabilityGuidance(ConversationBehaviorProfile $behaviorProfile, bool $isSimpleMode): array
+    {
+        $alternativeDimensions = match ($behaviorProfile->sectorKey) {
+            'restaurant' => ['hora cercana', 'otra fecha', 'otra zona'],
+            'hotel' => ['otras fechas', 'otra categoría', 'otra duración de estancia'],
+            'appointment_based' => ['otra hora', 'otro día', 'otro profesional'],
+            'coworking' => ['otra franja', 'otro espacio', 'otro día'],
+            'gym' => ['otra clase', 'otra franja', 'otro día'],
+            default => ['otra hora', 'otra fecha'],
+        };
+
+        return [
+            'status' => 'no_availability',
+            'simple_mode' => $isSimpleMode,
+            'policy' => $behaviorProfile->noAvailabilityPolicy,
+            'preferred_strategy' => 'Sé claro, evita sonar técnico y ofrece flexibilidad razonable si procede.',
+            'alternative_dimensions' => $alternativeDimensions,
+            'avoid_internal_details' => true,
+        ];
+    }
+
+    private function resolveCatalogTerm(ConversationBehaviorProfile $behaviorProfile): string
+    {
+        return match ($behaviorProfile->sectorKey) {
+            'restaurant' => 'lo que ofrecemos',
+            'hotel' => 'tipos de estancia',
+            'appointment_based' => 'servicios y citas',
+            'coworking' => 'espacios y opciones',
+            default => 'servicios',
+        };
     }
 
     private function inferCustomerSafeDescriptor(?string $resourceLabel, ConversationBehaviorProfile $behaviorProfile): ?string
@@ -391,5 +477,26 @@ class LlmFirstChatOrchestrator
             ->implode(', ');
 
         return "Me falta {$readable} para poder consultarlo bien.";
+    }
+
+    private function buildAvailabilityPublicSummary(int $totalSlots, array $groupedOptions): string
+    {
+        if ($totalSlots <= 0) {
+            return 'No se han encontrado huecos disponibles con el criterio consultado.';
+        }
+
+        if (count($groupedOptions) === 1) {
+            $group = $groupedOptions[0];
+            $start = $group['hora_inicio'] ?? null;
+            $end = $group['hora_fin'] ?? null;
+
+            if ($start !== null && $end !== null) {
+                return "Hay una única franja clara disponible: {$start} - {$end}.";
+            }
+
+            return 'Hay una única opción clara disponible.';
+        }
+
+        return 'Hay varias alternativas disponibles, pero conviene agruparlas de forma comprensible para el cliente.';
     }
 }

@@ -21,6 +21,30 @@ class ListBookableServicesTool extends ToolDefinition
         return 'Lista los servicios activos y reservables de un negocio.';
     }
 
+    public function whenToUse(): array
+    {
+        return [
+            'Cuando el usuario pregunta qué ofrece el negocio o qué opciones reservables existen.',
+            'Cuando necesitas ayudarle a elegir entre varios servicios antes de hablar de fechas o disponibilidad.',
+        ];
+    }
+
+    public function whenNotToUse(): array
+    {
+        return [
+            'No la uses para comprobar huecos disponibles en una fecha concreta.',
+            'No la uses para crear ni confirmar una reserva.',
+        ];
+    }
+
+    public function responseGuidance(): array
+    {
+        return [
+            'Resume la oferta en lenguaje de cliente y evita volcar el catálogo completo si no hace falta.',
+            'Si un servicio encaja claramente con la petición del usuario, puedes destacarlo en vez de enumerarlo todo.',
+        ];
+    }
+
     public function inputSchema(): array
     {
         return [
@@ -72,5 +96,24 @@ class ListBookableServicesTool extends ToolDefinition
             'total_servicios' => count($items),
             'servicios' => $items,
         ]);
+    }
+
+    public function resultExplanation(array $input, \App\Tools\ToolResult $result): array
+    {
+        $services = $result->data['servicios'] ?? [];
+        $total = is_array($services) ? count($services) : 0;
+
+        return [
+            'tool_name' => $this->name(),
+            'what_this_tool_does' => 'Devuelve la oferta reservable real del negocio.',
+            'status' => $result->success ? 'success' : 'error',
+            'conversation_memory_hint' => $total > 0
+                ? "Ya conoces {$total} opciones reservables del negocio para seguir la conversación sin pedir al usuario que repita qué quiere."
+                : 'No se encontraron servicios activos en este momento.',
+            'next_step_hint' => 'Traduce el catálogo a lenguaje de cliente. Si el usuario ya insinuó una intención concreta, úsala para recomendar en vez de recitar.',
+            'public_summary' => $total > 0
+                ? "Hay {$total} servicios activos disponibles para explicar u ofrecer."
+                : 'No hay servicios activos para mostrar.',
+        ];
     }
 }

@@ -21,6 +21,30 @@ class GetArrivalInstructionsTool extends ToolDefinition
         return 'Devuelve información útil para llegar al negocio y preparar la reserva.';
     }
 
+    public function whenToUse(): array
+    {
+        return [
+            'Cuando el usuario pregunta dónde está el negocio, cómo llegar o qué debe tener en cuenta antes de acudir.',
+            'Cuando necesitas dar instrucciones previas ligadas a un servicio concreto.',
+        ];
+    }
+
+    public function whenNotToUse(): array
+    {
+        return [
+            'No la uses para horarios, disponibilidad o precios.',
+            'No la uses para improvisar información que no exista en la ficha del negocio o del servicio.',
+        ];
+    }
+
+    public function responseGuidance(): array
+    {
+        return [
+            'Prioriza dirección, contacto, URL pública e instrucciones previas útiles.',
+            'No añadas indicaciones inventadas ni supongas detalles logísticos no presentes en el resultado.',
+        ];
+    }
+
     public function inputSchema(): array
     {
         return [
@@ -70,5 +94,23 @@ class GetArrivalInstructionsTool extends ToolDefinition
                 'notas_publicas' => $servicio->notas_publicas,
             ] : null,
         ]);
+    }
+
+    public function resultExplanation(array $input, \App\Tools\ToolResult $result): array
+    {
+        $businessName = data_get($result->data, 'negocio.nombre');
+
+        return [
+            'tool_name' => $this->name(),
+            'what_this_tool_does' => 'Recupera información pública útil para acudir al negocio o preparar la visita.',
+            'status' => $result->success ? 'success' : 'error',
+            'conversation_memory_hint' => $businessName !== null
+                ? "Ya tienes la información de llegada de {$businessName}."
+                : 'Ya tienes la información de llegada necesaria para responder.',
+            'next_step_hint' => 'Da la información en orden práctico: dónde está, cómo contactar y qué tener en cuenta antes de llegar.',
+            'public_summary' => $businessName !== null
+                ? "Se ha recuperado información útil para llegar a {$businessName}."
+                : 'Se ha recuperado información de llegada.',
+        ];
     }
 }

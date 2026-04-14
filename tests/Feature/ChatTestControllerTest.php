@@ -90,6 +90,48 @@ class ChatTestControllerTest extends TestCase
             ->assertJsonPath('response', 'Respuesta ok');
     }
 
+    public function test_it_accepts_a_null_conversation_id_and_generates_one(): void
+    {
+        $this->withoutMiddleware(VerifyCsrfToken::class);
+
+        $business = $this->createBusiness();
+        $user = User::factory()->create();
+
+        $this->mock(LlmFirstChatOrchestrator::class, function ($mock) use ($business) {
+            $mock->shouldReceive('handle')
+                ->once()
+                ->with(
+                    'Hola',
+                    $business->id,
+                    [],
+                    Mockery::on(fn ($state) => $state instanceof ConversationState && $state->negocioId === $business->id),
+                    'mcp',
+                )
+                ->andReturn($this->fakeResult($business->id));
+        });
+
+        $token = 'csrf-test-token';
+        $response = $this->actingAs($user)
+            ->withSession(['_token' => $token])
+            ->post(route('admin.chat-test.execute'), [
+                'message' => 'Hola',
+                'negocio_id' => $business->id,
+                'mode' => 'mcp',
+                'conversation_id' => null,
+            ], [
+                'Accept' => 'application/json',
+                'X-CSRF-TOKEN' => $token,
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('execution_mode', 'mcp')
+            ->assertJsonPath('response', 'Respuesta ok')
+            ->assertJsonStructure(['conversation_id']);
+
+        $this->assertIsString($response->json('conversation_id'));
+        $this->assertNotSame('', $response->json('conversation_id'));
+    }
+
     private function createBusiness(): Negocio
     {
         $businessType = TipoNegocio::create([
