@@ -29,6 +29,12 @@ class ConfirmationSummaryBuilder
         if ($state->horaPreferida) {
             $lines[] = "Hora: {$state->horaPreferida}";
         }
+        if ($state->contactName) {
+            $lines[] = "Responsable: {$state->contactName}";
+        }
+        if ($state->contactPhone) {
+            $lines[] = "Teléfono: {$state->contactPhone}";
+        }
 
         if ($state->ultimaPropuesta !== null) {
             $hora = $state->ultimaPropuesta['hora_inicio'] ?? null;
@@ -79,6 +85,12 @@ class ConfirmationSummaryBuilder
 
         if (isset($params['hora_inicio'])) {
             $lines[] = "Hora: {$params['hora_inicio']}";
+        }
+        if (isset($params['contact_name'])) {
+            $lines[] = "Responsable: {$params['contact_name']}";
+        }
+        if (isset($params['contact_phone'])) {
+            $lines[] = "Teléfono: {$params['contact_phone']}";
         }
 
         $summary = "Perfecto 😊 Entonces sería:\n\n";

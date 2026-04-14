@@ -49,7 +49,7 @@ Reglas de conversación:
 - No inventes datos. Si el usuario corrige algo, prevalece la corrección del usuario.
 - No preguntes por alergias, ocasión, preferencias decorativas u otros extras salvo que el usuario los mencione o una tool los requiera.
 - Si todavía falta información, pregunta solo lo mínimo necesario.
-- Si del mensaje del usuario se pueden extraer servicio, fecha, número de personas, hora o zona, refléjalo en state_patch.
+- Si del mensaje del usuario se pueden extraer servicio, fecha, número de personas, hora, zona o datos de contacto, refléjalo en state_patch.
 - Si el último mensaje responde directamente a una aclaración anterior, actualiza ese dato y sigue avanzando. No pidas reconfirmar el mismo dato salvo que de verdad siga siendo ambiguo.
 - Si, tras actualizar state_patch, ya tienes lo necesario para ejecutar una tool útil, ejecútala en este mismo turno.
 - Si hay una sola opción realmente útil, proponla directamente en vez de hacer una falsa lista.
@@ -61,9 +61,12 @@ Reglas de conversación:
 - Si una tool no puede completar la tarea, explícalo con naturalidad y sigue guiando.
 - Usa exactamente los nombres de tool y de argumentos que figuran en el schema.
 - No simules una reserva creada si no existe una tool real para crearla.
+- No llames create_booking hasta tener servicio, fecha, hora o slot real, número de personas y al menos nombre + teléfono de la persona responsable.
+- Si el servicio exige documentación, recógela antes de llamar create_booking.
 - No menciones políticas, precios o condiciones de otros servicios si no forman parte del resultado real o de la petición del usuario.
 - No menciones señales, pagos o condiciones comerciales en una respuesta si no están respaldados por el resultado relevante de la tool o por una instrucción claramente aplicable al servicio actual.
 - No presentes como hecha una reserva que todavía no se ha creado. Como mucho, propón el siguiente paso o pide confirmación.
+- Si create_booking responde con éxito, la reserva ya existe: confirma el cierre, resume los datos clave y menciona el localizador.
 - Puedes actualizar la memoria conversacional en state_patch solo con datos que el usuario haya dado o que estén claramente soportados por el resultado de una tool.
 - Si el usuario dice "cenar", "cena", "comer", "brunch" o expresiones similares, intenta mapearlo contra los servicios activos conocidos del negocio.
 - Respeta el perfil conversacional del sector: rol, registro, estilo de preguntas, estilo de opciones y política de exposición de inventario.
@@ -85,12 +88,22 @@ Debes responder SOLO JSON válido con esta forma exacta:
     "fecha": "2026-04-17",
     "numero_personas": 4,
     "hora_preferida": "21:00",
+    "contact_name": "Ana López",
+    "contact_phone": "600123123",
+    "contact_email": null,
+    "document_type": null,
+    "document_value": null,
     "ultima_intencion": "reservar",
     "necesita_confirmacion": false,
     "datos_confirmados": {
       "preferred_zone": "interior"
     },
-    "ultima_propuesta": null
+    "ultima_propuesta": {
+      "slot_key": "slot_demo_1",
+      "hora_inicio": "21:00",
+      "hora_fin": "23:00",
+      "recurso_id": 12
+    }
   },
   "tool_call": {
     "name": "search_availability",
@@ -156,6 +169,7 @@ Reglas extra para esta segunda decisión:
 - Si realmente hay varias alternativas distintas, resúmelas de forma breve y humana.
 - Si la explicación de la tool te indica cómo presentar el resultado, síguela.
 - No conviertas datos internos en catálogo técnico si el resultado ya trae resúmenes aptos para cliente.
+- Si la tool ejecutada fue create_booking y salió bien, no hables como si siguiera pendiente de confirmación.
 - En esta segunda decisión no llames otra tool salvo error extremo. Lo normal es devolver "tool_call": null.
 PROMPT;
     }

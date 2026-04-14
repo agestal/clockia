@@ -90,6 +90,7 @@ class ReservaController extends Controller
         $reserva = DB::transaction(function () use ($validated) {
             $reserva = Reserva::create($validated);
             $this->sincronizarRecursoPrincipal($reserva);
+            $this->sincronizarContactoResponsable($reserva);
 
             return $reserva;
         });
@@ -141,6 +142,7 @@ class ReservaController extends Controller
         DB::transaction(function () use ($request, $reserva) {
             $reserva->update($request->validated());
             $this->sincronizarRecursoPrincipal($reserva);
+            $this->sincronizarContactoResponsable($reserva);
         });
 
         return redirect()
@@ -245,6 +247,31 @@ class ReservaController extends Controller
                 'fecha_fin_datetime' => $reserva->fin_datetime,
             ]
         );
+    }
+
+    private function sincronizarContactoResponsable(Reserva $reserva): void
+    {
+        if ($reserva->cliente_id === null) {
+            return;
+        }
+
+        $reserva->loadMissing('cliente');
+
+        if ($reserva->cliente === null) {
+            return;
+        }
+
+        $updates = array_filter([
+            'nombre_responsable' => $reserva->nombre_responsable ?: $reserva->cliente->nombre,
+            'email_responsable' => $reserva->email_responsable ?: $reserva->cliente->email,
+            'telefono_responsable' => $reserva->telefono_responsable ?: $reserva->cliente->telefono,
+        ], static fn ($value) => $value !== null && $value !== '');
+
+        if ($updates === []) {
+            return;
+        }
+
+        $reserva->forceFill($updates)->save();
     }
 
     private function resolveSelectedNegocio(?Reserva $reserva = null): ?Negocio

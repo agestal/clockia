@@ -2,8 +2,8 @@
 
 namespace App\Tools;
 
-use App\Services\PolicyResolver;
 use App\Tools\Reservations\CheckBusinessHoursTool;
+use App\Tools\Reservations\CreateBookingTool;
 use App\Tools\Reservations\CreateQuoteTool;
 use App\Tools\Reservations\GetArrivalInstructionsTool;
 use App\Tools\Reservations\GetCancellationPolicyTool;
@@ -18,15 +18,15 @@ class ToolServiceProvider extends ServiceProvider
     {
         $this->app->singleton(ToolRegistry::class, function ($app) {
             $registry = new ToolRegistry();
-            $policyResolver = $app->make(PolicyResolver::class);
 
-            $registry->register(new ListBookableServicesTool());
-            $registry->register(new GetServiceDetailsTool($policyResolver));
-            $registry->register(new CheckBusinessHoursTool());
-            $registry->register(new SearchAvailabilityTool());
-            $registry->register(new CreateQuoteTool($policyResolver));
-            $registry->register(new GetCancellationPolicyTool($policyResolver));
-            $registry->register(new GetArrivalInstructionsTool());
+            $registry->register($app->make(ListBookableServicesTool::class));
+            $registry->register($app->make(GetServiceDetailsTool::class));
+            $registry->register($app->make(CheckBusinessHoursTool::class));
+            $registry->register($app->make(SearchAvailabilityTool::class));
+            $registry->register($app->make(CreateQuoteTool::class));
+            $registry->register($app->make(CreateBookingTool::class));
+            $registry->register($app->make(GetCancellationPolicyTool::class));
+            $registry->register($app->make(GetArrivalInstructionsTool::class));
 
             return $registry;
         });

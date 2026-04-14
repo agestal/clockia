@@ -14,6 +14,7 @@ class ConversationRequirementsResolver
         'check_business_hours' => ['negocio_id'],
         'search_availability' => ['negocio_id', 'servicio_id', 'fecha', 'numero_personas'],
         'create_quote' => ['negocio_id', 'servicio_id', 'numero_personas'],
+        'create_booking' => ['negocio_id', 'servicio_id', 'fecha', 'hora_inicio', 'numero_personas', 'contact_name', 'contact_phone'],
         'get_cancellation_policy' => ['negocio_id'],
         'get_arrival_instructions' => ['negocio_id'],
     ];

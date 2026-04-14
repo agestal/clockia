@@ -89,6 +89,14 @@ class PolicyResolver
         $servicio = $reserva->relationLoaded('servicio') ? $reserva->servicio : $reserva->servicio()->first();
         $negocio = $reserva->relationLoaded('negocio') ? $reserva->negocio : $reserva->negocio()->first();
 
+        return $this->resolverParaReservaContexto($servicio, $negocio, $reserva);
+    }
+
+    /**
+     * @return array{horas_minimas_cancelacion: int, permite_modificacion: bool, es_reembolsable: bool, porcentaje_senal: ?string}
+     */
+    public function resolverParaReservaContexto(?Servicio $servicio, ?Negocio $negocio, ?Reserva $reserva = null): array
+    {
         return [
             'horas_minimas_cancelacion' => $this->horasMinimasCancelacion($reserva, $servicio, $negocio),
             'permite_modificacion' => $this->permiteModificacion($reserva, $servicio, $negocio),

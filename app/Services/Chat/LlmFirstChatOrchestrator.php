@@ -231,6 +231,17 @@ class LlmFirstChatOrchestrator
             'service_id' => 'servicio_id',
             'date' => 'fecha',
             'party_size' => 'numero_personas',
+            'start_time' => 'hora_inicio',
+            'end_time' => 'hora_fin',
+            'resource_id' => 'recurso_id',
+            'resource_ids' => 'recurso_ids',
+            'customer_name' => 'contact_name',
+            'responsible_name' => 'contact_name',
+            'phone' => 'contact_phone',
+            'telephone' => 'contact_phone',
+            'customer_phone' => 'contact_phone',
+            'email' => 'contact_email',
+            'customer_email' => 'contact_email',
         ];
 
         foreach ($aliases as $from => $to) {
@@ -251,6 +262,43 @@ class LlmFirstChatOrchestrator
 
         if (! empty($state->numeroPersonas) && ! array_key_exists('numero_personas', $arguments)) {
             $arguments['numero_personas'] = $state->numeroPersonas;
+        }
+
+        if (! empty($state->horaPreferida) && ! array_key_exists('hora_inicio', $arguments)) {
+            $arguments['hora_inicio'] = $state->horaPreferida;
+        }
+
+        if (! empty($state->contactName) && ! array_key_exists('contact_name', $arguments)) {
+            $arguments['contact_name'] = $state->contactName;
+        }
+
+        if (! empty($state->contactPhone) && ! array_key_exists('contact_phone', $arguments)) {
+            $arguments['contact_phone'] = $state->contactPhone;
+        }
+
+        if (! empty($state->contactEmail) && ! array_key_exists('contact_email', $arguments)) {
+            $arguments['contact_email'] = $state->contactEmail;
+        }
+
+        if (! empty($state->documentType) && ! array_key_exists('document_type', $arguments)) {
+            $arguments['document_type'] = $state->documentType;
+        }
+
+        if (! empty($state->documentValue) && ! array_key_exists('document_value', $arguments)) {
+            $arguments['document_value'] = $state->documentValue;
+        }
+
+        if (is_array($state->ultimaPropuesta)) {
+            foreach (['slot_key', 'hora_inicio', 'hora_fin', 'recurso_id', 'recurso_ids'] as $key) {
+                if (
+                    ! array_key_exists($key, $arguments)
+                    && array_key_exists($key, $state->ultimaPropuesta)
+                    && $state->ultimaPropuesta[$key] !== null
+                    && $state->ultimaPropuesta[$key] !== ''
+                ) {
+                    $arguments[$key] = $state->ultimaPropuesta[$key];
+                }
+            }
         }
 
         $schema = $tools[$toolCall->name]['input_schema'] ?? [];

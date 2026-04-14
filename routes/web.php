@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\RecursoCombinacionController;
 use App\Http\Controllers\Admin\IntegracionController;
 use App\Http\Controllers\Admin\IntegracionMapeoController;
 use App\Http\Controllers\Admin\OcupacionExternaController;
+use App\Http\Controllers\Admin\CalendarioController;
 use App\Http\Controllers\Admin\ChatTestController;
 use App\Livewire\Admin\Dashboard;
 use Illuminate\Support\Facades\Route;
@@ -149,6 +150,10 @@ Route::prefix('admin')
             Route::get('recursos', [RecursoController::class, 'searchOptions'])
                 ->name('recursos.search');
         });
+
+        Route::get('calendario', [CalendarioController::class, 'index'])->name('calendario.index');
+        Route::get('calendario/data', [CalendarioController::class, 'data'])->name('calendario.data');
+        Route::get('calendario/day', [CalendarioController::class, 'dayDetail'])->name('calendario.day');
 
         Route::get('chat/test', [ChatTestController::class, 'index'])
             ->name('chat-test.index');

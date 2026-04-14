@@ -358,6 +358,12 @@ return [
             'icon' => 'fas fa-fw fa-calendar-check',
             'active' => ['admin/reservas', 'admin/reservas/*'],
         ],
+        [
+            'text' => 'Calendario',
+            'route' => 'admin.calendario.index',
+            'icon' => 'fas fa-fw fa-calendar-alt',
+            'active' => ['admin/calendario*'],
+        ],
         ['header' => 'Configuracion'],
         [
             'text' => 'Tipos de negocio',

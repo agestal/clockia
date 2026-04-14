@@ -47,6 +47,11 @@ class Reserva extends Model
         'servicio_id',
         'recurso_id',
         'cliente_id',
+        'nombre_responsable',
+        'email_responsable',
+        'telefono_responsable',
+        'tipo_documento_responsable',
+        'documento_responsable',
         'fecha',
         'hora_inicio',
         'hora_fin',
@@ -198,6 +203,21 @@ class Reserva extends Model
     public function getPrecioFinalAttribute(): string
     {
         return $this->precio_total ?? $this->precio_calculado;
+    }
+
+    public function nombreResponsableEfectivo(): ?string
+    {
+        return $this->nombre_responsable ?: $this->cliente?->nombre;
+    }
+
+    public function emailResponsableEfectivo(): ?string
+    {
+        return $this->email_responsable ?: $this->cliente?->email;
+    }
+
+    public function telefonoResponsableEfectivo(): ?string
+    {
+        return $this->telefono_responsable ?: $this->cliente?->telefono;
     }
 
     public function scopePorLocalizador(Builder $query, string $localizador): Builder

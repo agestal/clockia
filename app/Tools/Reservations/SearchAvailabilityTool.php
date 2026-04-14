@@ -309,7 +309,9 @@ class SearchAvailabilityTool extends ToolDefinition
                         'hora_fin' => $slot['hora_fin'],
                         'inicio_datetime' => $slot['inicio']->toDateTimeString(),
                         'fin_datetime' => $slot['fin']->toDateTimeString(),
+                        'slot_key' => $this->slotKey($dto->fecha, $slot['hora_inicio'], $slot['hora_fin'], [$recurso->id]),
                         'recurso_id' => $recurso->id,
+                        'recurso_ids' => [$recurso->id],
                         'recurso_nombre' => $recurso->nombre,
                         'nombre_turno' => $disp->nombre_turno,
                         'capacidad' => $recurso->capacidad,
@@ -399,6 +401,11 @@ class SearchAvailabilityTool extends ToolDefinition
             : $primerTurnoQuery->first();
 
         $result = [];
+        $resourceIds = $recursos->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
         foreach ($slotsComunes ?? [] as $slot) {
             $result[] = [
                 'fecha' => $dto->fecha,
@@ -406,7 +413,9 @@ class SearchAvailabilityTool extends ToolDefinition
                 'hora_fin' => $slot['hora_fin'],
                 'inicio_datetime' => $slot['inicio']->toDateTimeString(),
                 'fin_datetime' => $slot['fin']->toDateTimeString(),
+                'slot_key' => $this->slotKey($dto->fecha, $slot['hora_inicio'], $slot['hora_fin'], $resourceIds),
                 'recurso_id' => $recursos->first()->id,
+                'recurso_ids' => $resourceIds,
                 'recurso_nombre' => $nombreCombinado,
                 'nombre_turno' => $primerTurno?->nombre_turno,
                 'capacidad' => $combinacion['capacidad_total'],
@@ -442,6 +451,14 @@ class SearchAvailabilityTool extends ToolDefinition
         }
 
         return $slots;
+    }
+
+    private function slotKey(string $fecha, string $horaInicio, string $horaFin, array $resourceIds): string
+    {
+        $resourceIds = array_values(array_map('intval', $resourceIds));
+        sort($resourceIds);
+
+        return sha1($fecha.'|'.$horaInicio.'|'.$horaFin.'|'.implode(',', $resourceIds));
     }
 
     private function slotOcupado(int $recursoId, int $negocioId, Carbon $inicio, Carbon $fin, bool $checkExternal): bool
