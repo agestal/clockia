@@ -1,0 +1,3112 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Clockia API v1",
+        "description": "Versioned API for business-scoped reservation operations.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "/",
+            "description": "Application base URL"
+        }
+    ],
+    "paths": {
+        "/api/v1/businesses/{business}/availabilities": {
+            "get": {
+                "tags": [
+                    "Availabilities"
+                ],
+                "summary": "List weekly availability configuration for a business",
+                "description": "Returns weekly availability rules configured for resources that belong to the business.",
+                "operationId": "listBusinessAvailabilities",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "filter[resource_id]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    },
+                    {
+                        "name": "filter[weekday]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 2,
+                            "enum": [
+                                0,
+                                1,
+                                2,
+                                3,
+                                4,
+                                5,
+                                6
+                            ]
+                        }
+                    },
+                    {
+                        "name": "filter[is_active]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "example": true
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "Allowed values: weekday, -weekday, start_time, -start_time, created_at, -created_at",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "weekday"
+                        }
+                    },
+                    {
+                        "name": "page[size]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "page[number]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated availabilities",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedAvailabilityCollection"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "availabilities:read"
+                        ]
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Availabilities"
+                ],
+                "summary": "Create weekly availability configuration",
+                "operationId": "createBusinessAvailability",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AvailabilityUpsertRequest"
+                            },
+                            "example": {
+                                "resource_id": 3,
+                                "weekday": 2,
+                                "start_time": "13:00",
+                                "end_time": "16:00",
+                                "is_active": true
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created availability",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Availability"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "availabilities:write"
+                        ]
+                    }
+                ]
+            }
+        },
+        "/api/v1/businesses/{business}/availabilities/{availability}": {
+            "get": {
+                "tags": [
+                    "Availabilities"
+                ],
+                "summary": "Show weekly availability configuration",
+                "operationId": "showBusinessAvailability",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "availability",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Availability detail",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Availability"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "availabilities:read"
+                        ]
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Availabilities"
+                ],
+                "summary": "Update weekly availability configuration",
+                "operationId": "updateBusinessAvailability",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "availability",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AvailabilityUpsertRequest"
+                            },
+                            "example": {
+                                "resource_id": 3,
+                                "weekday": 2,
+                                "start_time": "20:00",
+                                "end_time": "23:30",
+                                "is_active": true
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated availability",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Availability"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "availabilities:write"
+                        ]
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Availabilities"
+                ],
+                "summary": "Delete weekly availability configuration",
+                "operationId": "deleteBusinessAvailability",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "availability",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Availability deleted"
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "availabilities:write"
+                        ]
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Availabilities"
+                ],
+                "summary": "Partially update weekly availability configuration",
+                "operationId": "patchBusinessAvailability",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "availability",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AvailabilityUpsertRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated availability",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Availability"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "availabilities:write"
+                        ]
+                    }
+                ]
+            }
+        },
+        "/api/v1/businesses/{business}/blocks": {
+            "get": {
+                "tags": [
+                    "Blocks"
+                ],
+                "summary": "List configured blocks for a business",
+                "description": "Returns configured resource blocks scoped to the business in the URL.",
+                "operationId": "listBusinessBlocks",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "filter[resource_id]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    },
+                    {
+                        "name": "filter[date]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "example": "2026-04-15"
+                        }
+                    },
+                    {
+                        "name": "filter[block_type_id]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "Allowed values: date, -date, start_time, -start_time, created_at, -created_at",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "-date"
+                        }
+                    },
+                    {
+                        "name": "page[size]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "page[number]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated blocks",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedBlockCollection"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "blocks:read"
+                        ]
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Blocks"
+                ],
+                "summary": "Create a configured block",
+                "operationId": "createBusinessBlock",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BlockUpsertRequest"
+                            },
+                            "example": {
+                                "resource_id": 3,
+                                "block_type_id": 3,
+                                "date": "2026-04-15",
+                                "start_time": "18:00",
+                                "end_time": "20:00",
+                                "reason": "Private event setup",
+                                "is_recurring": false,
+                                "is_active": true
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created block",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Block"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "blocks:write"
+                        ]
+                    }
+                ]
+            }
+        },
+        "/api/v1/businesses/{business}/blocks/{block}": {
+            "get": {
+                "tags": [
+                    "Blocks"
+                ],
+                "summary": "Show a configured block",
+                "operationId": "showBusinessBlock",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "block",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Block detail",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Block"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "blocks:read"
+                        ]
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Blocks"
+                ],
+                "summary": "Update a configured block",
+                "operationId": "updateBusinessBlock",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "block",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BlockUpsertRequest"
+                            },
+                            "example": {
+                                "resource_id": 3,
+                                "block_type_id": 3,
+                                "date": "2026-04-15",
+                                "start_time": null,
+                                "end_time": null,
+                                "reason": "Maintenance day",
+                                "is_recurring": false,
+                                "is_active": true
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated block",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Block"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "blocks:write"
+                        ]
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Blocks"
+                ],
+                "summary": "Delete a configured block",
+                "operationId": "deleteBusinessBlock",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "block",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Block deleted"
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "blocks:write"
+                        ]
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Blocks"
+                ],
+                "summary": "Partially update a configured block",
+                "operationId": "patchBusinessBlock",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "block",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BlockUpsertRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated block",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Block"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "blocks:write"
+                        ]
+                    }
+                ]
+            }
+        },
+        "/api/v1/businesses/{business}/resources": {
+            "get": {
+                "tags": [
+                    "Resources"
+                ],
+                "summary": "List resources for a business",
+                "description": "Returns a paginated resource collection scoped to the business in the URL.",
+                "operationId": "listBusinessResources",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "filter[name]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "Terrace"
+                        }
+                    },
+                    {
+                        "name": "filter[is_active]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "example": true
+                        }
+                    },
+                    {
+                        "name": "filter[resource_type_id]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "Allowed values: name, -name, created_at, -created_at",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "name"
+                        }
+                    },
+                    {
+                        "name": "page[size]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "page[number]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated resources",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedResourceCollection"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "resources:read"
+                        ]
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Resources"
+                ],
+                "summary": "Create a resource for a business",
+                "operationId": "createBusinessResource",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResourceUpsertRequest"
+                            },
+                            "example": {
+                                "name": "Terrace Table 1",
+                                "resource_type_id": 1,
+                                "capacity": 4,
+                                "is_active": true
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created resource",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Resource"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "resources:write"
+                        ]
+                    }
+                ]
+            }
+        },
+        "/api/v1/businesses/{business}/resources/{resource}": {
+            "get": {
+                "tags": [
+                    "Resources"
+                ],
+                "summary": "Show a resource",
+                "operationId": "showBusinessResource",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "resource",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Resource detail",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Resource"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "resources:read"
+                        ]
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Resources"
+                ],
+                "summary": "Update a resource",
+                "operationId": "updateBusinessResource",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "resource",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResourceUpsertRequest"
+                            },
+                            "example": {
+                                "name": "Terrace Table 1",
+                                "resource_type_id": 1,
+                                "capacity": 6,
+                                "is_active": true
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated resource",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Resource"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "resources:write"
+                        ]
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Resources"
+                ],
+                "summary": "Delete a resource",
+                "operationId": "deleteBusinessResource",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "resource",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Resource deleted"
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConflictError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "resources:write"
+                        ]
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Resources"
+                ],
+                "summary": "Partially update a resource",
+                "operationId": "patchBusinessResource",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "resource",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 3
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResourceUpsertRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated resource",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Resource"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "resources:write"
+                        ]
+                    }
+                ]
+            }
+        },
+        "/api/v1/businesses/{business}/services": {
+            "get": {
+                "tags": [
+                    "Services"
+                ],
+                "summary": "List services for a business",
+                "description": "Returns a paginated service collection scoped to the business in the URL.",
+                "operationId": "listBusinessServices",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "description": "Business identifier",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "filter[name]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "Dinner"
+                        }
+                    },
+                    {
+                        "name": "filter[is_active]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "example": true
+                        }
+                    },
+                    {
+                        "name": "filter[requires_payment]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "example": true
+                        }
+                    },
+                    {
+                        "name": "filter[price_type_id]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 2
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "Allowed values: name, -name, created_at, -created_at",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "-created_at"
+                        }
+                    },
+                    {
+                        "name": "page[size]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "page[number]",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated services",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedServiceCollection"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "services:read"
+                        ]
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Services"
+                ],
+                "summary": "Create a service for a business",
+                "operationId": "createBusinessService",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "description": "Business identifier",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceUpsertRequest"
+                            },
+                            "example": {
+                                "name": "Dinner",
+                                "description": "Evening table reservation.",
+                                "duration_minutes": 120,
+                                "base_price": 35,
+                                "price_type_id": 2,
+                                "requires_payment": true,
+                                "is_active": true,
+                                "resource_ids": [
+                                    1,
+                                    2,
+                                    3
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created service",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Service"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "services:write"
+                        ]
+                    }
+                ]
+            }
+        },
+        "/api/v1/businesses/{business}/services/{service}": {
+            "get": {
+                "tags": [
+                    "Services"
+                ],
+                "summary": "Show a service",
+                "operationId": "showBusinessService",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "service",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Service detail",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Service"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "services:read"
+                        ]
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Services"
+                ],
+                "summary": "Update a service",
+                "operationId": "updateBusinessService",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "service",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceUpsertRequest"
+                            },
+                            "example": {
+                                "name": "Dinner",
+                                "description": "Updated evening service.",
+                                "duration_minutes": 135,
+                                "base_price": 39.5,
+                                "price_type_id": 2,
+                                "requires_payment": true,
+                                "is_active": true,
+                                "resource_ids": [
+                                    1,
+                                    2,
+                                    5
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated service",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Service"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "services:write"
+                        ]
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Services"
+                ],
+                "summary": "Delete a service",
+                "operationId": "deleteBusinessService",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "service",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Service deleted"
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "This service cannot be deleted because it has related reservations."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "services:write"
+                        ]
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Services"
+                ],
+                "summary": "Partially update a service",
+                "operationId": "patchBusinessService",
+                "parameters": [
+                    {
+                        "name": "business",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "service",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceUpsertRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated service",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Service"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageError"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": [
+                            "services:write"
+                        ]
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "BusinessSummary": {
+                "required": [
+                    "id",
+                    "name",
+                    "is_active"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Restaurante Marea Alta"
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "publicDescription": {
+                        "type": "string",
+                        "example": "A cozy seaside restaurant.",
+                        "nullable": true
+                    },
+                    "address": {
+                        "type": "string",
+                        "example": "123 Ocean Drive",
+                        "nullable": true
+                    },
+                    "website": {
+                        "type": "string",
+                        "example": "https://example.com",
+                        "nullable": true
+                    },
+                    "cancellationPolicy": {
+                        "type": "string",
+                        "example": "Free cancellation up to 24h before.",
+                        "nullable": true
+                    },
+                    "minCancellationHours": {
+                        "type": "integer",
+                        "example": 24,
+                        "nullable": true
+                    },
+                    "allowsModification": {
+                        "type": "boolean",
+                        "example": true
+                    }
+                },
+                "type": "object"
+            },
+            "PriceTypeSummary": {
+                "required": [
+                    "id",
+                    "name"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Por persona"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Precio calculado por cada persona.",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "OperationalResourceSummary": {
+                "required": [
+                    "id",
+                    "name",
+                    "is_active"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Mesa interior 4"
+                    },
+                    "capacity": {
+                        "type": "integer",
+                        "example": 4,
+                        "nullable": true
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "example": true
+                    }
+                },
+                "type": "object"
+            },
+            "ResourceTypeSummary": {
+                "required": [
+                    "id",
+                    "name"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Mesa"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Recurso físico para atención o servicio.",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ServiceSummary": {
+                "required": [
+                    "id",
+                    "name",
+                    "duration_minutes",
+                    "base_price",
+                    "requires_payment",
+                    "is_active"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Dinner"
+                    },
+                    "duration_minutes": {
+                        "type": "integer",
+                        "example": 120
+                    },
+                    "base_price": {
+                        "type": "string",
+                        "example": "35.00"
+                    },
+                    "requires_payment": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "example": true
+                    }
+                },
+                "type": "object"
+            },
+            "BlockTypeSummary": {
+                "required": [
+                    "id",
+                    "name"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Maintenance"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Temporary operational block.",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Service": {
+                "required": [
+                    "id",
+                    "name",
+                    "duration_minutes",
+                    "base_price",
+                    "requires_payment",
+                    "is_active",
+                    "created_at",
+                    "updated_at"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "business": {
+                        "$ref": "#/components/schemas/BusinessSummary"
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Dinner"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Evening table reservation.",
+                        "nullable": true
+                    },
+                    "duration_minutes": {
+                        "type": "integer",
+                        "example": 120
+                    },
+                    "base_price": {
+                        "type": "string",
+                        "example": "35.00"
+                    },
+                    "price_type": {
+                        "$ref": "#/components/schemas/PriceTypeSummary"
+                    },
+                    "requires_payment": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "resources": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/OperationalResourceSummary"
+                        }
+                    },
+                    "resources_count": {
+                        "type": "integer",
+                        "example": 6,
+                        "nullable": true
+                    },
+                    "reservations_count": {
+                        "type": "integer",
+                        "example": 4,
+                        "nullable": true
+                    },
+                    "publicNotes": {
+                        "type": "string",
+                        "example": "Outdoor seating available.",
+                        "nullable": true
+                    },
+                    "priorInstructions": {
+                        "type": "string",
+                        "example": "Please arrive 10 minutes early.",
+                        "nullable": true
+                    },
+                    "requiredDocumentation": {
+                        "type": "string",
+                        "example": "Valid ID required.",
+                        "nullable": true
+                    },
+                    "minCancellationHours": {
+                        "type": "integer",
+                        "example": 24,
+                        "nullable": true,
+                        "minimum": 0
+                    },
+                    "isRefundable": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "depositPercentage": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 20,
+                        "nullable": true,
+                        "maximum": 100,
+                        "minimum": 0
+                    },
+                    "pricePerTimeUnit": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-04-08T12:00:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-04-08T12:30:00Z"
+                    }
+                },
+                "type": "object"
+            },
+            "ServiceUpsertRequest": {
+                "required": [
+                    "name",
+                    "duration_minutes",
+                    "base_price",
+                    "price_type_id",
+                    "requires_payment",
+                    "is_active"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "example": "Dinner",
+                        "maxLength": 255,
+                        "minLength": 2
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Evening table reservation.",
+                        "nullable": true
+                    },
+                    "duration_minutes": {
+                        "type": "integer",
+                        "example": 120,
+                        "minimum": 1
+                    },
+                    "base_price": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 35,
+                        "minimum": 0
+                    },
+                    "price_type_id": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "requires_payment": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "resource_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "example": [
+                            1,
+                            2,
+                            3
+                        ]
+                    },
+                    "publicNotes": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "priorInstructions": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "requiredDocumentation": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "minCancellationHours": {
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 0
+                    },
+                    "isRefundable": {
+                        "type": "boolean"
+                    },
+                    "depositPercentage": {
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true,
+                        "maximum": 100,
+                        "minimum": 0
+                    },
+                    "pricePerTimeUnit": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "ValidationError": {
+                "required": [
+                    "message",
+                    "errors"
+                ],
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "The given data was invalid."
+                    },
+                    "errors": {
+                        "type": "object",
+                        "example": {
+                            "name": [
+                                "The name field is required."
+                            ]
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "MessageError": {
+                "required": [
+                    "message"
+                ],
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "Resource not found."
+                    }
+                },
+                "type": "object"
+            },
+            "ConflictError": {
+                "required": [
+                    "message"
+                ],
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "This resource cannot be deleted because it has related availabilities, blocks or reservations."
+                    }
+                },
+                "type": "object"
+            },
+            "PaginatedServiceCollection": {
+                "required": [
+                    "data",
+                    "links",
+                    "meta"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Service"
+                        }
+                    },
+                    "links": {
+                        "type": "object"
+                    },
+                    "meta": {
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "Resource": {
+                "required": [
+                    "id",
+                    "name",
+                    "is_active",
+                    "created_at",
+                    "updated_at"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "business": {
+                        "$ref": "#/components/schemas/BusinessSummary"
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Terrace Table 1"
+                    },
+                    "resource_type": {
+                        "$ref": "#/components/schemas/ResourceTypeSummary"
+                    },
+                    "capacity": {
+                        "type": "integer",
+                        "example": 4,
+                        "nullable": true
+                    },
+                    "minCapacity": {
+                        "type": "integer",
+                        "example": 1,
+                        "nullable": true,
+                        "minimum": 1
+                    },
+                    "isCombinable": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "publicNotes": {
+                        "type": "string",
+                        "example": "Near the window.",
+                        "nullable": true
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "services": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ServiceSummary"
+                        }
+                    },
+                    "availabilities_count": {
+                        "type": "integer",
+                        "example": 12,
+                        "nullable": true
+                    },
+                    "blocks_count": {
+                        "type": "integer",
+                        "example": 2,
+                        "nullable": true
+                    },
+                    "reservations_count": {
+                        "type": "integer",
+                        "example": 5,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-04-08T12:00:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-04-08T12:30:00Z"
+                    }
+                },
+                "type": "object"
+            },
+            "ResourceUpsertRequest": {
+                "required": [
+                    "name",
+                    "resource_type_id",
+                    "is_active"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "example": "Terrace Table 1",
+                        "maxLength": 255,
+                        "minLength": 2
+                    },
+                    "resource_type_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "capacity": {
+                        "type": "integer",
+                        "example": 4,
+                        "nullable": true,
+                        "minimum": 1
+                    },
+                    "minCapacity": {
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 1
+                    },
+                    "isCombinable": {
+                        "type": "boolean"
+                    },
+                    "publicNotes": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "example": true
+                    }
+                },
+                "type": "object"
+            },
+            "PaginatedResourceCollection": {
+                "required": [
+                    "data",
+                    "links",
+                    "meta"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Resource"
+                        }
+                    },
+                    "links": {
+                        "type": "object"
+                    },
+                    "meta": {
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "Availability": {
+                "required": [
+                    "id",
+                    "weekday",
+                    "start_time",
+                    "end_time",
+                    "is_active",
+                    "created_at",
+                    "updated_at"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "resource": {
+                        "$ref": "#/components/schemas/OperationalResourceSummary"
+                    },
+                    "weekday": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "start_time": {
+                        "type": "string",
+                        "example": "13:00"
+                    },
+                    "end_time": {
+                        "type": "string",
+                        "example": "16:00"
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "shiftName": {
+                        "type": "string",
+                        "example": "Morning",
+                        "nullable": true,
+                        "maxLength": 255
+                    },
+                    "bufferMinutes": {
+                        "type": "integer",
+                        "example": 15,
+                        "nullable": true,
+                        "minimum": 0
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-04-08T12:00:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-04-08T12:30:00Z"
+                    }
+                },
+                "type": "object"
+            },
+            "AvailabilityUpsertRequest": {
+                "required": [
+                    "resource_id",
+                    "weekday",
+                    "start_time",
+                    "end_time",
+                    "is_active"
+                ],
+                "properties": {
+                    "resource_id": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "weekday": {
+                        "type": "integer",
+                        "example": 2,
+                        "enum": [
+                            0,
+                            1,
+                            2,
+                            3,
+                            4,
+                            5,
+                            6
+                        ]
+                    },
+                    "start_time": {
+                        "type": "string",
+                        "example": "13:00"
+                    },
+                    "end_time": {
+                        "type": "string",
+                        "example": "16:00"
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "shiftName": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 255
+                    },
+                    "bufferMinutes": {
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 0
+                    }
+                },
+                "type": "object"
+            },
+            "PaginatedAvailabilityCollection": {
+                "required": [
+                    "data",
+                    "links",
+                    "meta"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Availability"
+                        }
+                    },
+                    "links": {
+                        "type": "object"
+                    },
+                    "meta": {
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "Block": {
+                "required": [
+                    "id",
+                    "is_full_day",
+                    "is_range",
+                    "is_recurring",
+                    "is_business_wide",
+                    "is_active",
+                    "created_at",
+                    "updated_at"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "business": {
+                        "$ref": "#/components/schemas/BusinessSummary"
+                    },
+                    "resource": {
+                        "$ref": "#/components/schemas/OperationalResourceSummary"
+                    },
+                    "block_type": {
+                        "$ref": "#/components/schemas/BlockTypeSummary"
+                    },
+                    "date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-04-15",
+                        "nullable": true
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-04-15",
+                        "nullable": true
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-04-20",
+                        "nullable": true
+                    },
+                    "is_recurring": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "weekday": {
+                        "type": "integer",
+                        "example": 1,
+                        "nullable": true,
+                        "maximum": 6,
+                        "minimum": 0
+                    },
+                    "start_time": {
+                        "type": "string",
+                        "example": "18:00",
+                        "nullable": true
+                    },
+                    "end_time": {
+                        "type": "string",
+                        "example": "20:00",
+                        "nullable": true
+                    },
+                    "reason": {
+                        "type": "string",
+                        "example": "Private event setup",
+                        "nullable": true
+                    },
+                    "is_full_day": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "is_range": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "is_business_wide": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-04-08T12:00:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-04-08T12:30:00Z"
+                    }
+                },
+                "type": "object"
+            },
+            "BlockUpsertRequest": {
+                "required": [
+                    "block_type_id",
+                    "is_recurring",
+                    "is_active"
+                ],
+                "properties": {
+                    "resource_id": {
+                        "description": "If null the block applies to the entire business.",
+                        "type": "integer",
+                        "example": 3,
+                        "nullable": true
+                    },
+                    "block_type_id": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "date": {
+                        "description": "Punctual date. Mutually exclusive with start_date/end_date when is_recurring is false.",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-04-15",
+                        "nullable": true
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-04-15",
+                        "nullable": true
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-04-20",
+                        "nullable": true
+                    },
+                    "is_recurring": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "weekday": {
+                        "description": "Required when is_recurring is true.",
+                        "type": "integer",
+                        "example": 1,
+                        "nullable": true,
+                        "maximum": 6,
+                        "minimum": 0
+                    },
+                    "start_time": {
+                        "type": "string",
+                        "example": "18:00",
+                        "nullable": true
+                    },
+                    "end_time": {
+                        "type": "string",
+                        "example": "20:00",
+                        "nullable": true
+                    },
+                    "reason": {
+                        "type": "string",
+                        "example": "Private event setup",
+                        "nullable": true,
+                        "maxLength": 255
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "example": true
+                    }
+                },
+                "type": "object"
+            },
+            "PaginatedBlockCollection": {
+                "required": [
+                    "data",
+                    "links",
+                    "meta"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Block"
+                        }
+                    },
+                    "links": {
+                        "type": "object"
+                    },
+                    "meta": {
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Services",
+            "description": "Business-scoped service management endpoints."
+        },
+        {
+            "name": "Resources",
+            "description": "Business-scoped operational resources."
+        },
+        {
+            "name": "Availabilities",
+            "description": "Weekly availability configuration for business resources."
+        },
+        {
+            "name": "Blocks",
+            "description": "Configured blocks for business resources."
+        }
+    ]
+}

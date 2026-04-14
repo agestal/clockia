@@ -1,0 +1,522 @@
+@import url('https://fonts.bunny.net/css?family=inter:300,400,500,600,700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --clockia-bg: #f7f9fc;
+    --clockia-surface: #ffffff;
+    --clockia-surface-muted: #f3f6fa;
+    --clockia-border: #e2e8f0;
+    --clockia-border-strong: #d4dce7;
+    --clockia-dark: #101828;
+    --clockia-text: #243041;
+    --clockia-text-soft: #66758b;
+    --clockia-sidebar: #141b2d;
+    --clockia-sidebar-soft: #1f2740;
+    --clockia-accent: #2ea3df;
+    --clockia-accent-hover: #1c93cf;
+    --clockia-accent-soft: #edf7fc;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: var(--clockia-bg);
+    color: var(--clockia-text);
+    font-size: 0.875rem;
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+}
+
+.content-wrapper {
+    background: var(--clockia-bg);
+}
+
+.main-header.navbar {
+    background: #fff;
+    border-bottom: 1px solid var(--clockia-border);
+    box-shadow: none;
+    min-height: 52px;
+}
+
+.main-header .nav-link,
+.main-header .navbar-nav .nav-link {
+    color: var(--clockia-text-soft);
+    font-size: 0.8125rem;
+}
+
+.clockia-navbar-title {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.35rem;
+    color: var(--clockia-dark);
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.clockia-navbar-title span {
+    color: var(--clockia-text-soft);
+    font-weight: 400;
+    margin-left: 0.35rem;
+}
+
+.main-header .nav-link:hover,
+.main-header .navbar-nav .nav-link:hover {
+    color: var(--clockia-text);
+}
+
+.main-header .dropdown-menu {
+    border: 1px solid var(--clockia-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    padding: 0.45rem 0;
+}
+
+.main-header .dropdown-item {
+    font-size: 0.8125rem;
+}
+
+.brand-link {
+    background: var(--clockia-sidebar);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 0.95rem 1rem;
+}
+
+.brand-text {
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.main-sidebar {
+    background: var(--clockia-sidebar);
+    width: 220px;
+}
+
+body:not(.sidebar-collapse) .main-sidebar,
+body:not(.sidebar-collapse) .main-sidebar::before {
+    width: 220px;
+}
+
+body:not(.sidebar-collapse) .content-wrapper,
+body:not(.sidebar-collapse) .main-header,
+body:not(.sidebar-collapse) .main-footer {
+    margin-left: 220px;
+}
+
+.sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link {
+    border-radius: 7px;
+    color: rgba(255, 255, 255, 0.58);
+    font-weight: 400;
+    font-size: 0.8125rem;
+    margin: 1px 0.6rem;
+    padding: 0.7rem 1rem;
+}
+
+.sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link:hover {
+    background: var(--clockia-sidebar-soft);
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link.active {
+    background: var(--clockia-accent) !important;
+    color: #fff;
+    font-weight: 500;
+    box-shadow: 0 1px 3px rgba(79, 107, 138, 0.28);
+}
+
+.nav-sidebar .nav-header {
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 1.15rem 1rem 0.4rem;
+}
+
+.nav-sidebar .nav-icon {
+    font-size: 0.875rem;
+    width: 1.6rem;
+}
+
+.content-header h1,
+.content-header .h1,
+.content-header .h2,
+.content-header .h3 {
+    color: var(--clockia-text);
+    font-weight: 600;
+    font-size: 1.25rem;
+    letter-spacing: -0.03em;
+}
+
+.content-header p {
+    color: var(--clockia-text-soft);
+    font-size: 0.8125rem;
+}
+
+.card {
+    background: #fff;
+    border: 1px solid var(--clockia-border);
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.card-header {
+    background: transparent;
+    border-bottom: 1px solid var(--clockia-border);
+    padding: 1rem 1.25rem;
+}
+
+.card-title {
+    color: var(--clockia-text);
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.card-body {
+    color: var(--clockia-text-soft);
+    padding: 1.25rem;
+}
+
+.info-box,
+.small-box {
+    background: #fff !important;
+    border: 1px solid var(--clockia-border);
+    border-radius: 10px;
+    box-shadow: none;
+    color: var(--clockia-text) !important;
+    overflow: hidden;
+}
+
+.small-box > .inner {
+    padding: 1rem 1.1rem;
+}
+
+.small-box h3 {
+    color: var(--clockia-text);
+    font-size: 1.45rem;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.25rem;
+}
+
+.small-box p {
+    color: var(--clockia-text-soft);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    margin-bottom: 0;
+    text-transform: uppercase;
+}
+
+.small-box .icon {
+    color: rgba(79, 107, 138, 0.14) !important;
+    top: 12px;
+    right: 14px;
+}
+
+.small-box .icon > i {
+    font-size: 42px;
+}
+
+.btn-primary,
+.btn-secondary {
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+
+.btn-primary {
+    background: var(--clockia-accent);
+    border-color: var(--clockia-accent);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background: var(--clockia-accent-hover);
+    border-color: var(--clockia-accent-hover);
+}
+
+.login-box .card,
+.register-box .card {
+    border-radius: 10px;
+}
+
+.login-logo a,
+.register-logo a {
+    color: var(--clockia-text);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.login-page,
+.register-page {
+    background: linear-gradient(180deg, #f8fafc 0%, #f4f7fb 100%);
+}
+
+.form-control {
+    border: 1px solid var(--clockia-border);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    padding: 0.5rem 0.75rem;
+    color: var(--clockia-text);
+}
+
+.form-control:focus {
+    border-color: var(--clockia-accent);
+    box-shadow: 0 0 0 3px rgba(79, 107, 138, 0.1);
+}
+
+.input-group-text {
+    background: var(--clockia-surface-muted);
+    border-color: var(--clockia-border);
+    color: var(--clockia-text-soft);
+}
+
+.content-header {
+    padding: 1.35rem 1rem 0.8rem;
+}
+
+.content {
+    padding: 0 1rem 2rem;
+}
+
+.clockia-stat {
+    background: #fff;
+    border: 1px solid var(--clockia-border);
+    border-radius: 10px;
+    padding: 0.9rem 1.1rem 0.95rem 4.35rem;
+    height: 100%;
+    position: relative;
+}
+
+.clockia-stat__label {
+    color: var(--clockia-text-soft);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.clockia-stat__value {
+    color: var(--clockia-text);
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin: 0;
+}
+
+.clockia-stat__icon {
+    position: absolute;
+    top: 50%;
+    left: 1.15rem;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f6f8fb;
+    color: #6b7c93;
+    font-size: 0.82rem;
+}
+
+.list-group-flush > .list-group-item {
+    border-left: 0;
+    border-right: 0;
+}
+
+.clockia-quick-link {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 1.05rem 1.3rem;
+    border-color: var(--clockia-border);
+    color: inherit;
+    background: #fff;
+    text-decoration: none;
+}
+
+.clockia-quick-link:hover {
+    background: #fbfdff;
+    text-decoration: none;
+    color: inherit;
+}
+
+.clockia-quick-link__icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--clockia-accent-soft);
+    color: var(--clockia-accent);
+    font-size: 0.8rem;
+    flex: 0 0 auto;
+}
+
+.clockia-quick-link__content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.clockia-quick-link__title {
+    color: var(--clockia-dark);
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.clockia-quick-link__description {
+    color: var(--clockia-text-soft);
+    font-size: 0.76rem;
+    margin-top: 0.15rem;
+}
+
+.clockia-quick-link__arrow {
+    margin-left: auto;
+    color: #c2cad6;
+    font-size: 0.95rem;
+}
+
+.clockia-account {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0.85rem 0 1.35rem;
+    border-bottom: 1px solid var(--clockia-border);
+}
+
+.clockia-account__avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f6f8fb;
+    border: 1px solid var(--clockia-border);
+    color: var(--clockia-dark);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.85rem;
+}
+
+.clockia-account__name {
+    color: var(--clockia-dark);
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.clockia-account__email {
+    color: var(--clockia-text-soft);
+    font-size: 0.76rem;
+    margin-top: 0.25rem;
+}
+
+.clockia-account__meta {
+    padding-top: 1.2rem;
+}
+
+.clockia-meta-row {
+    padding: 0.95rem 0;
+    border-bottom: 1px solid var(--clockia-border);
+}
+
+.clockia-meta-row:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.clockia-meta-row__label {
+    display: block;
+    color: var(--clockia-text-soft);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+}
+
+.clockia-meta-row__value {
+    display: block;
+    color: var(--clockia-dark);
+    font-size: 0.82rem;
+    font-weight: 500;
+}
+
+.clockia-dashboard {
+    max-width: none;
+    margin: 0;
+}
+
+.clockia-dashboard__stats {
+    margin-bottom: 1.35rem;
+}
+
+.clockia-dashboard__stats > [class*='col-'],
+.clockia-dashboard__panels > [class*='col-'] {
+    padding-left: 0.55rem;
+    padding-right: 0.55rem;
+}
+
+.clockia-dashboard__panels {
+    margin-bottom: 1rem;
+}
+
+.clockia-dashboard .card {
+    height: 100%;
+}
+
+.clockia-dashboard .card-body {
+    padding: 1.35rem 1.4rem;
+}
+
+.clockia-dashboard .card-header {
+    padding: 1rem 1.25rem;
+}
+
+@media (min-width: 992px) {
+    .clockia-dashboard__panels > .col-lg-8 {
+        flex: 0 0 66.2%;
+        max-width: 66.2%;
+    }
+
+    .clockia-dashboard__panels > .col-lg-4 {
+        flex: 0 0 33.8%;
+        max-width: 33.8%;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .content-header {
+        padding: 1.1rem 0.9rem 0.7rem;
+    }
+
+    .content {
+        padding: 0 0.9rem 1.5rem;
+    }
+
+    .clockia-dashboard__stats {
+        margin-bottom: 1rem;
+    }
+
+    .clockia-dashboard__panels > .col-lg-8 {
+        margin-bottom: 1rem;
+    }
+}
+
+[x-cloak] {
+    display: none;
+}
