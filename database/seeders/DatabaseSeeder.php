@@ -28,6 +28,11 @@ class DatabaseSeeder extends Seeder
         $this->call([
             BaseCatalogsSeeder::class,
             DemoBodegaSeeder::class,
+            DemoMartinCodaxSeeder::class,
+            DemoPazoSenoransSeeder::class,
+            DemoTerrasGaudaSeeder::class,
+            DemoPacoLolaSeeder::class,
+            DemoFefinanesSeeder::class,
             BackofficeUsersSeeder::class,
         ]);
     }
