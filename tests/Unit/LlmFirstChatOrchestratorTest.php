@@ -534,6 +534,76 @@ class LlmFirstChatOrchestratorTest extends TestCase
         $this->assertSame('orientacion', $result['state']['fase_conversacional']);
     }
 
+    public function test_it_marks_orientation_phase_when_user_asks_for_a_general_explanation(): void
+    {
+        [$business] = $this->createWineryFixture();
+
+        $capturedPrompts = [];
+
+        $llmClient = Mockery::mock(LLMClient::class);
+        $llmClient->shouldReceive('chat')
+            ->once()
+            ->andReturnUsing(function (string $systemPrompt) use (&$capturedPrompts) {
+                $capturedPrompts[] = $systemPrompt;
+
+                return json_encode([
+                    'assistant_message' => 'Claro, te explico primero cómo funcionan las experiencias y qué opciones hay.',
+                    'state_patch' => [],
+                    'tool_call' => null,
+                    'needs_user_input' => true,
+                    'conversation_status' => 'respond',
+                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            });
+
+        $fakeToolClient = new class implements ConversationToolClient
+        {
+            public function transportName(): string
+            {
+                return 'direct';
+            }
+
+            public function listTools(): array
+            {
+                return [];
+            }
+
+            public function executeTool(string $tool, array $params): array
+            {
+                throw new \RuntimeException('No debería ejecutarse ninguna tool.');
+            }
+        };
+
+        $resolver = Mockery::mock(ConversationToolClientResolver::class);
+        $resolver->shouldReceive('resolve')
+            ->once()
+            ->with('direct')
+            ->andReturn($fakeToolClient);
+
+        $orchestrator = new LlmFirstChatOrchestrator(
+            $resolver,
+            new ChatbotProfileResolver(),
+            new ConversationBehaviorProfileResolver(),
+            new TurnPromptBuilder(),
+            new LlmTurnEngine($llmClient),
+            new ConversationStatePatcher(),
+            new ConversationUserMessageNormalizer(),
+        );
+
+        $result = $orchestrator->handle(
+            'Sí, quiero que me expliques',
+            $business->id,
+            [],
+            new ConversationState(negocioId: $business->id),
+            'direct',
+        );
+
+        $this->assertSame('orientacion', $result['debug']['state_before']['fase_conversacional']);
+        $this->assertSame('desconocido', $result['debug']['state_before']['nivel_conocimiento_usuario']);
+        $this->assertCount(1, $capturedPrompts);
+        $this->assertStringContainsString('fase_conversacional', $capturedPrompts[0]);
+        $this->assertStringContainsString('no devuelvas la pelota con preguntas vagas', $capturedPrompts[0]);
+    }
+
     private function createBusinessFixture(): array
     {
         $businessType = TipoNegocio::create([

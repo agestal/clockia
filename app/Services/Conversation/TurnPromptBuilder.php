@@ -74,6 +74,14 @@ Reglas de conversación:
   4. solo después intentar cerrar una reserva si el usuario ya quiere avanzar
 - Para un usuario que ya conoce este tipo de experiencias, puedes saltarte la explicación general y centrarte antes en las experiencias concretas de esta bodega.
 - Si no sabes si el usuario es novato o ya conoce este tipo de experiencias, puedes inferirlo por su forma de hablar o hacer una única pregunta de calibración breve.
+- Si el estado indica `fase_conversacional = orientacion` y todavía no hay `servicio_id`, no devuelvas la pelota con preguntas vagas del tipo “¿quieres que te detalle alguna experiencia?” sin haber nombrado antes las experiencias reales disponibles.
+- En esa situación, la tool más útil por defecto suele ser `list_bookable_services`.
+- Tras `list_bookable_services`, para una bodega debes responder idealmente en este orden:
+  1. cómo suelen funcionar las experiencias de la bodega
+  2. un resumen de rango de duración, precio y tamaño de grupo
+  3. las experiencias concretas disponibles, con nombre y una explicación breve de cada una
+  4. una pregunta útil para ayudar a elegir, no una pregunta vacía
+- Si el usuario pide “explícame” o “cómo funciona” y todavía no conoce la oferta concreta, no le pidas que elija entre experiencias que aún no le has presentado.
 - Si estás en fase de cierre de reserva y faltan varios datos administrativos o de contacto, intenta pedirlos juntos en un solo turno útil.
 - No digas “solo me falta una cosa”, “último dato” o expresiones equivalentes salvo que de verdad quede un único dato pendiente.
 - Usa exactamente los nombres de tool y de argumentos que figuran en el schema.
@@ -196,6 +204,7 @@ Reglas extra para esta segunda decisión:
 - Si el resultado trae `llm_customer_safe_booking`, úsalo como base para confirmar el cierre; menciona email de confirmación solo si ese bloque indica que se envió.
 - Si el resultado trae `llm_customer_safe_options`, habla de sesiones, experiencias, plazas o descriptores públicos; no de salas o recursos internos salvo petición expresa del cliente.
 - Si el resultado trae `llm_customer_safe_catalog_overview` y el usuario parece novato, úsalo para dar primero una vista general del funcionamiento de la oferta antes de entrar al detalle de cada experiencia.
+- Si el resultado trae `llm_explanation_plan`, síguelo para estructurar la respuesta de orientación sin sonar a catálogo plano.
 - Si la tool ejecutada fue create_booking y salió bien, no hables como si siguiera pendiente de confirmación.
 - En esta segunda decisión no llames otra tool salvo error extremo. Lo normal es devolver "tool_call": null.
 PROMPT;

@@ -42,6 +42,7 @@ class ListBookableServicesTool extends ToolDefinition
         return [
             'Resume la oferta en lenguaje de cliente y evita volcar el catálogo completo si no hace falta.',
             'Si un servicio encaja claramente con la petición del usuario, puedes destacarlo en vez de enumerarlo todo.',
+            'Si el usuario aún no conoce la oferta, primero orienta y explica cómo funciona en general antes de pedir que elija una opción concreta.',
         ];
     }
 
@@ -121,7 +122,7 @@ class ListBookableServicesTool extends ToolDefinition
             'conversation_memory_hint' => $total > 0
                 ? "Ya conoces {$total} opciones reservables del negocio para seguir la conversación sin pedir al usuario que repita qué quiere."
                 : 'No se encontraron servicios activos en este momento.',
-            'next_step_hint' => 'Traduce el catálogo a lenguaje de cliente. Si el usuario ya insinuó una intención concreta, úsala para recomendar en vez de recitar.',
+            'next_step_hint' => 'Traduce el catálogo a lenguaje de cliente. Si el usuario está orientándose, explica primero cómo funciona la oferta y luego nombra las opciones reales antes de pedir una elección.',
             'public_summary' => $total > 0
                 ? "Hay {$total} servicios activos disponibles para explicar u ofrecer."
                 : 'No hay servicios activos para mostrar.',

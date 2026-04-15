@@ -527,6 +527,23 @@ class LlmFirstChatOrchestrator
                 : 'Usa este resumen para orientar antes de entrar a detalle si el usuario lo necesita.',
         ];
 
+        $toolResult['data']['llm_explanation_plan'] = [
+            'goal' => $behaviorProfile->sectorKey === 'winery'
+                ? 'Orientar al cliente antes de pedirle que elija una experiencia concreta.'
+                : 'Explicar la oferta de forma útil antes de pedir una elección concreta.',
+            'steps' => [
+                'Explica brevemente cómo funciona la experiencia o la oferta en términos generales.',
+                'Resume duración, precio y tamaño de grupo cuando sean relevantes.',
+                'Presenta las opciones concretas disponibles con nombre y una frase útil de cada una.',
+                'Cierra con una pregunta que ayude a elegir según estilo o preferencia, no con una pregunta genérica vacía.',
+            ],
+            'avoid' => [
+                'No pidas que elija una experiencia que aún no has nombrado.',
+                'No conviertas la respuesta en un listado técnico plano.',
+                'No empujes todavía el cierre de reserva si el usuario sigue en modo orientación.',
+            ],
+        ];
+
         return $toolResult;
     }
 
@@ -979,6 +996,14 @@ class LlmFirstChatOrchestrator
             $state->nivelConocimientoUsuario = $knowledgeLevel;
         }
 
+        if ($this->messageNeedsOfferOrientation($message) && $state->servicioId === null) {
+            $state->faseConversacional = 'orientacion';
+
+            if ($state->nivelConocimientoUsuario === null) {
+                $state->nivelConocimientoUsuario = 'desconocido';
+            }
+        }
+
         $detectedDocumentType = $this->detectDocumentType($message);
 
         if ($state->documentType === null && $detectedDocumentType !== null) {
@@ -1037,6 +1062,35 @@ class LlmFirstChatOrchestrator
         }
 
         return null;
+    }
+
+    private function messageNeedsOfferOrientation(string $message): bool
+    {
+        $normalized = mb_strtolower($message, 'UTF-8');
+
+        foreach ([
+            'quiero que me expliques',
+            'explícame',
+            'explicame',
+            'como funciona',
+            'cómo funciona',
+            'como son las experiencias',
+            'cómo son las experiencias',
+            'que experiencias teneis',
+            'qué experiencias tenéis',
+            'que hacéis',
+            'qué hacéis',
+            'que ofrecéis',
+            'qué ofrecéis',
+            'informame',
+            'infórmame',
+        ] as $pattern) {
+            if (str_contains($normalized, $pattern)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function detectDocumentType(string $message): ?string
