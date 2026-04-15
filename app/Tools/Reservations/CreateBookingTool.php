@@ -62,7 +62,7 @@ class CreateBookingTool extends ToolDefinition
         return [
             'Si la reserva se crea, deja claro que ya está registrada y cita el localizador.',
             'Si falla porque el hueco ya no existe o falta contacto/documentación, explícalo con naturalidad y guía el siguiente paso.',
-            'No afirmes que se ha notificado por email o SMS si no existe esa integración real.',
+            'Solo menciones el email de confirmación si el resultado indica realmente que se ha enviado.',
         ];
     }
 
@@ -145,6 +145,7 @@ class CreateBookingTool extends ToolDefinition
     {
         $locator = data_get($result->data, 'booking.locator');
         $status = data_get($result->data, 'booking.status');
+        $confirmationEmailSentAt = data_get($result->data, 'booking.confirmation_email_sent_at');
 
         return [
             'tool_name' => $this->name(),
@@ -154,10 +155,10 @@ class CreateBookingTool extends ToolDefinition
                 ? "La reserva ya está creada con localizador {$locator}. Ya no debes hablar de ella como propuesta."
                 : 'La reserva no llegó a crearse y no debe presentarse como cerrada.',
             'next_step_hint' => $result->success
-                ? 'Confirma al usuario que la reserva ya existe, resume los datos clave y menciona el localizador.'
+                ? 'Confirma al usuario que la reserva ya existe, resume los datos clave y menciona el localizador. Si el resultado incluye email de confirmación enviado, puedes decirlo.'
                 : 'Explica qué falta o qué falló y pide solo el dato o ajuste necesario para intentarlo de nuevo.',
             'public_summary' => $result->success
-                ? 'La reserva se ha creado correctamente'.($locator !== null ? " con localizador {$locator}" : '').($status !== null ? " y estado {$status}" : '').'.'
+                ? 'La reserva se ha creado correctamente'.($locator !== null ? " con localizador {$locator}" : '').($status !== null ? " y estado {$status}" : '').($confirmationEmailSentAt ? ' Además, se ha enviado el email de confirmación.' : '.')
                 : ($result->error ?? 'No se pudo crear la reserva.'),
         ];
     }

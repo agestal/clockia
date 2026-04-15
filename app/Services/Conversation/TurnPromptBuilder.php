@@ -19,6 +19,7 @@ class TurnPromptBuilder
         $stateBlock = json_encode($state->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $contextBlock = $this->formatContextForPrompt($context);
         $servicesBlock = $this->formatServicesForPrompt($services);
+        $servicesOverviewBlock = $this->formatServicesOverviewForPrompt($services, $behaviorProfile);
         $sectorKnowledgeBlock = $this->formatSectorKnowledgeForPrompt($profile, $behaviorProfile);
 
         return <<<PROMPT
@@ -41,6 +42,8 @@ Historial reciente:
 {$contextBlock}
 
 Servicios activos conocidos del negocio:
+{$servicesOverviewBlock}
+
 {$servicesBlock}
 
 Tools disponibles:
@@ -62,6 +65,15 @@ Reglas de conversación:
 - No pidas la hora exacta por reflejo si todavía puedes avanzar mejor buscando disponibilidad real o proponiendo una hora útil más adelante.
 - Si el mensaje viene comprimido, con mala puntuación o mezclando texto y números, interprétalo antes de pedir que lo repita.
 - Si una tool no puede completar la tarea, explícalo con naturalidad y sigue guiando.
+- Si el usuario pide detalle o comparación de una experiencia concreta y ese detalle no está ya en contexto suficiente, usa get_service_details en vez de improvisar.
+- Si el usuario parece novato o dice que es su primera vez, prioriza una fase explicativa y colaborativa antes de empujar el cierre.
+- Para un usuario novato, el flujo preferido es:
+  1. explicar cómo funcionan en general las experiencias de esta bodega
+  2. resumir rango de precios, duraciones y tamaños de grupo
+  3. explicar luego las experiencias concretas para que pueda elegir
+  4. solo después intentar cerrar una reserva si el usuario ya quiere avanzar
+- Para un usuario que ya conoce este tipo de experiencias, puedes saltarte la explicación general y centrarte antes en las experiencias concretas de esta bodega.
+- Si no sabes si el usuario es novato o ya conoce este tipo de experiencias, puedes inferirlo por su forma de hablar o hacer una única pregunta de calibración breve.
 - Si estás en fase de cierre de reserva y faltan varios datos administrativos o de contacto, intenta pedirlos juntos en un solo turno útil.
 - No digas “solo me falta una cosa”, “último dato” o expresiones equivalentes salvo que de verdad quede un único dato pendiente.
 - Usa exactamente los nombres de tool y de argumentos que figuran en el schema.
@@ -77,11 +89,14 @@ Reglas de conversación:
 - Si el usuario dice "cenar", "cena", "comer", "brunch" o expresiones similares, intenta mapearlo contra los servicios activos conocidos del negocio.
 - Respeta el perfil conversacional del sector: rol, registro, estilo de preguntas, estilo de opciones y política de exposición de inventario.
 - Si el resultado de una tool trae resúmenes `llm_customer_safe_*`, prefierelos frente al detalle interno salvo que el perfil o el usuario pidan detalle técnico.
+- Si el resultado trae `llm_reply_strategy`, úsalo para decidir si conviene proponer una única opción directamente o resumir varias alternativas sin repetir estructura interna.
 - Si el resultado trae `llm_catalog_term`, úsalo para hablar de la oferta del negocio de forma natural en vez de repetir siempre “servicios”.
 - Si el resultado trae `llm_no_availability_guidance`, úsalo para decidir cómo comunicar la falta de disponibilidad y qué tipo de alternativa ofrecer.
 - Si el inventario interno no debe exponerse, no cites nombres internos de recursos, mesas, cabinas, puestos o identificadores operativos.
 - Cuando el cliente pide "lo que ofrecéis" o "qué tenéis", traduce la oferta a términos del sector y del cliente, no a una lista técnica de backend.
 - Si no hay disponibilidad, sigue la política del perfil del sector: decirlo claro, ofrecer alternativas cuando las haya y no dejar la conversación en seco.
+- Si el cliente pregunta cómo es una experiencia concreta, prioriza ambiente, qué incluye, duración, idioma, punto de encuentro y estilo de la visita antes que detalles operativos internos.
+- Si ya estás cerrando una reserva, pide nombre, teléfono y email juntos siempre que sea viable; evita goteos de un dato por turno.
 - El catálogo de tools y sus guías de uso son parte de tu conocimiento operativo. Debes decidir con criterio qué tool usar y cuándo no usar ninguna.
 - El estado de memoria sirve para no hacer repetir al usuario datos ya resueltos dentro de la conversación reciente.
 
@@ -91,6 +106,8 @@ Debes responder SOLO JSON válido con esta forma exacta:
   "state_patch": {
     "servicio_id": 1,
     "servicio_nombre": "Cena",
+    "nivel_conocimiento_usuario": "novato",
+    "fase_conversacional": "orientacion",
     "fecha": "2026-04-17",
     "numero_personas": 4,
     "hora_preferida": "21:00",
@@ -175,6 +192,10 @@ Reglas extra para esta segunda decisión:
 - Si realmente hay varias alternativas distintas, resúmelas de forma breve y humana.
 - Si la explicación de la tool te indica cómo presentar el resultado, síguela.
 - No conviertas datos internos en catálogo técnico si el resultado ya trae resúmenes aptos para cliente.
+- Si el resultado trae `llm_customer_safe_service_detail`, úsalo como base para explicar una experiencia con tono comercial y humano.
+- Si el resultado trae `llm_customer_safe_booking`, úsalo como base para confirmar el cierre; menciona email de confirmación solo si ese bloque indica que se envió.
+- Si el resultado trae `llm_customer_safe_options`, habla de sesiones, experiencias, plazas o descriptores públicos; no de salas o recursos internos salvo petición expresa del cliente.
+- Si el resultado trae `llm_customer_safe_catalog_overview` y el usuario parece novato, úsalo para dar primero una vista general del funcionamiento de la oferta antes de entrar al detalle de cada experiencia.
 - Si la tool ejecutada fue create_booking y salió bien, no hables como si siguiera pendiente de confirmación.
 - En esta segunda decisión no llames otra tool salvo error extremo. Lo normal es devolver "tool_call": null.
 PROMPT;
@@ -244,11 +265,105 @@ PROMPT;
                     $parts[] = number_format((float) $service['precio_base'], 2, ',', '.').' EUR';
                 }
 
+                if (isset($service['precio_menor']) && $service['precio_menor'] !== null) {
+                    $parts[] = 'desde '.number_format((float) $service['precio_menor'], 2, ',', '.').' EUR';
+                }
+
+                if (
+                    isset($service['numero_personas_minimo']) && $service['numero_personas_minimo'] !== null
+                    || isset($service['numero_personas_maximo']) && $service['numero_personas_maximo'] !== null
+                ) {
+                    $parts[] = $this->formatPartySizeLabel($service);
+                }
+
                 $parts[] = ! empty($service['requiere_pago']) ? 'requiere pago' : 'sin prepago obligatorio';
+
+                if (! empty($service['notas_publicas'])) {
+                    $parts[] = mb_substr((string) $service['notas_publicas'], 0, 120);
+                }
 
                 return '- '.implode(' | ', $parts);
             })
             ->implode("\n");
+    }
+
+    private function formatServicesOverviewForPrompt(array $services, ConversationBehaviorProfile $behaviorProfile): string
+    {
+        if ($services === []) {
+            return 'RESUMEN DE OFERTA CONOCIDA: sin datos suficientes.';
+        }
+
+        $durations = collect($services)
+            ->pluck('duracion_minutos')
+            ->filter(fn ($value) => is_numeric($value))
+            ->map(fn ($value) => (int) $value)
+            ->values();
+
+        $prices = collect($services)
+            ->flatMap(function (array $service) {
+                return collect([
+                    $service['precio_menor'] ?? null,
+                    $service['precio_base'] ?? null,
+                ]);
+            })
+            ->filter(fn ($value) => is_numeric($value))
+            ->map(fn ($value) => (float) $value)
+            ->values();
+
+        $mins = collect($services)
+            ->pluck('numero_personas_minimo')
+            ->filter(fn ($value) => is_numeric($value))
+            ->map(fn ($value) => (int) $value)
+            ->values();
+
+        $maxs = collect($services)
+            ->pluck('numero_personas_maximo')
+            ->filter(fn ($value) => is_numeric($value))
+            ->map(fn ($value) => (int) $value)
+            ->values();
+
+        $lines = [
+            'RESUMEN DE OFERTA CONOCIDA:',
+            '- total de experiencias activas: '.count($services),
+        ];
+
+        if ($durations->isNotEmpty()) {
+            $lines[] = '- rango de duración: '.$durations->min().' a '.$durations->max().' minutos';
+        }
+
+        if ($prices->isNotEmpty()) {
+            $lines[] = '- rango orientativo de precio: '.number_format($prices->min(), 2, ',', '.').' a '.number_format($prices->max(), 2, ',', '.').' EUR';
+        }
+
+        if ($mins->isNotEmpty() || $maxs->isNotEmpty()) {
+            $lines[] = '- tamaños de grupo habituales: '
+                .($mins->isNotEmpty() ? 'desde '.$mins->min() : 'sin mínimo claro')
+                .' / '
+                .($maxs->isNotEmpty() ? 'hasta '.$maxs->max().' personas' : 'sin máximo claro');
+        }
+
+        if ($behaviorProfile->sectorKey === 'winery') {
+            $lines[] = '- usa este resumen para orientar a usuarios novatos antes de empujar una elección concreta.';
+        }
+
+        return implode("\n", $lines);
+    }
+
+    private function formatPartySizeLabel(array $service): string
+    {
+        $min = isset($service['numero_personas_minimo']) && is_numeric($service['numero_personas_minimo'])
+            ? (int) $service['numero_personas_minimo']
+            : null;
+        $max = isset($service['numero_personas_maximo']) && is_numeric($service['numero_personas_maximo'])
+            ? (int) $service['numero_personas_maximo']
+            : null;
+
+        return match (true) {
+            $min !== null && $max !== null => "grupo {$min}-{$max} personas",
+            $min !== null => "desde {$min} personas",
+            $max !== null => "hasta {$max} personas",
+            default => 'grupo sin rango definido',
+        };
     }
 
     private function formatToolsForPrompt(array $tools, ChatbotProfile $profile): string
@@ -306,6 +421,7 @@ CONOCIMIENTO SECTORIAL EXTRA - BODEGA Y ENOLOGIA:
 - Adapta la profundidad tecnica al cliente: si habla en tono casual, responde claro y ameno; si pide detalle tecnico, puedes subir el nivel y explicar variedad, elaboracion, crianza, acidez, aromas, estructura y final.
 - Para explicar una cata, usa una secuencia humana y simple: fase visual, nariz, boca, sensacion final y contexto del vino. No suenes academico salvo que el cliente lo busque.
 - Para explicar una experiencia enoturistica ideal, piensa en acogida, contexto del lugar, recorrido, cata guiada, posible maridaje y ambiente del grupo.
+- Cuando compares dos experiencias, habla de sensaciones, ambiente, qué incluye cada una y para qué tipo de visita encaja mejor cada propuesta.
 - Puedes mencionar con naturalidad referencias solidas de denominaciones de origen espanolas como: Rias Baixas, Ribeiro, Ribeira Sacra, Valdeorras, Monterrei, Rioja, Ribera del Duero, Rueda, Toro, Bierzo, Priorat, Penedes, Cava, Jerez-Xeres-Sherry, Montilla-Moriles, La Mancha, Somontano, Utiel-Requena y Alicante.
 - Si el cliente pregunta por la zona del negocio, conecta la experiencia con el territorio de forma natural, pero no afirmes una DO concreta si no esta respaldada por la ubicacion o las reglas del negocio.
 - Si el cliente solo quiere reservar, no conviertas la conversacion en una masterclass de vino.

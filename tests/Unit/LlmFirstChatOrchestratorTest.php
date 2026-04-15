@@ -329,6 +329,211 @@ class LlmFirstChatOrchestratorTest extends TestCase
         $this->assertSame('Fallo MCP', $result['debug']['tool_execution_error']);
     }
 
+    public function test_it_prepares_customer_safe_winery_availability_for_the_llm(): void
+    {
+        [$business, $service] = $this->createWineryFixture();
+
+        $systemPrompts = [];
+        $call = 0;
+
+        $llmClient = Mockery::mock(LLMClient::class);
+        $llmClient->shouldReceive('chat')
+            ->twice()
+            ->andReturnUsing(function (string $systemPrompt) use (&$systemPrompts, &$call, $service) {
+                $systemPrompts[] = $systemPrompt;
+                $call++;
+
+                if ($call === 1) {
+                    return json_encode([
+                        'assistant_message' => 'Voy a revisar plazas para esa experiencia.',
+                        'state_patch' => [
+                            'servicio_id' => $service->id,
+                            'servicio_nombre' => $service->nombre,
+                            'fecha' => '2026-04-18',
+                            'numero_personas' => 4,
+                            'ultima_intencion' => 'reservar',
+                        ],
+                        'tool_call' => [
+                            'name' => 'search_availability',
+                            'arguments' => [
+                                'servicio_id' => $service->id,
+                                'fecha' => '2026-04-18',
+                                'numero_personas' => 4,
+                            ],
+                        ],
+                        'needs_user_input' => true,
+                        'conversation_status' => 'tool_call',
+                    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                }
+
+                return json_encode([
+                    'assistant_message' => 'Tengo una sesión muy buena para ese día.',
+                    'state_patch' => [
+                        'servicio_id' => $service->id,
+                        'servicio_nombre' => $service->nombre,
+                        'fecha' => '2026-04-18',
+                        'numero_personas' => 4,
+                        'ultima_intencion' => 'reservar',
+                    ],
+                    'tool_call' => null,
+                    'needs_user_input' => true,
+                    'conversation_status' => 'respond',
+                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            });
+
+        $fakeToolClient = new class implements ConversationToolClient
+        {
+            public function transportName(): string
+            {
+                return 'direct';
+            }
+
+            public function listTools(): array
+            {
+                return [
+                    'search_availability' => [
+                        'name' => 'search_availability',
+                        'description' => 'Busca disponibilidad.',
+                        'input_schema' => [
+                            'type' => 'object',
+                            'properties' => [
+                                'negocio_id' => ['type' => 'integer'],
+                                'servicio_id' => ['type' => 'integer'],
+                                'fecha' => ['type' => 'string'],
+                                'numero_personas' => ['type' => 'integer'],
+                            ],
+                            'required' => ['negocio_id', 'servicio_id', 'fecha'],
+                        ],
+                    ],
+                ];
+            }
+
+            public function executeTool(string $tool, array $params): array
+            {
+                return [
+                    'success' => true,
+                    'data' => [
+                        'availability_mode' => 'precise',
+                        'total_slots' => 2,
+                        'slots' => [
+                            [
+                                'hora_inicio' => '12:30',
+                                'hora_fin' => '14:00',
+                                'recurso_nombre' => 'Sala Lagar 1',
+                                'notas_publicas' => 'Cata comentada con maridaje de quesos gallegos.',
+                                'es_sesion' => true,
+                                'aforo_restante' => 8,
+                            ],
+                            [
+                                'hora_inicio' => '12:30',
+                                'hora_fin' => '14:00',
+                                'recurso_nombre' => 'Sala Lagar 2',
+                                'notas_publicas' => 'Cata comentada con maridaje de quesos gallegos.',
+                                'es_sesion' => true,
+                                'aforo_restante' => 6,
+                            ],
+                        ],
+                    ],
+                ];
+            }
+        };
+
+        $resolver = Mockery::mock(ConversationToolClientResolver::class);
+        $resolver->shouldReceive('resolve')
+            ->once()
+            ->with('direct')
+            ->andReturn($fakeToolClient);
+
+        $orchestrator = new LlmFirstChatOrchestrator(
+            $resolver,
+            new ChatbotProfileResolver(),
+            new ConversationBehaviorProfileResolver(),
+            new TurnPromptBuilder(),
+            new LlmTurnEngine($llmClient),
+            new ConversationStatePatcher(),
+            new ConversationUserMessageNormalizer(),
+        );
+
+        $result = $orchestrator->handle(
+            'Quiero una cata para 4 personas el sábado',
+            $business->id,
+            [],
+            new ConversationState(negocioId: $business->id),
+            'direct',
+        );
+
+        $this->assertSame('tool_result', $result['mode']);
+        $this->assertCount(2, $systemPrompts);
+        $this->assertStringContainsString('llm_customer_safe_options', $systemPrompts[1]);
+        $this->assertStringContainsString('llm_reply_strategy', $systemPrompts[1]);
+        $this->assertStringContainsString('cata con maridaje', $systemPrompts[1]);
+        $this->assertStringNotContainsString('Sala Lagar 1', $systemPrompts[1]);
+        $this->assertStringNotContainsString('Sala Lagar 2', $systemPrompts[1]);
+    }
+
+    public function test_it_detects_when_a_winery_user_looks_like_a_first_timer(): void
+    {
+        [$business] = $this->createWineryFixture();
+
+        $llmClient = Mockery::mock(LLMClient::class);
+        $llmClient->shouldReceive('chat')
+            ->once()
+            ->andReturn(json_encode([
+                'assistant_message' => 'Claro, te explico cómo funcionan nuestras experiencias.',
+                'state_patch' => [
+                    'fase_conversacional' => 'orientacion',
+                ],
+                'tool_call' => null,
+                'needs_user_input' => true,
+                'conversation_status' => 'respond',
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+
+        $fakeToolClient = new class implements ConversationToolClient
+        {
+            public function transportName(): string
+            {
+                return 'direct';
+            }
+
+            public function listTools(): array
+            {
+                return [];
+            }
+
+            public function executeTool(string $tool, array $params): array
+            {
+                throw new \RuntimeException('No debería ejecutarse ninguna tool.');
+            }
+        };
+
+        $resolver = Mockery::mock(ConversationToolClientResolver::class);
+        $resolver->shouldReceive('resolve')
+            ->once()
+            ->with('direct')
+            ->andReturn($fakeToolClient);
+
+        $orchestrator = new LlmFirstChatOrchestrator(
+            $resolver,
+            new ChatbotProfileResolver(),
+            new ConversationBehaviorProfileResolver(),
+            new TurnPromptBuilder(),
+            new LlmTurnEngine($llmClient),
+            new ConversationStatePatcher(),
+            new ConversationUserMessageNormalizer(),
+        );
+
+        $result = $orchestrator->handle(
+            'No tengo ni idea, es nuestra primera vez en una experiencia así',
+            $business->id,
+            [],
+            new ConversationState(negocioId: $business->id),
+            'direct',
+        );
+
+        $this->assertSame('novato', $result['debug']['state_before']['nivel_conocimiento_usuario']);
+        $this->assertSame('orientacion', $result['state']['fase_conversacional']);
+    }
+
     private function createBusinessFixture(): array
     {
         $businessType = TipoNegocio::create([
@@ -351,6 +556,38 @@ class LlmFirstChatOrchestratorTest extends TestCase
             'nombre' => 'Cena',
             'duracion_minutos' => 120,
             'precio_base' => 30,
+            'tipo_precio_id' => $priceType->id,
+            'requiere_pago' => false,
+            'activo' => true,
+        ]);
+
+        return [$business, $service];
+    }
+
+    private function createWineryFixture(): array
+    {
+        $businessType = TipoNegocio::create([
+            'nombre' => 'Bodega',
+        ]);
+
+        $priceType = TipoPrecio::create([
+            'nombre' => 'Por persona',
+        ]);
+
+        $business = Negocio::create([
+            'nombre' => 'Bodega Demo',
+            'tipo_negocio_id' => $businessType->id,
+            'zona_horaria' => 'Europe/Madrid',
+            'activo' => true,
+            'direccion' => 'Cambados, Pontevedra',
+            'descripcion_publica' => 'Bodega de Albariño con visitas y catas en Rías Baixas.',
+        ]);
+
+        $service = Servicio::create([
+            'negocio_id' => $business->id,
+            'nombre' => 'Cata Atlántica',
+            'duracion_minutos' => 90,
+            'precio_base' => 28,
             'tipo_precio_id' => $priceType->id,
             'requiere_pago' => false,
             'activo' => true,

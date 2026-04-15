@@ -206,6 +206,9 @@ class SearchAvailabilityTool extends ToolDefinition
                 ? "Ya tienes el resultado de disponibilidad de {$serviceName} para {$date}."
                 : 'Ya tienes un resultado real de disponibilidad para seguir la conversación.',
             'next_step_hint' => $nextStepHint,
+            'presentation_hint' => $totalSlots > 0
+                ? 'Resume horarios o sesiones en lenguaje de cliente. Si varias opciones solo cambian por la sala o recurso interno, no las presentes como si fueran alternativas distintas.'
+                : 'Comunica la falta de disponibilidad sin sonar técnico y ofrece margen de maniobra si el negocio lo permite.',
             'public_summary' => match (true) {
                 $mode === 'simple' => 'La disponibilidad requiere seguimiento humano porque no hay agenda operativa detallada.',
                 $totalSlots === 0 => 'No se han encontrado huecos disponibles con el criterio consultado.',

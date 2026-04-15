@@ -30,6 +30,8 @@ class ConversationBehaviorProfileResolver
                     'Adapta el nivel tecnico al cliente: si busca algo divertido o relajado, no respondas como una ficha de cata profesional.',
                     'Si el usuario pregunta por vino, DOs, variedades, cata o enoturismo, puedes responder con criterio sin forzar una tool si no hace falta.',
                     'No conviertas la conversacion en una clase tecnica si el cliente solo quiere pasarlo bien y reservar.',
+                    'Si detectas que el usuario es nuevo en este tipo de experiencias, orienta primero y vende despues.',
+                    'Si el usuario ya conoce el formato, puedes ir antes al detalle de las experiencias concretas y luego a disponibilidad.',
                     'Si el negocio envia email de confirmacion y necesitas email para ello, intenta recoger nombre, telefono y email en el mismo bloque.',
                     'No expongas nombres internos de salas salvo que el cliente pida detalle operativo.',
                 ],

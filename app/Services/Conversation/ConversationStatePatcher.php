@@ -20,6 +20,14 @@ class ConversationStatePatcher
             $state->servicioNombre = $this->toNullableString($normalized['servicio_nombre']);
         }
 
+        if (array_key_exists('nivel_conocimiento_usuario', $normalized)) {
+            $state->nivelConocimientoUsuario = $this->toNullableString($normalized['nivel_conocimiento_usuario']);
+        }
+
+        if (array_key_exists('fase_conversacional', $normalized)) {
+            $state->faseConversacional = $this->toNullableString($normalized['fase_conversacional']);
+        }
+
         if (array_key_exists('fecha', $normalized)) {
             $state->fecha = $this->toNullableString($normalized['fecha']);
         }
@@ -91,6 +99,9 @@ class ConversationStatePatcher
         $aliases = [
             'service_id' => 'servicio_id',
             'service_name' => 'servicio_nombre',
+            'user_familiarity' => 'nivel_conocimiento_usuario',
+            'knowledge_level' => 'nivel_conocimiento_usuario',
+            'conversation_stage' => 'fase_conversacional',
             'date' => 'fecha',
             'party_size' => 'numero_personas',
             'preferred_time' => 'hora_preferida',

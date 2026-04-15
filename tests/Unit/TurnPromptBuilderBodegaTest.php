@@ -44,5 +44,7 @@ class TurnPromptBuilderBodegaTest extends TestCase
 
         $this->assertStringContainsString('CONOCIMIENTO SECTORIAL EXTRA - BODEGA Y ENOLOGIA', $prompt);
         $this->assertStringContainsString('D.O. Rias Baixas', $prompt);
+        $this->assertStringContainsString('Si el usuario parece novato o dice que es su primera vez', $prompt);
+        $this->assertStringContainsString('RESUMEN DE OFERTA CONOCIDA', $prompt);
     }
 }

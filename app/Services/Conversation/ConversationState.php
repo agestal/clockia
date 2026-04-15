@@ -12,6 +12,8 @@ class ConversationState
         public int $negocioId,
         public ?int $servicioId = null,
         public ?string $servicioNombre = null,
+        public ?string $nivelConocimientoUsuario = null,
+        public ?string $faseConversacional = null,
         public ?string $fecha = null,
         public ?int $numeroPersonas = null,
         public ?string $horaPreferida = null,
@@ -33,6 +35,8 @@ class ConversationState
             'negocio_id' => $this->negocioId,
             'servicio_id' => $this->servicioId,
             'servicio_nombre' => $this->servicioNombre,
+            'nivel_conocimiento_usuario' => $this->nivelConocimientoUsuario,
+            'fase_conversacional' => $this->faseConversacional,
             'fecha' => $this->fecha,
             'numero_personas' => $this->numeroPersonas,
             'hora_preferida' => $this->horaPreferida,
@@ -55,6 +59,8 @@ class ConversationState
             negocioId: (int) ($data['negocio_id'] ?? 0),
             servicioId: $data['servicio_id'] ?? null,
             servicioNombre: $data['servicio_nombre'] ?? null,
+            nivelConocimientoUsuario: $data['nivel_conocimiento_usuario'] ?? null,
+            faseConversacional: $data['fase_conversacional'] ?? null,
             fecha: $data['fecha'] ?? null,
             numeroPersonas: isset($data['numero_personas']) ? (int) $data['numero_personas'] : null,
             horaPreferida: $data['hora_preferida'] ?? null,
@@ -119,6 +125,12 @@ class ConversationState
         $parts = [];
         if ($this->servicioNombre) {
             $parts[] = "servicio: {$this->servicioNombre}";
+        }
+        if ($this->nivelConocimientoUsuario) {
+            $parts[] = "perfil usuario: {$this->nivelConocimientoUsuario}";
+        }
+        if ($this->faseConversacional) {
+            $parts[] = "fase: {$this->faseConversacional}";
         }
         if ($this->fecha) {
             $parts[] = "fecha: {$this->fecha}";

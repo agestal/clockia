@@ -162,7 +162,7 @@ class GetServiceDetailsTool extends ToolDefinition
             'conversation_memory_hint' => $serviceName !== null
                 ? "Ya dispones del detalle del servicio {$serviceName} para seguir la conversación sin volver a pedir información base."
                 : 'Se intentó consultar el detalle de un servicio concreto.',
-            'next_step_hint' => 'Usa solo los datos relevantes para la duda del usuario. No conviertas cada respuesta en una ficha técnica completa.',
+            'next_step_hint' => 'Usa solo los datos relevantes para la duda del usuario. Prioriza cómo es la experiencia, qué incluye, cuánto dura y para quién encaja antes que un volcado técnico.',
             'public_summary' => $serviceName !== null
                 ? "Se ha recuperado el detalle del servicio {$serviceName}."
                 : 'Se ha recuperado el detalle de un servicio.',

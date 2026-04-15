@@ -50,13 +50,27 @@ class LlmFirstChatOrchestrator
             ->where('negocio_id', $negocioId)
             ->where('activo', true)
             ->orderBy('nombre')
-            ->get(['id', 'nombre', 'duracion_minutos', 'precio_base', 'requiere_pago'])
+            ->get([
+                'id',
+                'nombre',
+                'duracion_minutos',
+                'precio_base',
+                'precio_menor',
+                'numero_personas_minimo',
+                'numero_personas_maximo',
+                'requiere_pago',
+                'notas_publicas',
+            ])
             ->map(fn (Servicio $servicio) => [
                 'id' => $servicio->id,
                 'nombre' => $servicio->nombre,
                 'duracion_minutos' => $servicio->duracion_minutos,
                 'precio_base' => $servicio->precio_base,
+                'precio_menor' => $servicio->precio_menor,
+                'numero_personas_minimo' => $servicio->numero_personas_minimo,
+                'numero_personas_maximo' => $servicio->numero_personas_maximo,
                 'requiere_pago' => (bool) $servicio->requiere_pago,
+                'notas_publicas' => $servicio->notas_publicas,
             ])
             ->values()
             ->all();
@@ -340,6 +354,14 @@ class LlmFirstChatOrchestrator
             $toolResult = $this->sanitizeServiceCatalogForLlm($toolResult, $behaviorProfile);
         }
 
+        if (isset($toolResult['data']['servicio']) && is_array($toolResult['data']['servicio'])) {
+            $toolResult = $this->sanitizeServiceDetailForLlm($toolResult, $behaviorProfile);
+        }
+
+        if (isset($toolResult['data']['booking']) && is_array($toolResult['data']['booking'])) {
+            $toolResult = $this->sanitizeBookingForLlm($toolResult, $behaviorProfile);
+        }
+
         if (($toolResult['data']['availability_mode'] ?? null) === 'simple') {
             $toolResult['data']['llm_no_availability_guidance'] = $this->buildNoAvailabilityGuidance($behaviorProfile, true);
             $toolResult['tool_result_explanation']['customer_safe_status'] = 'simple_mode_followup_required';
@@ -362,9 +384,11 @@ class LlmFirstChatOrchestrator
                 continue;
             }
 
-            $key = $start.'|'.$end;
+            $descriptor = $this->inferCustomerSafeDescriptor($slot, $behaviorProfile);
+            $publicNote = $this->inferCustomerSafeSlotNote($slot, $behaviorProfile);
+            $publicLabel = $this->buildCustomerSafeSlotLabel($slot, $descriptor, $behaviorProfile);
             $resourceLabel = $slot['recurso_nombre'] ?? $slot['recurso_label'] ?? $slot['label'] ?? null;
-            $descriptor = $this->inferCustomerSafeDescriptor($resourceLabel, $behaviorProfile);
+            $key = implode('|', [$start, $end, $descriptor ?? '', $publicNote ?? '', $slot['booking_time_mode'] ?? 'fixed_slot']);
 
             if (! isset($grouped[$key])) {
                 $grouped[$key] = [
@@ -374,6 +398,10 @@ class LlmFirstChatOrchestrator
                     'accepts_start_time_within_slot' => (bool) ($slot['accepts_start_time_within_slot'] ?? false),
                     'resource_labels' => [],
                     'customer_descriptors' => [],
+                    'public_label' => $publicLabel,
+                    'public_note' => $publicNote,
+                    'remaining_capacity' => $this->toNullableInt($slot['aforo_restante'] ?? null),
+                    'remaining_capacity_label' => $this->buildRemainingCapacityLabel($slot, $behaviorProfile),
                     'slot_count' => 0,
                 ];
             }
@@ -384,6 +412,15 @@ class LlmFirstChatOrchestrator
 
             if ($descriptor !== null && ! in_array($descriptor, $grouped[$key]['customer_descriptors'], true)) {
                 $grouped[$key]['customer_descriptors'][] = $descriptor;
+            }
+
+            $remainingCapacity = $this->toNullableInt($slot['aforo_restante'] ?? null);
+            if ($remainingCapacity !== null) {
+                $grouped[$key]['remaining_capacity'] = ($grouped[$key]['remaining_capacity'] ?? 0) + $remainingCapacity;
+                $grouped[$key]['remaining_capacity_label'] = $this->buildRemainingCapacityLabelFromNumber(
+                    $grouped[$key]['remaining_capacity'],
+                    $behaviorProfile,
+                );
             }
 
             $grouped[$key]['slot_count']++;
@@ -398,6 +435,18 @@ class LlmFirstChatOrchestrator
                 $sanitizedSlot['customer_descriptor'] = $descriptor;
             }
 
+            if ($publicLabel !== null) {
+                $sanitizedSlot['public_label'] = $publicLabel;
+            }
+
+            if ($publicNote !== null) {
+                $sanitizedSlot['public_note'] = $publicNote;
+            }
+
+            if (($remainingCapacityLabel = $this->buildRemainingCapacityLabel($slot, $behaviorProfile)) !== null) {
+                $sanitizedSlot['remaining_capacity_label'] = $remainingCapacityLabel;
+            }
+
             $sanitizedSlots[] = $sanitizedSlot;
         }
 
@@ -410,6 +459,11 @@ class LlmFirstChatOrchestrator
         $toolResult['data']['slots'] = $sanitizedSlots;
         $toolResult['data']['llm_slot_summary'] = array_values($grouped);
         $toolResult['data']['llm_customer_safe_options'] = array_values($grouped);
+        $toolResult['data']['llm_reply_strategy'] = $this->buildAvailabilityReplyStrategy(
+            (int) ($toolResult['data']['total_slots'] ?? 0),
+            array_values($grouped),
+            $behaviorProfile,
+        );
         $toolResult['tool_result_explanation']['customer_safe_option_groups'] = array_values($grouped);
         $toolResult['tool_result_explanation']['public_summary'] = $this->buildAvailabilityPublicSummary(
             (int) ($toolResult['data']['total_slots'] ?? 0),
@@ -427,20 +481,114 @@ class LlmFirstChatOrchestrator
     private function sanitizeServiceCatalogForLlm(array $toolResult, ConversationBehaviorProfile $behaviorProfile): array
     {
         $toolResult['data']['llm_catalog_term'] = $this->resolveCatalogTerm($behaviorProfile);
-        $toolResult['data']['llm_customer_safe_services'] = collect($toolResult['data']['servicios'])
-            ->map(function (array $service) {
+        $services = collect($toolResult['data']['servicios']);
+
+        $toolResult['data']['llm_customer_safe_services'] = $services
+            ->map(function (array $service) use ($behaviorProfile) {
                 return [
                     'id' => $service['id'] ?? null,
                     'name' => $service['nombre'] ?? null,
                     'description' => $service['descripcion'] ?? null,
                     'duration_label' => isset($service['duracion_minutos']) ? ((int) $service['duracion_minutos']).' minutos' : null,
                     'price_label' => isset($service['precio_base']) ? number_format((float) $service['precio_base'], 2, ',', '.').' €' : null,
+                    'price_from_label' => isset($service['precio_menor']) && $service['precio_menor'] !== null
+                        ? 'Desde '.number_format((float) $service['precio_menor'], 2, ',', '.').' €'
+                        : null,
+                    'group_size_label' => $this->buildPartySizeLabel($service),
                     'payment_required' => (bool) ($service['requiere_pago'] ?? false),
                     'public_notes' => $service['notas_publicas'] ?? null,
+                    'commercial_hook' => $this->buildServiceCommercialHook($service, $behaviorProfile),
                 ];
             })
             ->values()
             ->all();
+
+        $durations = $services->pluck('duracion_minutos')->filter(fn ($value) => is_numeric($value))->map(fn ($value) => (int) $value);
+        $prices = $services
+            ->flatMap(fn (array $service) => [$service['precio_menor'] ?? null, $service['precio_base'] ?? null])
+            ->filter(fn ($value) => is_numeric($value))
+            ->map(fn ($value) => (float) $value);
+        $mins = $services->pluck('numero_personas_minimo')->filter(fn ($value) => is_numeric($value))->map(fn ($value) => (int) $value);
+        $maxs = $services->pluck('numero_personas_maximo')->filter(fn ($value) => is_numeric($value))->map(fn ($value) => (int) $value);
+
+        $toolResult['data']['llm_customer_safe_catalog_overview'] = [
+            'services_count' => $services->count(),
+            'duration_range_label' => $durations->isNotEmpty() ? $durations->min().' a '.$durations->max().' minutos' : null,
+            'price_range_label' => $prices->isNotEmpty()
+                ? number_format($prices->min(), 2, ',', '.').' a '.number_format($prices->max(), 2, ',', '.').' €'
+                : null,
+            'group_size_range_label' => ($mins->isNotEmpty() || $maxs->isNotEmpty())
+                ? ($mins->isNotEmpty() ? 'desde '.$mins->min() : 'sin mínimo claro')
+                    .' / '
+                    .($maxs->isNotEmpty() ? 'hasta '.$maxs->max().' personas' : 'sin máximo claro')
+                : null,
+            'orientation_hint' => $behaviorProfile->sectorKey === 'winery'
+                ? 'Si el usuario es novato, primero explica cómo suelen funcionar las experiencias de la bodega y luego entra en las opciones concretas.'
+                : 'Usa este resumen para orientar antes de entrar a detalle si el usuario lo necesita.',
+        ];
+
+        return $toolResult;
+    }
+
+    private function sanitizeServiceDetailForLlm(array $toolResult, ConversationBehaviorProfile $behaviorProfile): array
+    {
+        $service = $toolResult['data']['servicio'];
+
+        $toolResult['data']['llm_customer_safe_service_detail'] = [
+            'name' => $service['nombre'] ?? null,
+            'summary' => $service['notas_publicas'] ?? $service['descripcion'] ?? null,
+            'duration_label' => isset($service['duracion_minutos']) ? ((int) $service['duracion_minutos']).' minutos' : null,
+            'price_label' => isset($service['precio_base']) ? number_format((float) $service['precio_base'], 2, ',', '.').' €' : null,
+            'price_from_label' => isset($service['precio_menor']) && $service['precio_menor'] !== null
+                ? 'Desde '.number_format((float) $service['precio_menor'], 2, ',', '.').' €'
+                : null,
+            'group_size_label' => $this->buildPartySizeLabel($service),
+            'languages_label' => $this->buildLanguagesLabel($service['idiomas'] ?? null),
+            'meeting_point' => $service['punto_encuentro'] ?? null,
+            'includes' => array_values(array_filter($service['incluye'] ?? [])),
+            'excludes' => array_values(array_filter($service['no_incluye'] ?? [])),
+            'commercial_hook' => $this->buildServiceCommercialHook($service, $behaviorProfile),
+            'age_policy_label' => $this->buildAgePolicyLabel($service),
+            'booking_hint' => $this->buildServiceBookingHint($service, $behaviorProfile),
+        ];
+
+        if (
+            $behaviorProfile->hidesInternalResourceNamesByDefault()
+            && isset($toolResult['data']['recursos'])
+            && is_array($toolResult['data']['recursos'])
+        ) {
+            unset($toolResult['data']['recursos']);
+        }
+
+        return $toolResult;
+    }
+
+    private function sanitizeBookingForLlm(array $toolResult, ConversationBehaviorProfile $behaviorProfile): array
+    {
+        $booking = $toolResult['data']['booking'];
+
+        if ($behaviorProfile->hidesInternalResourceNamesByDefault()) {
+            unset($toolResult['data']['booking']['resource_name'], $toolResult['data']['booking']['resources']);
+        }
+
+        $confirmationSent = filled($booking['confirmation_email_sent_at'] ?? null);
+
+        $toolResult['data']['llm_customer_safe_booking'] = [
+            'locator' => $booking['locator'] ?? null,
+            'service_name' => $booking['service_name'] ?? null,
+            'date' => $booking['date'] ?? null,
+            'start_time' => $booking['start_time'] ?? null,
+            'end_time' => $booking['end_time'] ?? null,
+            'party_size' => $booking['party_size'] ?? null,
+            'status' => $booking['status'] ?? null,
+            'contact_name' => data_get($booking, 'contact.name'),
+            'confirmation_email_sent' => $confirmationSent,
+            'confirmation_email_sent_at' => $booking['confirmation_email_sent_at'] ?? null,
+            'internal_calendar_visible' => (bool) ($booking['internal_calendar_visible'] ?? false),
+            'public_summary' => $this->buildBookingPublicSummary($booking, $confirmationSent),
+        ];
+
+        $toolResult['tool_result_explanation']['public_summary'] = $toolResult['data']['llm_customer_safe_booking']['public_summary'];
 
         return $toolResult;
     }
@@ -448,6 +596,7 @@ class LlmFirstChatOrchestrator
     private function buildNoAvailabilityGuidance(ConversationBehaviorProfile $behaviorProfile, bool $isSimpleMode): array
     {
         $alternativeDimensions = match ($behaviorProfile->sectorKey) {
+            'winery' => ['otra sesión', 'otro día', 'otra experiencia'],
             'restaurant' => ['hora cercana', 'otra fecha', 'otra zona'],
             'hotel' => ['otras fechas', 'otra categoría', 'otra duración de estancia'],
             'appointment_based' => ['otra hora', 'otro día', 'otro profesional'],
@@ -469,6 +618,7 @@ class LlmFirstChatOrchestrator
     private function resolveCatalogTerm(ConversationBehaviorProfile $behaviorProfile): string
     {
         return match ($behaviorProfile->sectorKey) {
+            'winery' => 'experiencias',
             'restaurant' => 'lo que ofrecemos',
             'hotel' => 'tipos de estancia',
             'appointment_based' => 'servicios y citas',
@@ -477,15 +627,38 @@ class LlmFirstChatOrchestrator
         };
     }
 
-    private function inferCustomerSafeDescriptor(?string $resourceLabel, ConversationBehaviorProfile $behaviorProfile): ?string
+    private function inferCustomerSafeDescriptor(array $slot, ConversationBehaviorProfile $behaviorProfile): ?string
     {
+        $resourceLabel = $slot['recurso_nombre'] ?? $slot['recurso_label'] ?? $slot['label'] ?? null;
+
         if ($resourceLabel === null || trim($resourceLabel) === '') {
-            return null;
+            if ($behaviorProfile->sectorKey === 'winery' && ! empty($slot['es_sesion'])) {
+                return 'sesión guiada';
+            }
+
+            return match ($behaviorProfile->sectorKey) {
+                'winery' => 'experiencia disponible',
+                default => null,
+            };
         }
 
-        $normalized = mb_strtolower($resourceLabel);
+        $normalized = mb_strtolower(implode(' ', array_filter([
+            (string) $resourceLabel,
+            (string) ($slot['nombre_turno'] ?? ''),
+            (string) ($slot['notas_publicas'] ?? ''),
+        ])));
 
         return match ($behaviorProfile->sectorKey) {
+            'winery' => match (true) {
+                str_contains($normalized, 'marid') => 'cata con maridaje',
+                str_contains($normalized, 'viñedo') || str_contains($normalized, 'vinedo') => 'visita y cata',
+                str_contains($normalized, 'visita') => 'visita guiada',
+                str_contains($normalized, 'premium') || str_contains($normalized, 'reserva') => 'experiencia premium',
+                str_contains($normalized, 'comentad') || str_contains($normalized, 'cata') => 'cata comentada',
+                str_contains($normalized, 'atardecer') => 'sesión al atardecer',
+                ! empty($slot['es_sesion']) => 'sesión guiada',
+                default => 'experiencia disponible',
+            },
             'restaurant' => match (true) {
                 str_contains($normalized, 'terraza') => 'terraza',
                 str_contains($normalized, 'interior') => 'interior',
@@ -508,6 +681,208 @@ class LlmFirstChatOrchestrator
             'gym' => 'plaza disponible',
             default => null,
         };
+    }
+
+    private function inferCustomerSafeSlotNote(array $slot, ConversationBehaviorProfile $behaviorProfile): ?string
+    {
+        $publicNote = trim((string) ($slot['notas_publicas'] ?? ''));
+
+        if ($publicNote !== '') {
+            return mb_substr($publicNote, 0, 140);
+        }
+
+        if ($behaviorProfile->sectorKey === 'winery' && ! empty($slot['es_sesion'])) {
+            return 'Sesión con plazas limitadas para mantener una experiencia cuidada.';
+        }
+
+        return null;
+    }
+
+    private function buildCustomerSafeSlotLabel(array $slot, ?string $descriptor, ConversationBehaviorProfile $behaviorProfile): ?string
+    {
+        if ($descriptor !== null) {
+            return $descriptor;
+        }
+
+        return match ($behaviorProfile->sectorKey) {
+            'winery' => ! empty($slot['es_sesion']) ? 'sesión disponible' : 'experiencia disponible',
+            'restaurant' => 'opción disponible',
+            default => null,
+        };
+    }
+
+    private function buildRemainingCapacityLabel(array $slot, ConversationBehaviorProfile $behaviorProfile): ?string
+    {
+        $remaining = $this->toNullableInt($slot['aforo_restante'] ?? null);
+
+        return $this->buildRemainingCapacityLabelFromNumber($remaining, $behaviorProfile);
+    }
+
+    private function buildRemainingCapacityLabelFromNumber(?int $remaining, ConversationBehaviorProfile $behaviorProfile): ?string
+    {
+
+        if ($remaining === null || $remaining <= 0) {
+            return null;
+        }
+
+        return match ($behaviorProfile->sectorKey) {
+            'winery' => $remaining === 1 ? 'Queda 1 plaza.' : "Quedan {$remaining} plazas.",
+            default => null,
+        };
+    }
+
+    private function buildAvailabilityReplyStrategy(int $rawSlotCount, array $groupedOptions, ConversationBehaviorProfile $behaviorProfile): array
+    {
+        if ($rawSlotCount <= 0) {
+            return [
+                'presentation_mode' => 'no_availability',
+                'should_offer_directly' => false,
+                'should_hide_internal_inventory' => true,
+                'customer_option_count' => 0,
+                'note' => 'Explica que no hay disponibilidad con claridad y ofrece una alternativa razonable si existe.',
+            ];
+        }
+
+        if (count($groupedOptions) === 1) {
+            return [
+                'presentation_mode' => 'single_direct_proposal',
+                'should_offer_directly' => true,
+                'should_hide_internal_inventory' => $behaviorProfile->hidesInternalResourceNamesByDefault(),
+                'customer_option_count' => 1,
+                'note' => 'Hay una sola opción realmente útil para el cliente. Propónla directamente.',
+            ];
+        }
+
+        return [
+            'presentation_mode' => 'grouped_choice',
+            'should_offer_directly' => false,
+            'should_hide_internal_inventory' => $behaviorProfile->hidesInternalResourceNamesByDefault(),
+            'customer_option_count' => count($groupedOptions),
+            'note' => 'Resume solo las opciones realmente distintas para el cliente y evita repetir estructura interna.',
+        ];
+    }
+
+    private function buildPartySizeLabel(array $service): ?string
+    {
+        $min = $this->toNullableInt($service['numero_personas_minimo'] ?? null);
+        $max = $this->toNullableInt($service['numero_personas_maximo'] ?? null);
+
+        if ($min !== null && $max !== null) {
+            return "De {$min} a {$max} personas";
+        }
+
+        if ($min !== null) {
+            return "Desde {$min} personas";
+        }
+
+        if ($max !== null) {
+            return "Hasta {$max} personas";
+        }
+
+        return null;
+    }
+
+    private function buildLanguagesLabel(mixed $languages): ?string
+    {
+        if (! is_array($languages) || $languages === []) {
+            return null;
+        }
+
+        $mapped = collect($languages)
+            ->map(fn ($lang) => match ((string) $lang) {
+                'es' => 'español',
+                'gl' => 'gallego',
+                'en' => 'inglés',
+                default => (string) $lang,
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        return $mapped !== [] ? implode(', ', $mapped) : null;
+    }
+
+    private function buildAgePolicyLabel(array $service): ?string
+    {
+        $permiteMenores = $service['permite_menores'] ?? null;
+        $edadMinima = $this->toNullableInt($service['edad_minima'] ?? null);
+
+        if ($permiteMenores === false && $edadMinima !== null) {
+            return "Solo para mayores de {$edadMinima} años";
+        }
+
+        if ($permiteMenores === true) {
+            return 'Apta para menores';
+        }
+
+        return null;
+    }
+
+    private function buildServiceCommercialHook(array $service, ConversationBehaviorProfile $behaviorProfile): ?string
+    {
+        $summary = trim((string) ($service['notas_publicas'] ?? $service['descripcion'] ?? ''));
+
+        if ($summary !== '') {
+            return mb_substr($summary, 0, 180);
+        }
+
+        return match ($behaviorProfile->sectorKey) {
+            'winery' => 'Experiencia pensada para descubrir la bodega y sus vinos con un tono cercano y cuidado.',
+            default => null,
+        };
+    }
+
+    private function buildServiceBookingHint(array $service, ConversationBehaviorProfile $behaviorProfile): ?string
+    {
+        $requiresApproval = (bool) ($service['requiere_aprobacion_manual'] ?? false);
+        $requiresPayment = (bool) ($service['requiere_pago'] ?? false);
+
+        if ($requiresApproval) {
+            return 'La reserva puede quedar pendiente de validación final por parte del negocio.';
+        }
+
+        if ($requiresPayment) {
+            return $behaviorProfile->sectorKey === 'winery'
+                ? 'Puede requerir señal o pago previo para quedar completamente confirmada.'
+                : 'Puede requerir pago previo para quedar completamente confirmada.';
+        }
+
+        return 'Si hay plazas libres, se puede cerrar la reserva directamente.';
+    }
+
+    private function buildBookingPublicSummary(array $booking, bool $confirmationSent): string
+    {
+        $service = $booking['service_name'] ?? 'la experiencia';
+        $date = $booking['date'] ?? null;
+        $time = $booking['start_time'] ?? null;
+        $locator = $booking['locator'] ?? null;
+
+        $parts = ["La reserva de {$service} ya está creada"];
+
+        if ($date !== null && $time !== null) {
+            $parts[] = "para el {$date} a las {$time}";
+        }
+
+        if ($locator !== null) {
+            $parts[] = "con localizador {$locator}";
+        }
+
+        $summary = implode(' ', $parts).'.';
+
+        if ($confirmationSent) {
+            $summary .= ' Se ha enviado el email de confirmación.';
+        }
+
+        return $summary;
+    }
+
+    private function toNullableInt(mixed $value): ?int
+    {
+        if ($value === null || $value === '' || ! is_numeric($value)) {
+            return null;
+        }
+
+        return (int) $value;
     }
 
     private function fallbackClarificationMessage(array $missingFields): string
@@ -574,7 +949,7 @@ class LlmFirstChatOrchestrator
             return 'Hay una única opción clara disponible.';
         }
 
-        return 'Hay varias alternativas disponibles, pero conviene agruparlas de forma comprensible para el cliente.';
+        return 'Hay varias alternativas disponibles, pero ya están agrupadas en opciones comprensibles para el cliente.';
     }
 
     private function applyMessageFactsToState(ConversationState $state, string $message): ConversationState
@@ -599,6 +974,11 @@ class LlmFirstChatOrchestrator
             $state->numeroPersonas = 1;
         }
 
+        $knowledgeLevel = $this->detectKnowledgeLevel($message);
+        if ($knowledgeLevel !== null) {
+            $state->nivelConocimientoUsuario = $knowledgeLevel;
+        }
+
         $detectedDocumentType = $this->detectDocumentType($message);
 
         if ($state->documentType === null && $detectedDocumentType !== null) {
@@ -613,6 +993,50 @@ class LlmFirstChatOrchestrator
         }
 
         return $state;
+    }
+
+    private function detectKnowledgeLevel(string $message): ?string
+    {
+        $normalized = mb_strtolower($message, 'UTF-8');
+
+        $novicePatterns = [
+            'es mi primera vez',
+            'es nuestra primera vez',
+            'nunca he ido',
+            'nunca hemos ido',
+            'no tengo ni idea',
+            'no sabemos cómo funciona',
+            'no sé cómo funciona',
+            'como funcionan las experiencias',
+            'cómo funcionan las experiencias',
+            'explícame cómo va',
+        ];
+
+        foreach ($novicePatterns as $pattern) {
+            if (str_contains($normalized, $pattern)) {
+                return 'novato';
+            }
+        }
+
+        $experiencedPatterns = [
+            'ya conozco',
+            'ya sabemos cómo va',
+            'ya sé cómo funciona',
+            'ya he hecho',
+            'ya hemos hecho',
+            'hemos ido a otras bodegas',
+            'he ido a otras bodegas',
+            'ya estuve en una cata',
+            'ya hemos hecho catas',
+        ];
+
+        foreach ($experiencedPatterns as $pattern) {
+            if (str_contains($normalized, $pattern)) {
+                return 'familiarizado';
+            }
+        }
+
+        return null;
     }
 
     private function detectDocumentType(string $message): ?string
