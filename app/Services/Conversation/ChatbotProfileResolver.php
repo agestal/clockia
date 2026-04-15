@@ -33,6 +33,7 @@ class ChatbotProfileResolver
             horasMinimasCancelacion: $negocio->horas_minimas_cancelacion,
             permiteModificacion: $negocio->permite_modificacion,
             maxRecursosCombinables: $negocio->max_recursos_combinables,
+            mailConfirmacionActiva: $negocio->mail_confirmacion_activo,
         );
     }
 

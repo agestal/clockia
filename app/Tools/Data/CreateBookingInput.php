@@ -20,6 +20,7 @@ class CreateBookingInput
         public readonly ?string $document_type = null,
         public readonly ?string $document_value = null,
         public readonly ?string $notes = null,
+        public readonly ?int $sesion_id = null,
     ) {}
 
     public static function fromArray(array $input): self
@@ -44,6 +45,7 @@ class CreateBookingInput
             document_type: isset($input['document_type']) ? (string) $input['document_type'] : null,
             document_value: isset($input['document_value']) ? (string) $input['document_value'] : null,
             notes: isset($input['notes']) ? (string) $input['notes'] : null,
+            sesion_id: isset($input['sesion_id']) ? (int) $input['sesion_id'] : null,
         );
     }
 }

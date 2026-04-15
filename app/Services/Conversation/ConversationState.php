@@ -104,7 +104,7 @@ class ConversationState
         }
 
         if (is_array($this->ultimaPropuesta)) {
-            foreach (['slot_key', 'hora_inicio', 'hora_fin', 'recurso_id', 'recurso_ids'] as $key) {
+            foreach (['slot_key', 'hora_inicio', 'hora_fin', 'recurso_id', 'recurso_ids', 'sesion_id'] as $key) {
                 if (array_key_exists($key, $this->ultimaPropuesta) && $this->ultimaPropuesta[$key] !== null && $this->ultimaPropuesta[$key] !== '') {
                     $params[$key] = $this->ultimaPropuesta[$key];
                 }

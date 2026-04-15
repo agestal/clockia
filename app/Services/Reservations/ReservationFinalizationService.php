@@ -2,12 +2,14 @@
 
 namespace App\Services\Reservations;
 
+use App\Jobs\EnviarMailConfirmacion;
 use App\Models\Cliente;
 use App\Models\EstadoReserva;
 use App\Models\Negocio;
 use App\Models\Reserva;
 use App\Models\ReservaRecurso;
 use App\Models\Servicio;
+use App\Models\Sesion;
 use App\Services\PolicyResolver;
 use App\Tools\Data\CreateBookingInput;
 use App\Tools\Reservations\CreateQuoteTool;
@@ -50,18 +52,35 @@ class ReservationFinalizationService
         $pricing = $this->resolvePricing($input, $servicio, $slot);
         $estadoReservaId = $this->resolveEstadoReservaId($servicio);
 
-        return DB::transaction(function () use ($negocio, $servicio, $slot, $cliente, $contact, $policy, $pricing, $estadoReservaId, $input) {
+        $reserva = DB::transaction(function () use ($negocio, $servicio, $slot, $cliente, $contact, $policy, $pricing, $estadoReservaId, $input) {
             $resourceIds = $this->extractResourceIds($slot);
             $primaryResourceId = $resourceIds[0] ?? data_get($slot, 'recurso_id');
+            $sesionId = data_get($slot, 'sesion_id') ?? $input->sesion_id;
 
-            if (! $primaryResourceId) {
-                throw new RuntimeException('No se pudo resolver el recurso principal de la reserva.');
+            // For session-based bookings, inherit resource from session if not set
+            if ($sesionId !== null) {
+                $sesion = Sesion::find($sesionId);
+                if ($sesion === null) {
+                    throw new RuntimeException('La sesión indicada no existe.');
+                }
+                if (! $primaryResourceId && $sesion->recurso_id) {
+                    $primaryResourceId = $sesion->recurso_id;
+                    $resourceIds = [$primaryResourceId];
+                }
+                $reservados = Reserva::where('sesion_id', $sesionId)
+                    ->whereNotIn('estado_reserva_id', $this->estadosCancelados())
+                    ->sum('numero_personas');
+                $aforoRestante = max(0, ($sesion->aforo_total ?? 0) - (int) $reservados);
+                if ($input->numero_personas !== null && $input->numero_personas > $aforoRestante) {
+                    throw new RuntimeException('No queda aforo suficiente en esta sesión. Plazas disponibles: '.$aforoRestante.'.');
+                }
             }
 
             $reserva = Reserva::create([
                 'negocio_id' => $negocio->id,
                 'servicio_id' => $servicio->id,
                 'recurso_id' => $primaryResourceId,
+                'sesion_id' => $sesionId,
                 'cliente_id' => $cliente->id,
                 'nombre_responsable' => $contact['name'],
                 'email_responsable' => $contact['email'],
@@ -111,6 +130,16 @@ class ReservationFinalizationService
                 'reservaRecursos.recurso',
             ]);
         });
+
+        $this->sendConfirmationEmailIfNeeded($negocio, $reserva);
+
+        return $reserva->fresh([
+            'cliente',
+            'servicio',
+            'recurso',
+            'estadoReserva',
+            'reservaRecursos.recurso',
+        ]);
     }
 
     private function resolveSlot(CreateBookingInput $input, Servicio $servicio): array
@@ -251,7 +280,7 @@ class ReservationFinalizationService
 
     private function resolveEstadoReservaId(Servicio $servicio): int
     {
-        $targetStatus = ($servicio->requiere_pago || filled($servicio->documentacion_requerida))
+        $targetStatus = ($servicio->requiere_pago || filled($servicio->documentacion_requerida) || $servicio->requiere_aprobacion_manual)
             ? 'Pendiente'
             : 'Confirmada';
 
@@ -417,5 +446,40 @@ class ReservationFinalizationService
         $value = preg_replace('/\s+/u', ' ', trim($value));
 
         return $value !== '' ? $value : null;
+    }
+
+    private function estadosCancelados(): array
+    {
+        static $ids = null;
+
+        if ($ids === null) {
+            $ids = EstadoReserva::query()
+                ->whereIn('nombre', ['Cancelada', 'No presentada'])
+                ->pluck('id')
+                ->all();
+        }
+
+        return $ids;
+    }
+
+    private function sendConfirmationEmailIfNeeded(Negocio $negocio, Reserva $reserva): void
+    {
+        if (! $negocio->mail_confirmacion_activo) {
+            return;
+        }
+
+        if (! filled($reserva->email_responsable)) {
+            return;
+        }
+
+        if ($reserva->mail_confirmacion_enviado_en !== null) {
+            return;
+        }
+
+        try {
+            EnviarMailConfirmacion::dispatchSync($reserva);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 }

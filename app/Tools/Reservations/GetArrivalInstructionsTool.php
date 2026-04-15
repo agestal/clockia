@@ -92,6 +92,10 @@ class GetArrivalInstructionsTool extends ToolDefinition
                 'instrucciones_previas' => $servicio->instrucciones_previas,
                 'documentacion_requerida' => $servicio->documentacion_requerida,
                 'notas_publicas' => $servicio->notas_publicas,
+                'punto_encuentro' => $servicio->punto_encuentro,
+                'accesibilidad_notas' => $servicio->accesibilidad_notas,
+                'incluye' => $servicio->incluye,
+                'no_incluye' => $servicio->no_incluye,
             ] : null,
         ]);
     }

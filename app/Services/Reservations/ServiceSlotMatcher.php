@@ -17,29 +17,49 @@ class ServiceSlotMatcher
         'cena' => ['cena', 'nocturno', 'noche'],
         'comida' => ['comida', 'mediodía', 'mediodia', 'almuerzo'],
         'brunch' => ['brunch', 'desayuno'],
+        'manana' => ['mañana', 'matinal', 'morning'],
+        'tarde' => ['tarde', 'vespertino', 'afternoon'],
     ];
 
     private const FRANJA_HORARIA = [
         'brunch' => ['09:00', '13:30'],
         'comida' => ['12:00', '16:30'],
         'cena' => ['19:00', '23:59'],
+        'manana' => ['09:00', '14:00'],
+        'tarde' => ['15:00', '20:00'],
     ];
 
+    /**
+     * Service name keywords that should match against nombre_turno or
+     * the turno's own name when the service name itself doesn't carry
+     * a time-of-day hint (e.g. wine experiences like "Orixe", "Creaciones Singulares").
+     *
+     * These services are matched by comparing the nombre_turno of the
+     * disponibilidad against the service name: if the turno explicitly
+     * references the service, it's compatible.
+     */
     public function disponibilidadEsCompatible(Servicio $servicio, Disponibilidad $disponibilidad): bool
     {
         $servicioKey = $this->normalizarNombreServicio($servicio->nombre);
 
-        if ($servicioKey === null) {
-            return true;
+        if ($servicioKey !== null) {
+            // Layer 1: match by nombre_turno
+            if ($disponibilidad->nombre_turno !== null && $disponibilidad->nombre_turno !== '') {
+                return $this->turnoCoincideConServicio($servicioKey, $disponibilidad->nombre_turno);
+            }
+
+            // Layer 2: fallback by time heuristic
+            return $this->horaCoincideConServicio($servicioKey, $disponibilidad->hora_inicio);
         }
 
-        // Layer 1: match by nombre_turno
+        // Layer 3: for services without time-of-day hint (e.g. wine experiences),
+        // check if the turno name explicitly references the service name
         if ($disponibilidad->nombre_turno !== null && $disponibilidad->nombre_turno !== '') {
-            return $this->turnoCoincideConServicio($servicioKey, $disponibilidad->nombre_turno);
+            return $this->turnoReferenciaServicio($servicio->nombre, $disponibilidad->nombre_turno);
         }
 
-        // Layer 2: fallback by time heuristic
-        return $this->horaCoincideConServicio($servicioKey, $disponibilidad->hora_inicio);
+        // No time-of-day hint and no turno name → compatible with everything
+        return true;
     }
 
     private function normalizarNombreServicio(string $nombre): ?string
@@ -57,6 +77,42 @@ class ServiceSlotMatcher
         }
 
         return null;
+    }
+
+    /**
+     * Check if a turno name explicitly references a specific service by name.
+     * E.g. turno "Creaciones Singulares" matches service "Creaciones Singulares".
+     */
+    private function turnoReferenciaServicio(string $servicioNombre, string $turnoNombre): bool
+    {
+        $servicioLower = mb_strtolower(trim($servicioNombre), 'UTF-8');
+        $turnoLower = mb_strtolower(trim($turnoNombre), 'UTF-8');
+
+        // Turno name contains the service name or vice versa
+        if (str_contains($turnoLower, $servicioLower) || str_contains($servicioLower, $turnoLower)) {
+            return true;
+        }
+
+        // Generic turno names are compatible with any service
+        $genericTurnos = [
+            'turno de mañana',
+            'turno de tarde',
+            'turno de noche',
+            'mañana',
+            'tarde',
+            'noche',
+            'horario de oficina',
+            'horario comercial',
+            'office hours',
+            'disponibilidad general',
+        ];
+        foreach ($genericTurnos as $generic) {
+            if (str_contains($turnoLower, $generic)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function turnoCoincideConServicio(string $servicioKey, string $nombreTurno): bool

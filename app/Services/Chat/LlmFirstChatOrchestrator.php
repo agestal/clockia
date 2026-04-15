@@ -290,7 +290,7 @@ class LlmFirstChatOrchestrator
         }
 
         if (is_array($state->ultimaPropuesta)) {
-            foreach (['slot_key', 'hora_inicio', 'hora_fin', 'recurso_id', 'recurso_ids'] as $key) {
+            foreach (['slot_key', 'hora_inicio', 'hora_fin', 'recurso_id', 'recurso_ids', 'sesion_id'] as $key) {
                 if (
                     ! array_key_exists($key, $arguments)
                     && array_key_exists($key, $state->ultimaPropuesta)

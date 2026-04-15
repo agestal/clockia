@@ -86,6 +86,7 @@ class CreateBookingTool extends ToolDefinition
                 'document_type' => ['type' => 'string', 'nullable' => true],
                 'document_value' => ['type' => 'string', 'nullable' => true],
                 'notes' => ['type' => 'string', 'nullable' => true],
+                'sesion_id' => ['type' => 'integer', 'nullable' => true, 'description' => 'ID de la sesion grupal a la que vincular la reserva'],
             ],
             'required' => ['negocio_id', 'servicio_id', 'fecha', 'numero_personas', 'contact_name', 'contact_phone'],
         ];
@@ -133,6 +134,8 @@ class CreateBookingTool extends ToolDefinition
                     'document_type' => $reserva->tipo_documento_responsable,
                     'document_value' => $reserva->documento_responsable,
                 ],
+                'confirmation_email_sent_at' => optional($reserva->mail_confirmacion_enviado_en)?->toIso8601String(),
+                'internal_calendar_visible' => true,
                 'created_at' => optional($reserva->created_at)?->toIso8601String(),
             ],
         ]);

@@ -88,6 +88,17 @@ class ListBookableServicesTool extends ToolDefinition
             'es_reembolsable' => $s->es_reembolsable,
             'porcentaje_senal' => $s->porcentaje_senal !== null ? (string) $s->porcentaje_senal : null,
             'precio_por_unidad_tiempo' => $s->precio_por_unidad_tiempo,
+            'numero_personas_minimo' => $s->numero_personas_minimo,
+            'numero_personas_maximo' => $s->numero_personas_maximo,
+            'permite_menores' => $s->permite_menores,
+            'edad_minima' => $s->edad_minima,
+            'precio_menor' => $s->precio_menor !== null ? (string) $s->precio_menor : null,
+            'idiomas' => $s->idiomas,
+            'punto_encuentro' => $s->punto_encuentro,
+            'incluye' => $s->incluye,
+            'no_incluye' => $s->no_incluye,
+            'accesibilidad_notas' => $s->accesibilidad_notas,
+            'requiere_aprobacion_manual' => $s->requiere_aprobacion_manual,
         ])->all();
 
         return ToolResult::ok([

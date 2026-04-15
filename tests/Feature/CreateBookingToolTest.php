@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mail\ReservaConfirmada;
 use App\Models\Disponibilidad;
 use App\Models\EstadoReserva;
 use App\Models\Negocio;
@@ -14,6 +15,7 @@ use App\Models\Recurso;
 use App\Tools\ToolRegistry;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class CreateBookingToolTest extends TestCase
@@ -131,6 +133,50 @@ class CreateBookingToolTest extends TestCase
             'tipo_documento_responsable' => 'carné de conducir',
             'documento_responsable' => '77416801C',
         ]);
+    }
+
+    public function test_it_sends_confirmation_email_when_enabled_and_contact_email_exists(): void
+    {
+        Mail::fake();
+
+        [$negocio, $servicio] = $this->createBookingFixture();
+        $negocio->update(['mail_confirmacion_activo' => true]);
+
+        $availability = app(ToolRegistry::class)->executeForConversation('search_availability', [
+            'negocio_id' => $negocio->id,
+            'servicio_id' => $servicio->id,
+            'fecha' => '2026-04-16',
+            'numero_personas' => 2,
+        ]);
+
+        $slot = data_get($availability, 'data.slots.0');
+
+        $result = app(ToolRegistry::class)->executeForConversation('create_booking', [
+            'negocio_id' => $negocio->id,
+            'servicio_id' => $servicio->id,
+            'fecha' => '2026-04-16',
+            'slot_key' => $slot['slot_key'],
+            'hora_inicio' => $slot['hora_inicio'],
+            'numero_personas' => 2,
+            'contact_name' => 'Lucía Mail',
+            'contact_phone' => '600333444',
+            'contact_email' => 'lucia.mail@example.com',
+        ]);
+
+        $this->assertTrue($result['success']);
+        $this->assertNotNull(data_get($result, 'data.booking.confirmation_email_sent_at'));
+        $this->assertTrue((bool) data_get($result, 'data.booking.internal_calendar_visible'));
+
+        Mail::assertSent(ReservaConfirmada::class, function (ReservaConfirmada $mail): bool {
+            return $mail->hasTo('lucia.mail@example.com');
+        });
+
+        $this->assertDatabaseHas('reservas', [
+            'id' => data_get($result, 'data.booking.id'),
+        ]);
+
+        $reserva = Reserva::findOrFail(data_get($result, 'data.booking.id'));
+        $this->assertNotNull($reserva->mail_confirmacion_enviado_en);
     }
 
     private function createBookingFixture(): array

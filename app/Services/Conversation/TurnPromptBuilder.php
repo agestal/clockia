@@ -19,6 +19,7 @@ class TurnPromptBuilder
         $stateBlock = json_encode($state->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $contextBlock = $this->formatContextForPrompt($context);
         $servicesBlock = $this->formatServicesForPrompt($services);
+        $sectorKnowledgeBlock = $this->formatSectorKnowledgeForPrompt($profile, $behaviorProfile);
 
         return <<<PROMPT
 Eres el asistente conversacional real de {$profile->negocioNombre}. Tu trabajo es entender de verdad lo que quiere el usuario, decidir si necesitas una tool y responder con naturalidad, criterio y memoria conversacional real.
@@ -30,6 +31,8 @@ Perfil del negocio:
 
 Perfil de comportamiento conversacional:
 {$behaviorProfile->toPromptBlock()}
+
+{$sectorKnowledgeBlock}
 
 Estado de memoria actual:
 {$stateBlock}
@@ -284,5 +287,128 @@ PROMPT;
                 return implode("\n", $lines);
             })
             ->implode("\n\n");
+    }
+
+    private function formatSectorKnowledgeForPrompt(ChatbotProfile $profile, ConversationBehaviorProfile $behaviorProfile): string
+    {
+        if ($behaviorProfile->sectorKey !== 'winery') {
+            return '';
+        }
+
+        $denominations = $this->inferDenominationsForBusiness($profile);
+        $businessKnowledge = $denominations !== []
+            ? 'DENOMINACIONES RELACIONABLES CON ESTE NEGOCIO POR UBICACION/DATOS PUBLICOS: '.implode(' | ', $denominations)
+            : 'DENOMINACIONES RELACIONABLES CON ESTE NEGOCIO: si no puedes inferir una con razonable confianza a partir de la direccion o descripcion publica, no la inventes.';
+
+        return <<<BLOCK
+CONOCIMIENTO SECTORIAL EXTRA - BODEGA Y ENOLOGIA:
+- Puedes responder dudas generales sobre vino, cata, maridaje, variedades y enoturismo sin necesidad de tool cuando la respuesta dependa de conocimiento sectorial general y del perfil del negocio.
+- Adapta la profundidad tecnica al cliente: si habla en tono casual, responde claro y ameno; si pide detalle tecnico, puedes subir el nivel y explicar variedad, elaboracion, crianza, acidez, aromas, estructura y final.
+- Para explicar una cata, usa una secuencia humana y simple: fase visual, nariz, boca, sensacion final y contexto del vino. No suenes academico salvo que el cliente lo busque.
+- Para explicar una experiencia enoturistica ideal, piensa en acogida, contexto del lugar, recorrido, cata guiada, posible maridaje y ambiente del grupo.
+- Puedes mencionar con naturalidad referencias solidas de denominaciones de origen espanolas como: Rias Baixas, Ribeiro, Ribeira Sacra, Valdeorras, Monterrei, Rioja, Ribera del Duero, Rueda, Toro, Bierzo, Priorat, Penedes, Cava, Jerez-Xeres-Sherry, Montilla-Moriles, La Mancha, Somontano, Utiel-Requena y Alicante.
+- Si el cliente pregunta por la zona del negocio, conecta la experiencia con el territorio de forma natural, pero no afirmes una DO concreta si no esta respaldada por la ubicacion o las reglas del negocio.
+- Si el cliente solo quiere reservar, no conviertas la conversacion en una masterclass de vino.
+{$businessKnowledge}
+BLOCK;
+    }
+
+    private function inferDenominationsForBusiness(ChatbotProfile $profile): array
+    {
+        $haystack = mb_strtolower(implode(' ', array_filter([
+            $profile->negocioNombre,
+            $profile->direccion,
+            $profile->descripcionPublica,
+            $profile->urlPublica,
+            $profile->systemRules,
+        ])), 'UTF-8');
+
+        $maps = [
+            [
+                'keywords' => ['cambados', 'pontevedra', 'salnes', 'salnés', 'rias baixas', 'rías baixas', 'albariño', 'albarino'],
+                'label' => 'D.O. Rias Baixas; en Cambados la referencia mas natural es Val do Salnes y la variedad emblematica es Albariño',
+            ],
+            [
+                'keywords' => ['ribadavia', 'ribeiro', 'ourense'],
+                'label' => 'D.O. Ribeiro',
+            ],
+            [
+                'keywords' => ['ribeira sacra', 'chantada', 'monforte'],
+                'label' => 'D.O. Ribeira Sacra',
+            ],
+            [
+                'keywords' => ['valdeorras', 'o barco'],
+                'label' => 'D.O. Valdeorras',
+            ],
+            [
+                'keywords' => ['monterrei', 'verin', 'verín'],
+                'label' => 'D.O. Monterrei',
+            ],
+            [
+                'keywords' => ['rioja', 'haro', 'logroño', 'logrono'],
+                'label' => 'D.O.Ca. Rioja',
+            ],
+            [
+                'keywords' => ['ribera del duero', 'peñafiel', 'penafiel', 'valladolid', 'burgos'],
+                'label' => 'D.O. Ribera del Duero',
+            ],
+            [
+                'keywords' => ['rueda'],
+                'label' => 'D.O. Rueda',
+            ],
+            [
+                'keywords' => ['toro', 'zamora'],
+                'label' => 'D.O. Toro',
+            ],
+            [
+                'keywords' => ['bierzo', 'ponferrada'],
+                'label' => 'D.O. Bierzo',
+            ],
+            [
+                'keywords' => ['priorat'],
+                'label' => 'D.O.Q. Priorat',
+            ],
+            [
+                'keywords' => ['penedes', 'penedès', 'sant sadurni', 'sant sadurní', 'cava'],
+                'label' => 'D.O. Penedes / D.O. Cava',
+            ],
+            [
+                'keywords' => ['jerez', 'sanlucar', 'sanlúcar', 'el puerto de santa maria'],
+                'label' => 'D.O. Jerez-Xeres-Sherry / Manzanilla-Sanlucar de Barrameda',
+            ],
+            [
+                'keywords' => ['montilla', 'moriles'],
+                'label' => 'D.O. Montilla-Moriles',
+            ],
+            [
+                'keywords' => ['la mancha', 'valdepeñas', 'valdepenas'],
+                'label' => 'D.O. La Mancha / D.O. Valdepenas',
+            ],
+            [
+                'keywords' => ['somontano', 'barbastro'],
+                'label' => 'D.O. Somontano',
+            ],
+            [
+                'keywords' => ['utiel', 'requena'],
+                'label' => 'D.O. Utiel-Requena',
+            ],
+            [
+                'keywords' => ['alicante'],
+                'label' => 'D.O. Alicante',
+            ],
+        ];
+
+        $matches = [];
+
+        foreach ($maps as $map) {
+            foreach ($map['keywords'] as $keyword) {
+                if (str_contains($haystack, $keyword)) {
+                    $matches[] = $map['label'];
+                    break;
+                }
+            }
+        }
+
+        return array_values(array_unique($matches));
     }
 }

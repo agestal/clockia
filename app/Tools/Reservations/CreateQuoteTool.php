@@ -59,6 +59,7 @@ class CreateQuoteTool extends ToolDefinition
                 'negocio_id' => ['type' => 'integer'],
                 'servicio_id' => ['type' => 'integer'],
                 'numero_personas' => ['type' => 'integer', 'nullable' => true, 'minimum' => 1],
+                'numero_menores' => ['type' => 'integer', 'nullable' => true, 'minimum' => 0, 'description' => 'Menores incluidos en numero_personas con tarifa reducida'],
                 'inicio_datetime' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
                 'fin_datetime' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
             ],
@@ -88,8 +89,9 @@ class CreateQuoteTool extends ToolDefinition
         $precioBase = (float) $servicio->precio_base;
         $tipoPrecio = $servicio->tipoPrecio?->nombre ?? 'Fijo';
         $personas = $dto->numero_personas ?? 1;
+        $menores = $dto->numero_menores ?? 0;
 
-        $precioCalculado = $this->calcularPrecio($precioBase, $tipoPrecio, $personas, $servicio, $dto);
+        $precioCalculado = $this->calcularPrecio($precioBase, $tipoPrecio, $personas, $menores, $servicio, $dto);
 
         $policy = [
             'horas_minimas_cancelacion' => $this->policyResolver->horasMinimasCancelacion(null, $servicio, $negocio),
@@ -110,8 +112,10 @@ class CreateQuoteTool extends ToolDefinition
             'precio_calculado' => number_format($precioCalculado, 2, '.', ''),
             'tipo_precio' => $tipoPrecio,
             'numero_personas' => $personas,
+            'numero_menores' => $menores,
+            'precio_menor' => $servicio->precio_menor !== null ? (string) $servicio->precio_menor : null,
             'duracion_minutos' => $servicio->duracion_minutos,
-            'desglose' => $this->generarDesglose($precioBase, $tipoPrecio, $personas, $precioCalculado),
+            'desglose' => $this->generarDesglose($precioBase, $tipoPrecio, $personas, $menores, $servicio, $precioCalculado),
             'requiere_pago' => $servicio->requiere_pago,
             'es_reembolsable' => $policy['es_reembolsable'],
             'porcentaje_senal' => $policy['porcentaje_senal'],
@@ -121,13 +125,25 @@ class CreateQuoteTool extends ToolDefinition
         ]);
     }
 
-    private function calcularPrecio(float $precioBase, string $tipoPrecio, int $personas, Servicio $servicio, CreateQuoteInput $dto): float
+    private function calcularPrecio(float $precioBase, string $tipoPrecio, int $personas, int $menores, Servicio $servicio, CreateQuoteInput $dto): float
     {
         return match ($tipoPrecio) {
-            'Por persona' => $precioBase * $personas,
+            'Por persona' => $this->calcularPorPersona($precioBase, $personas, $menores, $servicio),
             'Por tramo' => $this->calcularPorTramo($precioBase, $servicio, $dto),
             default => $precioBase,
         };
+    }
+
+    private function calcularPorPersona(float $precioBase, int $personas, int $menores, Servicio $servicio): float
+    {
+        if ($menores > 0 && $servicio->precio_menor !== null && $servicio->permite_menores) {
+            $adultos = max(0, $personas - $menores);
+            $precioMenor = (float) $servicio->precio_menor;
+
+            return ($precioBase * $adultos) + ($precioMenor * $menores);
+        }
+
+        return $precioBase * $personas;
     }
 
     private function calcularPorTramo(float $precioBase, Servicio $servicio, CreateQuoteInput $dto): float
@@ -144,8 +160,21 @@ class CreateQuoteTool extends ToolDefinition
         return $precioBase * $tramos;
     }
 
-    private function generarDesglose(float $precioBase, string $tipoPrecio, int $personas, float $precioCalculado): string
+    private function generarDesglose(float $precioBase, string $tipoPrecio, int $personas, int $menores, Servicio $servicio, float $precioCalculado): string
     {
+        if ($tipoPrecio === 'Por persona' && $menores > 0 && $servicio->precio_menor !== null && $servicio->permite_menores) {
+            $adultos = max(0, $personas - $menores);
+            $precioMenor = (float) $servicio->precio_menor;
+
+            $parts = [];
+            if ($adultos > 0) {
+                $parts[] = number_format($precioBase, 2, '.', '').' x '.$adultos.' adulto'.($adultos > 1 ? 's' : '');
+            }
+            $parts[] = number_format($precioMenor, 2, '.', '').' x '.$menores.' menor'.($menores > 1 ? 'es' : '');
+
+            return implode(' + ', $parts).' = '.number_format($precioCalculado, 2, '.', '');
+        }
+
         return match ($tipoPrecio) {
             'Por persona' => number_format($precioBase, 2, '.', '').' x '.$personas.' personas = '.number_format($precioCalculado, 2, '.', ''),
             'Fijo' => 'Precio fijo: '.number_format($precioCalculado, 2, '.', ''),

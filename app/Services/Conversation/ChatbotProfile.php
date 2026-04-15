@@ -25,6 +25,7 @@ class ChatbotProfile
         public readonly ?int $horasMinimasCancelacion,
         public readonly ?bool $permiteModificacion,
         public readonly ?int $maxRecursosCombinables,
+        public readonly ?bool $mailConfirmacionActiva,
     ) {}
 
     public function requiredFieldsFor(string $toolName): ?array
@@ -95,6 +96,10 @@ class ChatbotProfile
 
         if ($policyLines !== []) {
             $lines[] = "\nPOLÍTICAS Y LÍMITES RELEVANTES:\n".implode("\n", $policyLines);
+        }
+
+        if ($this->mailConfirmacionActiva !== null) {
+            $lines[] = 'EMAIL DE CONFIRMACION AUTOMATICO: '.($this->mailConfirmacionActiva ? 'si' : 'no');
         }
 
         if ($this->systemRules !== null && trim($this->systemRules) !== '') {

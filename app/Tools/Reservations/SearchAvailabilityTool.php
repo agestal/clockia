@@ -9,6 +9,7 @@ use App\Models\OcupacionExterna;
 use App\Models\Recurso;
 use App\Models\Reserva;
 use App\Models\Servicio;
+use App\Models\Sesion;
 use App\Services\Reservations\ResourceCombinationService;
 use App\Services\Reservations\ServiceSlotMatcher;
 use App\Services\Tools\BusinessComplexityResolver;
@@ -154,6 +155,10 @@ class SearchAvailabilityTool extends ToolDefinition
                 ));
             }
         }
+
+        // STEP 3: Session-based slots (group experiences like wine tastings)
+        $sessionSlots = $this->buscarSlotsDeSesiones($dto, $servicio, $fechaCarbon);
+        $slots = array_merge($slots, $sessionSlots);
 
         usort($slots, function ($a, $b) {
             $cmp = strcmp($a['inicio_datetime'], $b['inicio_datetime']);
@@ -548,6 +553,71 @@ class SearchAvailabilityTool extends ToolDefinition
             ->where('hora_inicio', '<', $horaFin.':00')
             ->where('hora_fin', '>', $horaInicio.':00')
             ->exists();
+    }
+
+    private function buscarSlotsDeSesiones(SearchAvailabilityInput $dto, Servicio $servicio, Carbon $fecha): array
+    {
+        $sesiones = Sesion::query()
+            ->where('negocio_id', $dto->negocio_id)
+            ->where('servicio_id', $servicio->id)
+            ->where('fecha', $dto->fecha)
+            ->where('activo', true)
+            ->get();
+
+        if ($sesiones->isEmpty()) {
+            return [];
+        }
+
+        $slots = [];
+
+        foreach ($sesiones as $sesion) {
+            $reservados = Reserva::query()
+                ->where('sesion_id', $sesion->id)
+                ->whereNotIn('estado_reserva_id', $this->estadosCancelados())
+                ->sum('numero_personas');
+
+            $aforoRestante = max(0, ($sesion->aforo_total ?? 0) - (int) $reservados);
+
+            if ($aforoRestante <= 0) {
+                continue;
+            }
+
+            if ($dto->numero_personas !== null && $dto->numero_personas > $aforoRestante) {
+                continue;
+            }
+
+            $horaInicio = substr((string) $sesion->hora_inicio, 0, 5);
+            $horaFin = substr((string) $sesion->hora_fin, 0, 5);
+            $recursoId = $sesion->recurso_id;
+            $recursoIds = $recursoId ? [$recursoId] : [];
+
+            $slots[] = [
+                'fecha' => $dto->fecha,
+                'hora_inicio' => $horaInicio,
+                'hora_fin' => $horaFin,
+                'inicio_datetime' => $sesion->inicio_datetime?->toDateTimeString() ?? $fecha->toDateString().' '.$horaInicio.':00',
+                'fin_datetime' => $sesion->fin_datetime?->toDateTimeString() ?? $fecha->toDateString().' '.$horaFin.':00',
+                'slot_key' => sha1('sesion|'.$sesion->id.'|'.$dto->fecha),
+                'booking_time_mode' => 'session',
+                'accepts_start_time_within_slot' => false,
+                'recurso_id' => $recursoId,
+                'recurso_ids' => $recursoIds,
+                'recurso_nombre' => $sesion->recurso?->nombre,
+                'nombre_turno' => null,
+                'capacidad' => $sesion->aforo_total,
+                'es_combinacion' => false,
+                'es_sesion' => true,
+                'sesion_id' => $sesion->id,
+                'aforo_total' => $sesion->aforo_total,
+                'aforo_restante' => $aforoRestante,
+                'notas_publicas' => $sesion->notas_publicas,
+                'recursos' => $recursoId ? [['id' => $recursoId, 'nombre' => $sesion->recurso?->nombre, 'capacidad' => $sesion->aforo_total]] : [],
+                'numero_recursos' => $recursoId ? 1 : 0,
+                'capacidad_total' => $sesion->aforo_total,
+            ];
+        }
+
+        return $slots;
     }
 
     private function estadosCancelados(): array
