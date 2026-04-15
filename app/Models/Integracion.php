@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property int $id
@@ -64,9 +65,29 @@ class Integracion extends Model
         return $this->hasMany(IntegracionCuenta::class);
     }
 
+    public function cuentaActiva(): HasOne
+    {
+        return $this->hasOne(IntegracionCuenta::class)
+            ->where('activo', true)
+            ->latestOfMany();
+    }
+
     public function mapeos(): HasMany
     {
         return $this->hasMany(IntegracionMapeo::class);
+    }
+
+    public function mapeosCalendario(): HasMany
+    {
+        return $this->hasMany(IntegracionMapeo::class)
+            ->where('tipo_origen', 'calendario');
+    }
+
+    public function calendariosSeleccionados(): HasMany
+    {
+        return $this->mapeosCalendario()
+            ->where('activo', true)
+            ->where('seleccionado', true);
     }
 
     public function ocupacionesExternas(): HasMany
@@ -87,6 +108,11 @@ class Integracion extends Model
     public function esGoogleCalendar(): bool
     {
         return $this->proveedor === 'google_calendar';
+    }
+
+    public function estaConectada(): bool
+    {
+        return $this->estado === 'conectada';
     }
 
     public function esModoCoexistencia(): bool

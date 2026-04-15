@@ -22,6 +22,7 @@ use App\Http\Controllers\Admin\IntegracionMapeoController;
 use App\Http\Controllers\Admin\OcupacionExternaController;
 use App\Http\Controllers\Admin\CalendarioController;
 use App\Http\Controllers\Admin\ChatTestController;
+use App\Http\Controllers\Admin\GoogleCalendarIntegrationController;
 use App\Http\Controllers\EncuestaPublicaController;
 use App\Livewire\Admin\Dashboard;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +35,8 @@ Route::get('/', function () {
 
 Route::get('/encuesta/{token}', [EncuestaPublicaController::class, 'show'])->name('encuesta.show');
 Route::post('/encuesta/{token}', [EncuestaPublicaController::class, 'submit'])->name('encuesta.submit');
+Route::get('admin/integraciones/google/callback', [GoogleCalendarIntegrationController::class, 'callback'])
+    ->name('admin.integraciones.google.callback');
 
 Route::middleware([
     'auth',
@@ -90,6 +93,18 @@ Route::prefix('admin')
             ->parameters(['integracion-mapeos' => 'integracion_mapeo']);
         Route::resource('ocupaciones-externas', OcupacionExternaController::class)
             ->parameters(['ocupaciones-externas' => 'ocupacion_externa']);
+        Route::prefix('negocios/{negocio}/google-calendar')
+            ->name('negocios.google-calendar.')
+            ->group(function () {
+                Route::get('connect', [GoogleCalendarIntegrationController::class, 'connect'])
+                    ->name('connect');
+                Route::post('calendars/sync', [GoogleCalendarIntegrationController::class, 'syncCalendars'])
+                    ->name('calendars.sync');
+                Route::put('calendars', [GoogleCalendarIntegrationController::class, 'updateCalendars'])
+                    ->name('calendars.update');
+                Route::post('import', [GoogleCalendarIntegrationController::class, 'import'])
+                    ->name('import');
+            });
 
         Route::patch('tipos-negocio/{tipo_negocio}/inline', [TipoNegocioController::class, 'inlineUpdate'])
             ->name('tipos-negocio.inline-update');
@@ -111,6 +126,8 @@ Route::prefix('admin')
             ->name('clientes.inline-update');
         Route::patch('negocios/{negocio}/inline', [NegocioController::class, 'inlineUpdate'])
             ->name('negocios.inline-update');
+        Route::post('negocios/{negocio}/widget/regenerate-key', [NegocioController::class, 'regenerateWidgetKey'])
+            ->name('negocios.widget.regenerate-key');
         Route::patch('servicios/{servicio}/inline', [ServicioController::class, 'inlineUpdate'])
             ->name('servicios.inline-update');
         Route::patch('reservas/{reserva}/inline', [ReservaController::class, 'inlineUpdate'])

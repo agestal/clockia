@@ -70,4 +70,21 @@ return [
         'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
     ],
 
+    'google_calendar' => [
+        'client_id' => env('GOOGLE_CALENDAR_CLIENT_ID', ''),
+        'client_secret' => env('GOOGLE_CALENDAR_CLIENT_SECRET', ''),
+        'redirect_uri' => env('GOOGLE_CALENDAR_REDIRECT_URI', rtrim((string) env('APP_URL', 'http://localhost'), '/').'/api/integrations/google/callback'),
+        'auth_base_url' => env('GOOGLE_CALENDAR_AUTH_BASE_URL', 'https://accounts.google.com/o/oauth2/v2/auth'),
+        'token_url' => env('GOOGLE_CALENDAR_TOKEN_URL', 'https://oauth2.googleapis.com/token'),
+        'api_base_url' => env('GOOGLE_CALENDAR_API_BASE_URL', 'https://www.googleapis.com/calendar/v3'),
+        'import_days' => (int) env('GOOGLE_CALENDAR_IMPORT_DAYS', 30),
+        'scopes' => array_values(array_filter(array_map(
+            static fn (string $value) => trim($value),
+            explode(',', (string) env(
+                'GOOGLE_CALENDAR_SCOPES',
+                'https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/calendar.events'
+            ))
+        ))),
+    ],
+
 ];

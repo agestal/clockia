@@ -2,8 +2,11 @@
 
 namespace App\Providers;
 
+use App\Events\BookingCreated;
+use App\Listeners\SyncBookingToGoogleCalendar;
 use Laravel\Passport\Passport;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Event;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -20,6 +23,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Event::listen(BookingCreated::class, SyncBookingToGoogleCalendar::class);
+
         Passport::tokensCan([
             'business:read' => 'Read business context information.',
             'services:read' => 'Read business services.',

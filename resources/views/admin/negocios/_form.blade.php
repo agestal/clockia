@@ -5,6 +5,7 @@
 @endif
 
 @php
+    $widgetSettings = $negocio->widgetSettingsResolved();
     $chatBehavior = old() ? [
         'human_role' => old('chat_behavior_human_role'),
         'default_register' => old('chat_behavior_default_register'),
@@ -123,6 +124,31 @@
                     <label class="custom-control-label" for="activo">Activo</label>
                 </div>
                 @error('activo')
+                    <span class="invalid-feedback d-block ml-3" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-6 d-flex align-items-center">
+                <div>
+                    <div class="custom-control custom-switch mt-4">
+                        <input type="hidden" name="google_calendar_enabled" value="0">
+                        <input
+                            type="checkbox"
+                            class="custom-control-input @error('google_calendar_enabled') is-invalid @enderror"
+                            id="google_calendar_enabled"
+                            name="google_calendar_enabled"
+                            value="1"
+                            @checked(old('google_calendar_enabled', $googleCalendarIntegration?->activo ?? false))
+                        >
+                        <label class="custom-control-label" for="google_calendar_enabled">Activar Google Calendar</label>
+                    </div>
+                    @if($googleCalendarIntegration)
+                        <div class="small text-muted mt-2">
+                            Estado de conexión: {{ $googleCalendarIntegration->estado }}
+                        </div>
+                    @endif
+                </div>
+                @error('google_calendar_enabled')
                     <span class="invalid-feedback d-block ml-3" role="alert">{{ $message }}</span>
                 @enderror
             </div>
@@ -524,6 +550,225 @@
                     <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
                 @enderror
             </div>
+
+            @if($isEdit)
+            <div class="form-group col-12">
+                <hr>
+                <h3 class="h6 text-uppercase text-muted mb-3">Widget embebible</h3>
+                <p class="text-muted small mb-0">Permite a tus clientes reservar desde una web externa. Comparte la misma lógica del chatbot: mismos emails, mismas encuestas, mismas validaciones.</p>
+            </div>
+
+            <div class="form-group col-lg-6 d-flex align-items-center">
+                <div class="custom-control custom-switch mt-2">
+                    <input type="hidden" name="widget_enabled" value="0">
+                    <input
+                        type="checkbox"
+                        class="custom-control-input @error('widget_enabled') is-invalid @enderror"
+                        id="widget_enabled"
+                        name="widget_enabled"
+                        value="1"
+                        @checked(old('widget_enabled', $negocio->widget_enabled ?? false))
+                    >
+                    <label class="custom-control-label" for="widget_enabled">Activar widget público</label>
+                </div>
+                @error('widget_enabled')
+                    <span class="invalid-feedback d-block ml-3" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-6">
+                <label class="form-label">Clave pública del widget</label>
+                <div class="input-group">
+                    <input
+                        type="text"
+                        id="widget_public_key_display"
+                        class="form-control"
+                        value="{{ $negocio->widget_public_key }}"
+                        readonly
+                    >
+                    <div class="input-group-append">
+                        <button
+                            type="button"
+                            class="btn btn-outline-secondary"
+                            id="btn-regenerate-widget-key"
+                            data-url="{{ route('admin.negocios.widget.regenerate-key', $negocio) }}"
+                            title="Regenerar clave pública (invalidará la actual)"
+                        >
+                            <i class="fas fa-sync-alt"></i> Regenerar
+                        </button>
+                    </div>
+                </div>
+                <small class="form-text text-muted">Identifica al negocio en el widget embebible. Regenerarla invalida inmediatamente la clave anterior.</small>
+            </div>
+
+            <div class="form-group col-lg-3">
+                <label for="widget_primary_color" class="form-label">Color principal</label>
+                <input type="text" id="widget_primary_color" name="widget_primary_color"
+                    value="{{ old('widget_primary_color', $widgetSettings['primary_color']) }}"
+                    class="form-control" placeholder="#7B3F00">
+            </div>
+
+            <div class="form-group col-lg-3">
+                <label for="widget_secondary_color" class="form-label">Color secundario</label>
+                <input type="text" id="widget_secondary_color" name="widget_secondary_color"
+                    value="{{ old('widget_secondary_color', $widgetSettings['secondary_color']) }}"
+                    class="form-control" placeholder="#EAD7C5">
+            </div>
+
+            <div class="form-group col-lg-3">
+                <label for="widget_text_color" class="form-label">Color de texto</label>
+                <input type="text" id="widget_text_color" name="widget_text_color"
+                    value="{{ old('widget_text_color', $widgetSettings['text_color']) }}"
+                    class="form-control" placeholder="#2B2B2B">
+            </div>
+
+            <div class="form-group col-lg-3">
+                <label for="widget_background_color" class="form-label">Color de fondo</label>
+                <input type="text" id="widget_background_color" name="widget_background_color"
+                    value="{{ old('widget_background_color', $widgetSettings['background_color']) }}"
+                    class="form-control" placeholder="#FFFFFF">
+            </div>
+
+            <div class="form-group col-lg-4">
+                <label for="widget_font_family" class="form-label">Tipografía</label>
+                <input type="text" id="widget_font_family" name="widget_font_family"
+                    value="{{ old('widget_font_family', $widgetSettings['font_family']) }}"
+                    class="form-control" placeholder="Inter, sans-serif">
+            </div>
+
+            <div class="form-group col-lg-2">
+                <label for="widget_font_size_base" class="form-label">Tamaño base</label>
+                <input type="text" id="widget_font_size_base" name="widget_font_size_base"
+                    value="{{ old('widget_font_size_base', $widgetSettings['font_size_base']) }}"
+                    class="form-control" placeholder="14px">
+            </div>
+
+            <div class="form-group col-lg-2">
+                <label for="widget_border_radius" class="form-label">Border radius</label>
+                <input type="text" id="widget_border_radius" name="widget_border_radius"
+                    value="{{ old('widget_border_radius', $widgetSettings['border_radius']) }}"
+                    class="form-control" placeholder="10px">
+            </div>
+
+            <div class="form-group col-lg-2">
+                <label for="widget_locale" class="form-label">Idioma</label>
+                <input type="text" id="widget_locale" name="widget_locale"
+                    value="{{ old('widget_locale', $widgetSettings['locale']) }}"
+                    class="form-control" placeholder="es">
+            </div>
+
+            <div class="form-group col-12">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label mb-0">Snippet de integración para la web del cliente</label>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn-copy-widget-snippet">
+                        <i class="far fa-copy"></i> Copiar
+                    </button>
+                </div>
+                <textarea
+                    id="widget_snippet_code"
+                    class="form-control bg-light small"
+                    rows="6"
+                    readonly
+                    style="font-family: Menlo, Consolas, monospace; font-size: 0.82rem;"
+>&lt;script src="{{ url('/widget/clockia-widget.js') }}" defer&gt;&lt;/script&gt;
+&lt;clockia-widget
+    business-id="{{ $negocio->id }}"
+    widget-key="{{ $negocio->widget_public_key }}"
+    api-base="{{ url('/api/widget') }}"
+&gt;&lt;/clockia-widget&gt;</textarea>
+                <small class="form-text text-muted">
+                    Pega este bloque en cualquier web externa para mostrar el widget de reservas de <strong>{{ $negocio->nombre }}</strong>. Los colores configurados arriba se aplican automáticamente tras guardar. Si regeneras la clave, vuelve a pegar el nuevo snippet.
+                </small>
+            </div>
+
+            <div class="form-group col-12">
+                <details class="border rounded p-3 bg-light">
+                    <summary class="text-muted small" style="cursor:pointer;">Alternativa: inicialización por JavaScript (click para ver)</summary>
+                    <pre class="mb-0 mt-2 small" style="white-space:pre-wrap;">&lt;div id="clockia-widget"&gt;&lt;/div&gt;
+&lt;script src="{{ url('/widget/clockia-widget.js') }}"&gt;&lt;/script&gt;
+&lt;script&gt;
+  Clockia.init({
+    businessId: {{ $negocio->id }},
+    widgetKey: '{{ $negocio->widget_public_key }}',
+    apiBase: '{{ url('/api/widget') }}',
+    container: '#clockia-widget',
+  });
+&lt;/script&gt;</pre>
+                </details>
+            </div>
+
+            @push('js')
+            <script>
+            (function() {
+                const regenBtn = document.getElementById('btn-regenerate-widget-key');
+                const keyInput = document.getElementById('widget_public_key_display');
+                const snippetBox = document.getElementById('widget_snippet_code');
+                const copyBtn = document.getElementById('btn-copy-widget-snippet');
+
+                if (copyBtn && snippetBox) {
+                    copyBtn.addEventListener('click', async function () {
+                        try {
+                            await navigator.clipboard.writeText(snippetBox.value);
+                            const original = copyBtn.innerHTML;
+                            copyBtn.innerHTML = '<i class="fas fa-check"></i> Copiado';
+                            copyBtn.classList.remove('btn-outline-primary');
+                            copyBtn.classList.add('btn-success');
+                            setTimeout(function () {
+                                copyBtn.innerHTML = original;
+                                copyBtn.classList.remove('btn-success');
+                                copyBtn.classList.add('btn-outline-primary');
+                            }, 1800);
+                        } catch (err) {
+                            snippetBox.select();
+                            document.execCommand('copy');
+                        }
+                    });
+                }
+
+                if (regenBtn && keyInput && snippetBox) {
+                    regenBtn.addEventListener('click', async function () {
+                        if (!confirm('¿Regenerar la clave pública del widget? La clave actual dejará de funcionar inmediatamente y cualquier web que la esté usando dejará de ver el widget hasta que actualices el snippet.')) {
+                            return;
+                        }
+                        regenBtn.disabled = true;
+                        const originalText = regenBtn.innerHTML;
+                        regenBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Regenerando…';
+
+                        try {
+                            const response = await fetch(regenBtn.dataset.url, {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                },
+                                credentials: 'same-origin',
+                            });
+
+                            if (!response.ok) throw new Error('Error ' + response.status);
+                            const payload = await response.json();
+                            const newKey = payload.data.widget_public_key;
+
+                            keyInput.value = newKey;
+                            snippetBox.value = snippetBox.value.replace(/widget-key="[^"]*"/, 'widget-key="' + newKey + '"');
+
+                            regenBtn.innerHTML = '<i class="fas fa-check"></i> Nueva clave';
+                            setTimeout(function () {
+                                regenBtn.innerHTML = originalText;
+                                regenBtn.disabled = false;
+                            }, 2000);
+                        } catch (err) {
+                            alert('No se pudo regenerar la clave: ' + err.message);
+                            regenBtn.innerHTML = originalText;
+                            regenBtn.disabled = false;
+                        }
+                    });
+                }
+            })();
+            </script>
+            @endpush
+            @endif
+            {{-- end widget section --}}
         </div>
     </div>
 

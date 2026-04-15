@@ -11,10 +11,12 @@ class ExternalReservationLinkService
     public function vincularReservaConExterna(
         Reserva $reserva,
         string $proveedor,
-        string $externalId,
+        ?string $externalId,
         ?Integracion $integracion = null,
         ?string $externalCalendarId = null,
-        ?string $direccionSync = null
+        ?string $direccionSync = null,
+        ?string $estadoSync = 'vinculado',
+        ?array $payloadResumen = null
     ): ReservaIntegracion {
         return ReservaIntegracion::updateOrCreate(
             [
@@ -27,7 +29,8 @@ class ExternalReservationLinkService
                 'external_calendar_id' => $externalCalendarId,
                 'direccion_sync' => $direccionSync,
                 'ultimo_sync_at' => now(),
-                'estado_sync' => 'vinculado',
+                'estado_sync' => $estadoSync,
+                'payload_resumen' => $payloadResumen,
             ]
         );
     }

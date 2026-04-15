@@ -49,6 +49,7 @@ class StoreNegocioRequest extends FormRequest
             'mail_encuesta_activo' => $this->normalizeBoolean($this->input('mail_encuesta_activo')),
             'mail_recordatorio_horas_antes' => $mailRecordatorioHorasAntes !== '' ? $mailRecordatorioHorasAntes : 24,
             'mail_encuesta_horas_despues' => $mailEncuestaHorasDespues !== '' ? $mailEncuestaHorasDespues : 24,
+            'google_calendar_enabled' => $this->normalizeBoolean($this->input('google_calendar_enabled')),
         ]);
     }
 
@@ -105,6 +106,7 @@ class StoreNegocioRequest extends FormRequest
             'mail_encuesta_activo' => ['required', 'boolean'],
             'mail_recordatorio_horas_antes' => ['required', 'integer', 'min:1', 'max:168'],
             'mail_encuesta_horas_despues' => ['required', 'integer', 'min:1', 'max:168'],
+            'google_calendar_enabled' => ['required', 'boolean'],
             'chat_behavior_overrides' => ['nullable', 'array'],
             'chat_behavior_overrides.human_role' => ['nullable', 'string', 'max:255'],
             'chat_behavior_overrides.default_register' => ['nullable', 'string'],
@@ -163,6 +165,8 @@ class StoreNegocioRequest extends FormRequest
             'mail_recordatorio_horas_antes.max' => 'Las horas de recordatorio no pueden superar 168 (1 semana).',
             'mail_encuesta_horas_despues.min' => 'Las horas de encuesta deben ser al menos 1.',
             'mail_encuesta_horas_despues.max' => 'Las horas de encuesta no pueden superar 168 (1 semana).',
+            'google_calendar_enabled.required' => 'Debes indicar si Google Calendar está activado.',
+            'google_calendar_enabled.boolean' => 'El valor de Google Calendar no es válido.',
             'chat_behavior_overrides.human_role.max' => 'El rol humano no puede superar los 255 caracteres.',
             'chat_behavior_overrides.inventory_exposure_policy.in' => 'La política de exposición de inventario seleccionada no es válida.',
             'chat_behavior_overrides.vocabulary_hints.*.max' => 'Cada pista de vocabulario no puede superar los 100 caracteres.',

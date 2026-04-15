@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
@@ -34,6 +35,15 @@ class Negocio extends Model
 
     protected $table = 'negocios';
 
+    protected static function booted(): void
+    {
+        static::creating(function (self $negocio): void {
+            if (empty($negocio->widget_public_key)) {
+                $negocio->widget_public_key = (string) \Illuminate\Support\Str::uuid();
+            }
+        });
+    }
+
     protected $fillable = [
         'nombre',
         'tipo_negocio_id',
@@ -57,6 +67,9 @@ class Negocio extends Model
         'mail_recordatorio_horas_antes',
         'mail_encuesta_activo',
         'mail_encuesta_horas_despues',
+        'widget_enabled',
+        'widget_public_key',
+        'widget_settings',
     ];
 
     protected function casts(): array
@@ -74,7 +87,27 @@ class Negocio extends Model
             'mail_recordatorio_horas_antes' => 'integer',
             'mail_encuesta_activo' => 'boolean',
             'mail_encuesta_horas_despues' => 'integer',
+            'widget_enabled' => 'boolean',
+            'widget_settings' => 'array',
         ];
+    }
+
+    public function widgetSettingsResolved(): array
+    {
+        $defaults = [
+            'primary_color' => '#7B3F00',
+            'secondary_color' => '#EAD7C5',
+            'text_color' => '#2B2B2B',
+            'background_color' => '#FFFFFF',
+            'font_family' => 'Inter, system-ui, sans-serif',
+            'font_size_base' => '14px',
+            'border_radius' => '10px',
+            'locale' => 'es',
+        ];
+
+        $stored = is_array($this->widget_settings) ? $this->widget_settings : [];
+
+        return array_replace($defaults, array_filter($stored, fn ($value) => $value !== null && $value !== ''));
     }
 
     public function maxRecursosCombinablesEfectivo(): int
@@ -137,6 +170,13 @@ class Negocio extends Model
     public function integraciones(): HasMany
     {
         return $this->hasMany(Integracion::class);
+    }
+
+    public function integracionGoogleCalendar(): HasOne
+    {
+        return $this->hasOne(Integracion::class)
+            ->where('proveedor', 'google_calendar')
+            ->latestOfMany();
     }
 
     public function ocupacionesExternas(): HasMany

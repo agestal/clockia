@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\StoreNegocioRequest;
 use App\Http\Requests\Admin\UpdateNegocioRequest;
 use App\Models\Negocio;
 use App\Models\TipoNegocio;
+use App\Services\Integrations\GoogleCalendarAuthService;
 use DateTimeZone;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -60,12 +61,19 @@ class NegocioController extends Controller
             'selectedTipoNegocio' => $this->resolveSelectedTipoNegocio(),
             'timezones' => $this->timezoneOptions(),
             'conversationBehaviorOptions' => $this->conversationBehaviorOptions(),
+            'googleCalendarIntegration' => null,
+            'googleCalendarResources' => collect(),
         ]);
     }
 
-    public function store(StoreNegocioRequest $request): RedirectResponse
+    public function store(StoreNegocioRequest $request, GoogleCalendarAuthService $googleCalendarAuthService): RedirectResponse
     {
-        $negocio = Negocio::create($request->validated());
+        $validated = $request->validated();
+        $googleCalendarEnabled = (bool) ($validated['google_calendar_enabled'] ?? false);
+        unset($validated['google_calendar_enabled']);
+
+        $negocio = Negocio::create($validated);
+        $googleCalendarAuthService->syncToggleState($negocio, $googleCalendarEnabled);
 
         return redirect()
             ->route('admin.negocios.show', $negocio)
@@ -103,19 +111,40 @@ class NegocioController extends Controller
 
     public function edit(Negocio $negocio): View
     {
-        $negocio->load('tipoNegocio');
+        $negocio->load([
+            'tipoNegocio',
+            'integracionGoogleCalendar.cuentaActiva',
+            'integracionGoogleCalendar.mapeosCalendario' => fn ($query) => $query
+                ->with('recurso')
+                ->orderByDesc('es_primario')
+                ->orderBy('nombre_externo'),
+        ]);
 
         return view('admin.negocios.edit', [
             'negocio' => $negocio,
             'selectedTipoNegocio' => $this->resolveSelectedTipoNegocio($negocio),
             'timezones' => $this->timezoneOptions(),
             'conversationBehaviorOptions' => $this->conversationBehaviorOptions(),
+            'googleCalendarIntegration' => $negocio->integracionGoogleCalendar,
+            'googleCalendarResources' => $negocio->recursos()
+                ->activos()
+                ->orderBy('nombre')
+                ->get(['id', 'nombre']),
         ]);
     }
 
-    public function update(UpdateNegocioRequest $request, Negocio $negocio): RedirectResponse
+    public function update(
+        UpdateNegocioRequest $request,
+        Negocio $negocio,
+        GoogleCalendarAuthService $googleCalendarAuthService
+    ): RedirectResponse
     {
-        $negocio->update($request->validated());
+        $validated = $request->validated();
+        $googleCalendarEnabled = (bool) ($validated['google_calendar_enabled'] ?? false);
+        unset($validated['google_calendar_enabled']);
+
+        $negocio->update($validated);
+        $googleCalendarAuthService->syncToggleState($negocio, $googleCalendarEnabled);
 
         return redirect()
             ->route('admin.negocios.edit', $negocio)
@@ -149,6 +178,19 @@ class NegocioController extends Controller
                 'id' => $negocio->id,
                 'activo' => $negocio->activo,
                 'activo_label' => $negocio->activo ? 'Activo' : 'Inactivo',
+            ],
+        ]);
+    }
+
+    public function regenerateWidgetKey(Negocio $negocio): JsonResponse
+    {
+        $negocio->widget_public_key = (string) \Illuminate\Support\Str::uuid();
+        $negocio->save();
+
+        return response()->json([
+            'message' => 'Se ha generado una nueva clave para el widget. La clave anterior ya no funciona.',
+            'data' => [
+                'widget_public_key' => $negocio->widget_public_key,
             ],
         ]);
     }

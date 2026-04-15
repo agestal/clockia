@@ -4,7 +4,9 @@ use App\Http\Controllers\Api\V1\AvailabilityController;
 use App\Http\Controllers\Api\V1\BlockController;
 use App\Http\Controllers\Api\V1\ResourceController;
 use App\Http\Controllers\Api\V1\ServiceController;
+use App\Http\Controllers\Api\GoogleCalendarController;
 use App\Http\Controllers\Mcp\McpBridgeController;
+use App\Http\Controllers\Widget\WidgetPublicController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->middleware(['auth:api'])->group(function () {
@@ -72,6 +74,26 @@ Route::prefix('v1')->name('api.v1.')->middleware(['auth:api'])->group(function (
         Route::delete('blocks/{block}', [BlockController::class, 'destroy'])
             ->middleware('scopes:blocks:write')
             ->name('blocks.destroy');
+    });
+});
+
+Route::middleware(['auth:api'])->prefix('integrations/google')->group(function () {
+    Route::get('connect', [GoogleCalendarController::class, 'connect']);
+    Route::get('calendars', [GoogleCalendarController::class, 'calendars']);
+    Route::post('calendars/select', [GoogleCalendarController::class, 'selectCalendars']);
+    Route::post('import', [GoogleCalendarController::class, 'import']);
+});
+
+Route::get('integrations/google/callback', [GoogleCalendarController::class, 'callback']);
+
+// ─── Widget público embebible ───
+Route::prefix('widget')->name('widget.')->middleware(['throttle:60,1'])->group(function () {
+    Route::prefix('businesses/{business}')->middleware(['widget.key'])->group(function () {
+        Route::get('config', [WidgetPublicController::class, 'config'])->name('config');
+        Route::get('availability/calendar', [WidgetPublicController::class, 'calendar'])->name('calendar');
+        Route::get('availability/date', [WidgetPublicController::class, 'date'])->name('date');
+        Route::post('availability/check', [WidgetPublicController::class, 'check'])->name('check');
+        Route::post('bookings', [WidgetPublicController::class, 'book'])->name('book');
     });
 });
 

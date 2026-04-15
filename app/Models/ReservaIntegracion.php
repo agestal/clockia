@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $reserva_id
  * @property int|null $integracion_id
  * @property string $proveedor
- * @property string $external_id
+ * @property string|null $external_id
  * @property string|null $external_calendar_id
  * @property string|null $direccion_sync
  * @property \Illuminate\Support\Carbon|null $ultimo_sync_at

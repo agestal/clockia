@@ -25,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'business.access' => EnsureBusinessAccess::class,
             'scopes' => CheckToken::class,
             'scope' => CheckTokenForAnyScope::class,
+            'widget.key' => \App\Http\Middleware\WidgetKeyAuth::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

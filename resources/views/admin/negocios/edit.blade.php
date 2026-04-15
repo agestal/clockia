@@ -32,6 +32,12 @@
             'timezones' => $timezones,
         ])
     </form>
+
+    @include('admin.negocios._google_calendar_panel', [
+        'negocio' => $negocio,
+        'googleCalendarIntegration' => $googleCalendarIntegration,
+        'googleCalendarResources' => $googleCalendarResources,
+    ])
 @stop
 
 @push('js')

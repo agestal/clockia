@@ -27,6 +27,7 @@ class UpdateNegocioRequest extends FormRequest
         $chatBehaviorOverrides = $this->buildChatBehaviorOverrides();
         $mailRecordatorioHorasAntes = trim((string) $this->input('mail_recordatorio_horas_antes', ''));
         $mailEncuestaHorasDespues = trim((string) $this->input('mail_encuesta_horas_despues', ''));
+        $widgetSettings = $this->buildWidgetSettings();
 
         $this->merge([
             'nombre' => $nombre !== '' ? $nombre : null,
@@ -49,6 +50,9 @@ class UpdateNegocioRequest extends FormRequest
             'mail_encuesta_activo' => $this->normalizeBoolean($this->input('mail_encuesta_activo')),
             'mail_recordatorio_horas_antes' => $mailRecordatorioHorasAntes !== '' ? $mailRecordatorioHorasAntes : 24,
             'mail_encuesta_horas_despues' => $mailEncuestaHorasDespues !== '' ? $mailEncuestaHorasDespues : 24,
+            'google_calendar_enabled' => $this->normalizeBoolean($this->input('google_calendar_enabled')),
+            'widget_enabled' => $this->normalizeBoolean($this->input('widget_enabled')),
+            'widget_settings' => $widgetSettings !== [] ? $widgetSettings : null,
         ]);
     }
 
@@ -107,6 +111,7 @@ class UpdateNegocioRequest extends FormRequest
             'mail_encuesta_activo' => ['required', 'boolean'],
             'mail_recordatorio_horas_antes' => ['required', 'integer', 'min:1', 'max:168'],
             'mail_encuesta_horas_despues' => ['required', 'integer', 'min:1', 'max:168'],
+            'google_calendar_enabled' => ['required', 'boolean'],
             'chat_behavior_overrides' => ['nullable', 'array'],
             'chat_behavior_overrides.human_role' => ['nullable', 'string', 'max:255'],
             'chat_behavior_overrides.default_register' => ['nullable', 'string'],
@@ -117,7 +122,33 @@ class UpdateNegocioRequest extends FormRequest
             'chat_behavior_overrides.no_availability_policy' => ['nullable', 'string'],
             'chat_behavior_overrides.vocabulary_hints' => ['nullable', 'array'],
             'chat_behavior_overrides.vocabulary_hints.*' => ['nullable', 'string', 'max:100'],
+            'widget_enabled' => ['required', 'boolean'],
+            'widget_settings' => ['nullable', 'array'],
+            'widget_settings.primary_color' => ['nullable', 'string', 'max:20'],
+            'widget_settings.secondary_color' => ['nullable', 'string', 'max:20'],
+            'widget_settings.text_color' => ['nullable', 'string', 'max:20'],
+            'widget_settings.background_color' => ['nullable', 'string', 'max:20'],
+            'widget_settings.font_family' => ['nullable', 'string', 'max:255'],
+            'widget_settings.font_size_base' => ['nullable', 'string', 'max:20'],
+            'widget_settings.border_radius' => ['nullable', 'string', 'max:20'],
+            'widget_settings.locale' => ['nullable', 'string', 'max:10'],
         ];
+    }
+
+    private function buildWidgetSettings(): array
+    {
+        $fields = [
+            'primary_color' => trim((string) $this->input('widget_primary_color', '')),
+            'secondary_color' => trim((string) $this->input('widget_secondary_color', '')),
+            'text_color' => trim((string) $this->input('widget_text_color', '')),
+            'background_color' => trim((string) $this->input('widget_background_color', '')),
+            'font_family' => trim((string) $this->input('widget_font_family', '')),
+            'font_size_base' => trim((string) $this->input('widget_font_size_base', '')),
+            'border_radius' => trim((string) $this->input('widget_border_radius', '')),
+            'locale' => trim((string) $this->input('widget_locale', '')),
+        ];
+
+        return array_filter($fields, fn ($value) => $value !== '');
     }
 
     public function validated($key = null, $default = null): array
@@ -165,6 +196,8 @@ class UpdateNegocioRequest extends FormRequest
             'mail_recordatorio_horas_antes.max' => 'Las horas de recordatorio no pueden superar 168 (1 semana).',
             'mail_encuesta_horas_despues.min' => 'Las horas de encuesta deben ser al menos 1.',
             'mail_encuesta_horas_despues.max' => 'Las horas de encuesta no pueden superar 168 (1 semana).',
+            'google_calendar_enabled.required' => 'Debes indicar si Google Calendar está activado.',
+            'google_calendar_enabled.boolean' => 'El valor de Google Calendar no es válido.',
             'chat_behavior_overrides.human_role.max' => 'El rol humano no puede superar los 255 caracteres.',
             'chat_behavior_overrides.inventory_exposure_policy.in' => 'La política de exposición de inventario seleccionada no es válida.',
             'chat_behavior_overrides.vocabulary_hints.*.max' => 'Cada pista de vocabulario no puede superar los 100 caracteres.',

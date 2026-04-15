@@ -10,6 +10,7 @@ use App\Models\Recurso;
 use App\Models\Reserva;
 use App\Models\Servicio;
 use App\Models\Sesion;
+use App\Services\Integrations\GoogleCalendarAvailabilityService;
 use App\Services\Reservations\ResourceCombinationService;
 use App\Services\Reservations\ServiceSlotMatcher;
 use App\Services\Tools\BusinessComplexityResolver;
@@ -116,6 +117,16 @@ class SearchAvailabilityTool extends ToolDefinition
         $fechaCarbon = Carbon::parse($dto->fecha);
         $diaSemana = (int) $fechaCarbon->dayOfWeek;
         $duracion = $servicio->duracion_minutos;
+        $googleBusyRanges = collect();
+
+        if ($nivel >= BusinessComplexityResolver::LEVEL_ADVANCED) {
+            $googleBusyRanges = app(GoogleCalendarAvailabilityService::class)
+                ->busyRangesForBusiness(
+                    $negocio,
+                    $fechaCarbon->copy()->startOfDay(),
+                    $fechaCarbon->copy()->endOfDay()
+                );
+        }
 
         // STEP 1: Individual resources
         $recursosIndividuales = $servicio->recursos()
@@ -136,7 +147,7 @@ class SearchAvailabilityTool extends ToolDefinition
             && $complexity->negocioTieneOcupacionesExternas($negocio, $dto->fecha);
 
         $slots = $this->buscarSlotsParaRecursos(
-            $recursosIndividuales, $fechaCarbon, $diaSemana, $duracion, $dto, $checkExternal, $servicio
+            $recursosIndividuales, $fechaCarbon, $diaSemana, $duracion, $dto, $checkExternal, $googleBusyRanges, $servicio
         );
 
         // STEP 2: Combinations — only if needed AND allowed
@@ -151,13 +162,13 @@ class SearchAvailabilityTool extends ToolDefinition
 
             foreach ($combinaciones as $combinacion) {
                 $slots = array_merge($slots, $this->buscarSlotsParaCombinacion(
-                    $combinacion, $fechaCarbon, $diaSemana, $duracion, $dto, $checkExternal, $servicio
+                    $combinacion, $fechaCarbon, $diaSemana, $duracion, $dto, $checkExternal, $googleBusyRanges, $servicio
                 ));
             }
         }
 
         // STEP 3: Session-based slots (group experiences like wine tastings)
-        $sessionSlots = $this->buscarSlotsDeSesiones($dto, $servicio, $fechaCarbon);
+        $sessionSlots = $this->buscarSlotsDeSesiones($dto, $servicio, $fechaCarbon, $googleBusyRanges);
         $slots = array_merge($slots, $sessionSlots);
 
         usort($slots, function ($a, $b) {
@@ -267,7 +278,16 @@ class SearchAvailabilityTool extends ToolDefinition
         ]);
     }
 
-    private function buscarSlotsParaRecursos(Collection $recursos, Carbon $fecha, int $diaSemana, int $duracion, SearchAvailabilityInput $dto, bool $checkExternal, ?Servicio $servicio = null): array
+    private function buscarSlotsParaRecursos(
+        Collection $recursos,
+        Carbon $fecha,
+        int $diaSemana,
+        int $duracion,
+        SearchAvailabilityInput $dto,
+        bool $checkExternal,
+        Collection $googleBusyRanges,
+        ?Servicio $servicio = null
+    ): array
     {
         $slots = [];
         $matcher = app(ServiceSlotMatcher::class);
@@ -304,7 +324,7 @@ class SearchAvailabilityTool extends ToolDefinition
                 $slotsDisp = $this->generarSlots($fecha, $disp, $duracion, $buffer);
 
                 foreach ($slotsDisp as $slot) {
-                    if ($this->slotOcupado($recurso->id, $dto->negocio_id, $slot['inicio'], $slot['fin'], $checkExternal)) {
+                    if ($this->slotOcupado($recurso->id, $dto->negocio_id, $slot['inicio'], $slot['fin'], $checkExternal, $googleBusyRanges)) {
                         continue;
                     }
 
@@ -338,7 +358,16 @@ class SearchAvailabilityTool extends ToolDefinition
         return $slots;
     }
 
-    private function buscarSlotsParaCombinacion(array $combinacion, Carbon $fecha, int $diaSemana, int $duracion, SearchAvailabilityInput $dto, bool $checkExternal, ?Servicio $servicio = null): array
+    private function buscarSlotsParaCombinacion(
+        array $combinacion,
+        Carbon $fecha,
+        int $diaSemana,
+        int $duracion,
+        SearchAvailabilityInput $dto,
+        bool $checkExternal,
+        Collection $googleBusyRanges,
+        ?Servicio $servicio = null
+    ): array
     {
         /** @var Collection $recursos */
         $recursos = $combinacion['recursos'];
@@ -375,7 +404,7 @@ class SearchAvailabilityTool extends ToolDefinition
             foreach ($disponibilidades as $disp) {
                 $buffer = $disp->buffer_minutos ?? 0;
                 foreach ($this->generarSlots($fecha, $disp, $duracion, $buffer) as $slot) {
-                    if ($this->slotOcupado($recurso->id, $dto->negocio_id, $slot['inicio'], $slot['fin'], $checkExternal)) {
+                    if ($this->slotOcupado($recurso->id, $dto->negocio_id, $slot['inicio'], $slot['fin'], $checkExternal, $googleBusyRanges)) {
                         continue;
                     }
                     if ($this->slotBloqueadoParcial($recurso->id, $dto->negocio_id, $dto->fecha, $diaSemana, $slot['hora_inicio'], $slot['hora_fin'])) {
@@ -474,7 +503,14 @@ class SearchAvailabilityTool extends ToolDefinition
         return sha1($fecha.'|'.$horaInicio.'|'.$horaFin.'|'.implode(',', $resourceIds));
     }
 
-    private function slotOcupado(int $recursoId, int $negocioId, Carbon $inicio, Carbon $fin, bool $checkExternal): bool
+    private function slotOcupado(
+        int $recursoId,
+        int $negocioId,
+        Carbon $inicio,
+        Carbon $fin,
+        bool $checkExternal,
+        Collection $googleBusyRanges
+    ): bool
     {
         $reservaOcupada = Reserva::query()
             ->where('recurso_id', $recursoId)
@@ -487,19 +523,28 @@ class SearchAvailabilityTool extends ToolDefinition
             return true;
         }
 
-        if (! $checkExternal) {
+        if ($checkExternal) {
+            $externalOccupancyExists = OcupacionExterna::query()
+                ->where('negocio_id', $negocioId)
+                ->where(function ($q) use ($recursoId) {
+                    $q->where('recurso_id', $recursoId)
+                        ->orWhereNull('recurso_id');
+                })
+                ->where('inicio_datetime', '<', $fin)
+                ->where('fin_datetime', '>', $inicio)
+                ->exists();
+
+            if ($externalOccupancyExists) {
+                return true;
+            }
+        }
+
+        if ($googleBusyRanges->isEmpty()) {
             return false;
         }
 
-        return OcupacionExterna::query()
-            ->where('negocio_id', $negocioId)
-            ->where(function ($q) use ($recursoId) {
-                $q->where('recurso_id', $recursoId)
-                    ->orWhereNull('recurso_id');
-            })
-            ->where('inicio_datetime', '<', $fin)
-            ->where('fin_datetime', '>', $inicio)
-            ->exists();
+        return app(GoogleCalendarAvailabilityService::class)
+            ->slotOverlapsBusy($googleBusyRanges, $recursoId, $inicio, $fin);
     }
 
     private function recursoEstaBloqueadoDiaCompleto(int $recursoId, int $negocioId, string $fecha, int $diaSemana): bool
@@ -558,8 +603,12 @@ class SearchAvailabilityTool extends ToolDefinition
             ->exists();
     }
 
-    private function buscarSlotsDeSesiones(SearchAvailabilityInput $dto, Servicio $servicio, Carbon $fecha): array
-    {
+    private function buscarSlotsDeSesiones(
+        SearchAvailabilityInput $dto,
+        Servicio $servicio,
+        Carbon $fecha,
+        Collection $googleBusyRanges
+    ): array {
         $sesiones = Sesion::query()
             ->where('negocio_id', $dto->negocio_id)
             ->where('servicio_id', $servicio->id)
@@ -593,13 +642,21 @@ class SearchAvailabilityTool extends ToolDefinition
             $horaFin = substr((string) $sesion->hora_fin, 0, 5);
             $recursoId = $sesion->recurso_id;
             $recursoIds = $recursoId ? [$recursoId] : [];
+            $inicioSesion = $sesion->inicio_datetime?->copy() ?? Carbon::parse($fecha->toDateString().' '.$horaInicio.':00');
+            $finSesion = $sesion->fin_datetime?->copy() ?? Carbon::parse($fecha->toDateString().' '.$horaFin.':00');
+
+            if (! $googleBusyRanges->isEmpty()
+                && app(GoogleCalendarAvailabilityService::class)->slotOverlapsBusy($googleBusyRanges, $recursoId, $inicioSesion, $finSesion)
+            ) {
+                continue;
+            }
 
             $slots[] = [
                 'fecha' => $dto->fecha,
                 'hora_inicio' => $horaInicio,
                 'hora_fin' => $horaFin,
-                'inicio_datetime' => $sesion->inicio_datetime?->toDateTimeString() ?? $fecha->toDateString().' '.$horaInicio.':00',
-                'fin_datetime' => $sesion->fin_datetime?->toDateTimeString() ?? $fecha->toDateString().' '.$horaFin.':00',
+                'inicio_datetime' => $inicioSesion->toDateTimeString(),
+                'fin_datetime' => $finSesion->toDateTimeString(),
                 'slot_key' => sha1('sesion|'.$sesion->id.'|'.$dto->fecha),
                 'booking_time_mode' => 'session',
                 'accepts_start_time_within_slot' => false,

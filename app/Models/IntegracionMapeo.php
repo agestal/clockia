@@ -15,10 +15,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $external_id
  * @property string|null $external_parent_id
  * @property string|null $nombre_externo
+ * @property string|null $timezone
+ * @property bool $es_primario
+ * @property bool $seleccionado
  * @property int|null $negocio_id
  * @property int|null $recurso_id
  * @property int|null $servicio_id
  * @property array|null $configuracion
+ * @property array|null $datos_extra
  * @property bool $activo
  * @property-read Integracion $integracion
  * @property-read Negocio|null $negocio
@@ -38,10 +42,14 @@ class IntegracionMapeo extends Model
         'external_id',
         'external_parent_id',
         'nombre_externo',
+        'timezone',
+        'es_primario',
+        'seleccionado',
         'negocio_id',
         'recurso_id',
         'servicio_id',
         'configuracion',
+        'datos_extra',
         'activo',
     ];
 
@@ -52,7 +60,10 @@ class IntegracionMapeo extends Model
             'negocio_id' => 'integer',
             'recurso_id' => 'integer',
             'servicio_id' => 'integer',
+            'es_primario' => 'boolean',
+            'seleccionado' => 'boolean',
             'configuracion' => 'array',
+            'datos_extra' => 'array',
             'activo' => 'boolean',
         ];
     }

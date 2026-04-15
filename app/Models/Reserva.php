@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Events\BookingCreated;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -43,6 +44,10 @@ class Reserva extends Model
     use HasFactory;
 
     protected $table = 'reservas';
+
+    protected $dispatchesEvents = [
+        'created' => BookingCreated::class,
+    ];
 
     protected $fillable = [
         'negocio_id',
