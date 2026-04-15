@@ -27,9 +27,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             BaseCatalogsSeeder::class,
-            DemoRestauranteSeeder::class,
             DemoBodegaSeeder::class,
-            DemoRentACarSeeder::class,
         ]);
     }
 }

@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read TipoNegocio $tipoNegocio
  * @property-read Collection<int, Servicio> $servicios
+ * @property-read Collection<int, Sesion> $sesiones
  * @property-read Collection<int, Recurso> $recursos
  * @property-read Collection<int, Reserva> $reservas
  */
@@ -51,6 +52,11 @@ class Negocio extends Model
         'chat_required_fields',
         'chat_system_rules',
         'chat_behavior_overrides',
+        'mail_confirmacion_activo',
+        'mail_recordatorio_activo',
+        'mail_recordatorio_horas_antes',
+        'mail_encuesta_activo',
+        'mail_encuesta_horas_despues',
     ];
 
     protected function casts(): array
@@ -63,6 +69,11 @@ class Negocio extends Model
             'max_recursos_combinables' => 'integer',
             'chat_required_fields' => 'array',
             'chat_behavior_overrides' => 'array',
+            'mail_confirmacion_activo' => 'boolean',
+            'mail_recordatorio_activo' => 'boolean',
+            'mail_recordatorio_horas_antes' => 'integer',
+            'mail_encuesta_activo' => 'boolean',
+            'mail_encuesta_horas_despues' => 'integer',
         ];
     }
 
@@ -101,6 +112,11 @@ class Negocio extends Model
     public function servicios(): HasMany
     {
         return $this->hasMany(Servicio::class);
+    }
+
+    public function sesiones(): HasMany
+    {
+        return $this->hasMany(Sesion::class);
     }
 
     public function recursos(): HasMany

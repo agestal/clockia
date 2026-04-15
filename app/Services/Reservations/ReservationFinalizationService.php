@@ -131,42 +131,24 @@ class ReservationFinalizationService
             throw new RuntimeException('No hay huecos disponibles para los datos indicados.');
         }
 
-        $matches = collect($slots)->filter(function (array $slot) use ($input) {
-            if ($input->slot_key !== null && ($slot['slot_key'] ?? null) !== $input->slot_key) {
-                return false;
-            }
+        $matches = collect($slots)
+            ->filter(fn (array $slot) => $this->slotMatchesStaticSelection($slot, $input))
+            ->filter(fn (array $slot) => $this->slotMatchesExactTiming($slot, $input))
+            ->values();
 
-            if ($input->hora_inicio !== null && ($slot['hora_inicio'] ?? null) !== $this->normalizeInputTime($input->hora_inicio)) {
-                return false;
-            }
-
-            if ($input->hora_fin !== null && ($slot['hora_fin'] ?? null) !== $this->normalizeInputTime($input->hora_fin)) {
-                return false;
-            }
-
-            if ($input->recurso_id !== null && (int) ($slot['recurso_id'] ?? 0) !== $input->recurso_id) {
-                return false;
-            }
-
-            if ($input->recurso_ids !== []) {
-                $slotResourceIds = $this->extractResourceIds($slot);
-                sort($slotResourceIds);
-                $requested = $input->recurso_ids;
-                sort($requested);
-
-                if ($slotResourceIds !== $requested) {
-                    return false;
-                }
-            }
-
-            return true;
-        })->values();
-
-        if ($matches->isEmpty()) {
-            throw new RuntimeException('El hueco elegido ya no está disponible o no coincide con la disponibilidad actual.');
+        if ($matches->isNotEmpty()) {
+            return $matches->first();
         }
 
-        return $matches->first();
+        $flexibleMatch = collect($slots)
+            ->filter(fn (array $slot) => $this->slotMatchesStaticSelection($slot, $input))
+            ->first(fn (array $slot) => $this->slotSupportsRequestedStart($slot, $input, $servicio));
+
+        if (is_array($flexibleMatch)) {
+            return $this->materializeFlexibleSlot($flexibleMatch, $input, $servicio);
+        }
+
+        throw new RuntimeException('El hueco elegido ya no está disponible o no coincide con la disponibilidad actual.');
     }
 
     private function resolveCliente(array $contact): Cliente
@@ -321,6 +303,84 @@ class ReservationFinalizationService
         $primary = data_get($slot, 'recurso_id');
 
         return is_numeric($primary) ? [(int) $primary] : [];
+    }
+
+    private function slotMatchesStaticSelection(array $slot, CreateBookingInput $input): bool
+    {
+        if ($input->slot_key !== null && ($slot['slot_key'] ?? null) !== $input->slot_key) {
+            return false;
+        }
+
+        if ($input->recurso_id !== null && (int) ($slot['recurso_id'] ?? 0) !== $input->recurso_id) {
+            return false;
+        }
+
+        if ($input->recurso_ids !== []) {
+            $slotResourceIds = $this->extractResourceIds($slot);
+            sort($slotResourceIds);
+            $requested = $input->recurso_ids;
+            sort($requested);
+
+            if ($slotResourceIds !== $requested) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function slotMatchesExactTiming(array $slot, CreateBookingInput $input): bool
+    {
+        if ($input->hora_inicio !== null && ($slot['hora_inicio'] ?? null) !== $this->normalizeInputTime($input->hora_inicio)) {
+            return false;
+        }
+
+        if ($input->hora_fin !== null && ($slot['hora_fin'] ?? null) !== $this->normalizeInputTime($input->hora_fin)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function slotSupportsRequestedStart(array $slot, CreateBookingInput $input, Servicio $servicio): bool
+    {
+        if ($input->hora_inicio === null) {
+            return false;
+        }
+
+        $isFlexible = (bool) ($slot['accepts_start_time_within_slot'] ?? false) || (bool) $servicio->precio_por_unidad_tiempo;
+
+        if (! $isFlexible) {
+            return false;
+        }
+
+        $requested = $this->normalizeInputTime($input->hora_inicio);
+        $start = $slot['hora_inicio'] ?? null;
+        $end = $slot['hora_fin'] ?? null;
+
+        if ($requested === null || $start === null || $end === null) {
+            return false;
+        }
+
+        return $requested >= $start && $requested <= $end;
+    }
+
+    private function materializeFlexibleSlot(array $slot, CreateBookingInput $input, Servicio $servicio): array
+    {
+        $requestedStart = $this->normalizeInputTime($input->hora_inicio);
+        $fecha = (string) data_get($slot, 'fecha', $input->fecha);
+        $originalEnd = Carbon::parse($fecha.' '.data_get($slot, 'hora_fin').':00');
+        $chosenStart = Carbon::parse($fecha.' '.$requestedStart.':00');
+        $calculatedEnd = $chosenStart->copy()->addMinutes(max(1, (int) $servicio->duracion_minutos));
+        $chosenEnd = $calculatedEnd->lessThanOrEqualTo($originalEnd) ? $calculatedEnd : $originalEnd;
+
+        $slot['hora_inicio'] = $chosenStart->format('H:i');
+        $slot['hora_fin'] = $chosenEnd->format('H:i');
+        $slot['inicio_datetime'] = $chosenStart->toDateTimeString();
+        $slot['fin_datetime'] = $chosenEnd->toDateTimeString();
+        $slot['booking_time_mode'] = 'materialized_flexible_start';
+
+        return $slot;
     }
 
     private function normalizeInputTime(?string $value): ?string

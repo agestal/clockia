@@ -12,6 +12,7 @@ class TipoRecursoSeeder extends Seeder
         $items = [
             ['nombre' => 'Mesa', 'descripcion' => 'Recurso de atención presencial con capacidad variable.'],
             ['nombre' => 'Sala', 'descripcion' => 'Espacio cerrado para grupos o eventos privados.'],
+            ['nombre' => 'Sala de catas', 'descripcion' => 'Espacio preparado para visitas guiadas, degustaciones y grupos de enoturismo.'],
             ['nombre' => 'Cabina', 'descripcion' => 'Espacio individual o reducido para atención especializada.'],
             ['nombre' => 'Profesional', 'descripcion' => 'Recurso humano asignable a un servicio o cita.'],
             ['nombre' => 'Puesto', 'descripcion' => 'Puesto de trabajo o atención reservable.'],

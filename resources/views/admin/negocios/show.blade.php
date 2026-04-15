@@ -72,6 +72,24 @@
                         <dd class="col-sm-7">{{ $negocio->chat_required_fields ? 'Personalizado' : 'Defaults del sistema' }}</dd>
                         <dt class="col-sm-5">Política convers.</dt>
                         <dd class="col-sm-7">{{ $negocio->chat_behavior_overrides ? 'Personalizada' : 'Automática por sector' }}</dd>
+                        <dt class="col-sm-5">Mail confirm.</dt>
+                        <dd class="col-sm-7">
+                            <span class="badge {{ $negocio->mail_confirmacion_activo ? 'badge-success' : 'badge-secondary' }}">
+                                {{ $negocio->mail_confirmacion_activo ? 'Activo' : 'Inactivo' }}
+                            </span>
+                        </dd>
+                        <dt class="col-sm-5">Mail recordat.</dt>
+                        <dd class="col-sm-7">
+                            <span class="badge {{ $negocio->mail_recordatorio_activo ? 'badge-success' : 'badge-secondary' }}">
+                                {{ $negocio->mail_recordatorio_activo ? 'Activo ('.$negocio->mail_recordatorio_horas_antes.'h antes)' : 'Inactivo' }}
+                            </span>
+                        </dd>
+                        <dt class="col-sm-5">Mail encuesta</dt>
+                        <dd class="col-sm-7">
+                            <span class="badge {{ $negocio->mail_encuesta_activo ? 'badge-success' : 'badge-secondary' }}">
+                                {{ $negocio->mail_encuesta_activo ? 'Activo ('.$negocio->mail_encuesta_horas_despues.'h despues)' : 'Inactivo' }}
+                            </span>
+                        </dd>
                         <dt class="col-sm-5">Creado</dt>
                         <dd class="col-sm-7">{{ optional($negocio->created_at)->format('d/m/Y H:i') }}</dd>
                         <dt class="col-sm-5">Actualizado</dt>

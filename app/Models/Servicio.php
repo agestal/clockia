@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read Negocio $negocio
  * @property-read TipoPrecio $tipoPrecio
+ * @property-read Collection<int, Sesion> $sesiones
  * @property-read Collection<int, Recurso> $recursos
  * @property-read Collection<int, ServicioRecurso> $servicioRecursos
  * @property-read Collection<int, Reserva> $reservas
@@ -41,13 +42,24 @@ class Servicio extends Model
         'nombre',
         'descripcion',
         'duracion_minutos',
+        'numero_personas_minimo',
+        'numero_personas_maximo',
         'precio_base',
+        'precio_menor',
         'tipo_precio_id',
         'requiere_pago',
+        'permite_menores',
+        'edad_minima',
         'activo',
         'notas_publicas',
         'instrucciones_previas',
         'documentacion_requerida',
+        'idiomas',
+        'punto_encuentro',
+        'incluye',
+        'no_incluye',
+        'accesibilidad_notas',
+        'requiere_aprobacion_manual',
         'horas_minimas_cancelacion',
         'es_reembolsable',
         'porcentaje_senal',
@@ -59,10 +71,19 @@ class Servicio extends Model
         return [
             'negocio_id' => 'integer',
             'duracion_minutos' => 'integer',
+            'numero_personas_minimo' => 'integer',
+            'numero_personas_maximo' => 'integer',
             'precio_base' => 'decimal:2',
+            'precio_menor' => 'decimal:2',
             'tipo_precio_id' => 'integer',
             'requiere_pago' => 'boolean',
+            'permite_menores' => 'boolean',
+            'edad_minima' => 'integer',
             'activo' => 'boolean',
+            'idiomas' => 'array',
+            'incluye' => 'array',
+            'no_incluye' => 'array',
+            'requiere_aprobacion_manual' => 'boolean',
             'es_reembolsable' => 'boolean',
             'precio_por_unidad_tiempo' => 'boolean',
             'porcentaje_senal' => 'decimal:2',
@@ -78,6 +99,11 @@ class Servicio extends Model
     public function tipoPrecio(): BelongsTo
     {
         return $this->belongsTo(TipoPrecio::class);
+    }
+
+    public function sesiones(): HasMany
+    {
+        return $this->hasMany(Sesion::class);
     }
 
     public function recursos(): BelongsToMany

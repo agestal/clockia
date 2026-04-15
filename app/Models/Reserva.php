@@ -16,7 +16,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $id
  * @property int $negocio_id
  * @property int $servicio_id
- * @property int $recurso_id
+ * @property int|null $sesion_id
+ * @property int|null $recurso_id
  * @property int $cliente_id
  * @property \Illuminate\Support\Carbon $fecha
  * @property string $hora_inicio
@@ -30,7 +31,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read Negocio $negocio
  * @property-read Servicio $servicio
- * @property-read Recurso $recurso
+ * @property-read Sesion|null $sesion
+ * @property-read Recurso|null $recurso
  * @property-read Cliente $cliente
  * @property-read EstadoReserva $estadoReserva
  * @property-read Collection<int, Pago> $pagos
@@ -45,6 +47,7 @@ class Reserva extends Model
     protected $fillable = [
         'negocio_id',
         'servicio_id',
+        'sesion_id',
         'recurso_id',
         'cliente_id',
         'nombre_responsable',
@@ -75,6 +78,9 @@ class Reserva extends Model
         'porcentaje_senal',
         'origen_reserva',
         'importada_externamente',
+        'mail_confirmacion_enviado_en',
+        'mail_recordatorio_enviado_en',
+        'mail_encuesta_enviado_en',
     ];
 
     protected function casts(): array
@@ -82,6 +88,7 @@ class Reserva extends Model
         return [
             'negocio_id' => 'integer',
             'servicio_id' => 'integer',
+            'sesion_id' => 'integer',
             'recurso_id' => 'integer',
             'cliente_id' => 'integer',
             'fecha' => 'date',
@@ -99,6 +106,9 @@ class Reserva extends Model
             'es_reembolsable' => 'boolean',
             'porcentaje_senal' => 'decimal:2',
             'importada_externamente' => 'boolean',
+            'mail_confirmacion_enviado_en' => 'datetime',
+            'mail_recordatorio_enviado_en' => 'datetime',
+            'mail_encuesta_enviado_en' => 'datetime',
         ];
     }
 
@@ -168,6 +178,11 @@ class Reserva extends Model
     public function servicio(): BelongsTo
     {
         return $this->belongsTo(Servicio::class);
+    }
+
+    public function sesion(): BelongsTo
+    {
+        return $this->belongsTo(Sesion::class);
     }
 
     public function recurso(): BelongsTo

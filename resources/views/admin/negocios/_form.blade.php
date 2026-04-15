@@ -426,6 +426,104 @@
                     <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
                 @enderror
             </div>
+
+            <div class="form-group col-12">
+                <hr>
+                <h3 class="h6 text-uppercase text-muted mb-3">Configuracion de mailings</h3>
+                <p class="text-muted small mb-0">Activa o desactiva el envio automatico de emails para este negocio. Los recordatorios y encuestas se procesan periodicamente.</p>
+            </div>
+
+            <div class="form-group col-lg-4 d-flex align-items-center">
+                <div class="custom-control custom-switch mt-2">
+                    <input type="hidden" name="mail_confirmacion_activo" value="0">
+                    <input
+                        type="checkbox"
+                        class="custom-control-input @error('mail_confirmacion_activo') is-invalid @enderror"
+                        id="mail_confirmacion_activo"
+                        name="mail_confirmacion_activo"
+                        value="1"
+                        @checked(old('mail_confirmacion_activo', $negocio->mail_confirmacion_activo ?? false))
+                    >
+                    <label class="custom-control-label" for="mail_confirmacion_activo">Email de confirmacion</label>
+                </div>
+                @error('mail_confirmacion_activo')
+                    <span class="invalid-feedback d-block ml-3" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-4 d-flex align-items-center">
+                <div class="custom-control custom-switch mt-2">
+                    <input type="hidden" name="mail_recordatorio_activo" value="0">
+                    <input
+                        type="checkbox"
+                        class="custom-control-input @error('mail_recordatorio_activo') is-invalid @enderror"
+                        id="mail_recordatorio_activo"
+                        name="mail_recordatorio_activo"
+                        value="1"
+                        @checked(old('mail_recordatorio_activo', $negocio->mail_recordatorio_activo ?? false))
+                    >
+                    <label class="custom-control-label" for="mail_recordatorio_activo">Email de recordatorio</label>
+                </div>
+                @error('mail_recordatorio_activo')
+                    <span class="invalid-feedback d-block ml-3" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-4 d-flex align-items-center">
+                <div class="custom-control custom-switch mt-2">
+                    <input type="hidden" name="mail_encuesta_activo" value="0">
+                    <input
+                        type="checkbox"
+                        class="custom-control-input @error('mail_encuesta_activo') is-invalid @enderror"
+                        id="mail_encuesta_activo"
+                        name="mail_encuesta_activo"
+                        value="1"
+                        @checked(old('mail_encuesta_activo', $negocio->mail_encuesta_activo ?? false))
+                    >
+                    <label class="custom-control-label" for="mail_encuesta_activo">Email de encuesta</label>
+                </div>
+                @error('mail_encuesta_activo')
+                    <span class="invalid-feedback d-block ml-3" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-6">
+                <label for="mail_recordatorio_horas_antes" class="form-label">Horas antes para recordatorio</label>
+                <input
+                    type="number"
+                    id="mail_recordatorio_horas_antes"
+                    name="mail_recordatorio_horas_antes"
+                    value="{{ old('mail_recordatorio_horas_antes', $negocio->mail_recordatorio_horas_antes ?? 24) }}"
+                    class="form-control @error('mail_recordatorio_horas_antes') is-invalid @enderror"
+                    min="1"
+                    max="168"
+                    step="1"
+                    placeholder="24"
+                >
+                <small class="form-text text-muted">Cuantas horas antes de la reserva se envia el recordatorio (1-168).</small>
+                @error('mail_recordatorio_horas_antes')
+                    <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-6">
+                <label for="mail_encuesta_horas_despues" class="form-label">Horas despues para encuesta</label>
+                <input
+                    type="number"
+                    id="mail_encuesta_horas_despues"
+                    name="mail_encuesta_horas_despues"
+                    value="{{ old('mail_encuesta_horas_despues', $negocio->mail_encuesta_horas_despues ?? 24) }}"
+                    class="form-control @error('mail_encuesta_horas_despues') is-invalid @enderror"
+                    min="1"
+                    max="168"
+                    step="1"
+                    placeholder="24"
+                >
+                <small class="form-text text-muted">Cuantas horas despues de finalizar la reserva se envia la encuesta (1-168).</small>
+                @error('mail_encuesta_horas_despues')
+                    <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
         </div>
     </div>
 

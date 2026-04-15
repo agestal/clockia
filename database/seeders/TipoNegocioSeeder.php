@@ -10,6 +10,7 @@ class TipoNegocioSeeder extends Seeder
     public function run(): void
     {
         $items = [
+            ['nombre' => 'Bodega', 'descripcion' => 'Bodega o proyecto de enoturismo con visitas, catas y experiencias reservables.'],
             ['nombre' => 'Restaurante', 'descripcion' => 'Negocio de restauración con servicio en mesa o por turnos.'],
             ['nombre' => 'Clínica', 'descripcion' => 'Centro sanitario con agenda de pacientes y recursos.'],
             ['nombre' => 'Peluquería', 'descripcion' => 'Negocio de citas para servicios de peluquería y estética capilar.'],

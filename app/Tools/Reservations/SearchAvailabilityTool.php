@@ -65,6 +65,7 @@ class SearchAvailabilityTool extends ToolDefinition
             'Si el resultado devuelve una sola opción realmente útil, propónla directamente.',
             'Si hay varias opciones equivalentes para el cliente, resume por horas o descriptores públicos en vez de listar mesas técnicas.',
             'Si el usuario pidió solo comida o cena y no una hora exacta, puedes proponer una hora real devuelta por la herramienta en vez de pedirla de nuevo por inercia.',
+            'Si el negocio funciona con una ventana flexible de recogida o atención, presenta la franja como rango y permite que el cliente elija una hora concreta dentro de esa ventana.',
             'No digas que la reserva está hecha: esta herramienta solo comprueba disponibilidad.',
         ];
     }
@@ -310,6 +311,8 @@ class SearchAvailabilityTool extends ToolDefinition
                         'inicio_datetime' => $slot['inicio']->toDateTimeString(),
                         'fin_datetime' => $slot['fin']->toDateTimeString(),
                         'slot_key' => $this->slotKey($dto->fecha, $slot['hora_inicio'], $slot['hora_fin'], [$recurso->id]),
+                        'booking_time_mode' => $servicio?->precio_por_unidad_tiempo ? 'flexible_start_within_window' : 'fixed_slot',
+                        'accepts_start_time_within_slot' => (bool) ($servicio?->precio_por_unidad_tiempo),
                         'recurso_id' => $recurso->id,
                         'recurso_ids' => [$recurso->id],
                         'recurso_nombre' => $recurso->nombre,
@@ -414,6 +417,8 @@ class SearchAvailabilityTool extends ToolDefinition
                 'inicio_datetime' => $slot['inicio']->toDateTimeString(),
                 'fin_datetime' => $slot['fin']->toDateTimeString(),
                 'slot_key' => $this->slotKey($dto->fecha, $slot['hora_inicio'], $slot['hora_fin'], $resourceIds),
+                'booking_time_mode' => $servicio?->precio_por_unidad_tiempo ? 'flexible_start_within_window' : 'fixed_slot',
+                'accepts_start_time_within_slot' => (bool) ($servicio?->precio_por_unidad_tiempo),
                 'recurso_id' => $recursos->first()->id,
                 'recurso_ids' => $resourceIds,
                 'recurso_nombre' => $nombreCombinado,

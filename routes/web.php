@@ -22,6 +22,7 @@ use App\Http\Controllers\Admin\IntegracionMapeoController;
 use App\Http\Controllers\Admin\OcupacionExternaController;
 use App\Http\Controllers\Admin\CalendarioController;
 use App\Http\Controllers\Admin\ChatTestController;
+use App\Http\Controllers\EncuestaPublicaController;
 use App\Livewire\Admin\Dashboard;
 use Illuminate\Support\Facades\Route;
 
@@ -30,6 +31,9 @@ Route::get('/', function () {
         ? redirect()->route('dashboard')
         : redirect()->route('login');
 });
+
+Route::get('/encuesta/{token}', [EncuestaPublicaController::class, 'show'])->name('encuesta.show');
+Route::post('/encuesta/{token}', [EncuestaPublicaController::class, 'submit'])->name('encuesta.submit');
 
 Route::middleware([
     'auth',

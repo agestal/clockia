@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read Negocio $negocio
  * @property-read TipoRecurso $tipoRecurso
+ * @property-read Collection<int, Sesion> $sesiones
  * @property-read Collection<int, Servicio> $servicios
  * @property-read Collection<int, ServicioRecurso> $servicioRecursos
  * @property-read Collection<int, Disponibilidad> $disponibilidades
@@ -66,6 +67,11 @@ class Recurso extends Model
     public function tipoRecurso(): BelongsTo
     {
         return $this->belongsTo(TipoRecurso::class);
+    }
+
+    public function sesiones(): HasMany
+    {
+        return $this->hasMany(Sesion::class);
     }
 
     public function servicios(): BelongsToMany

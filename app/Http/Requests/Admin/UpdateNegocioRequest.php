@@ -25,6 +25,8 @@ class UpdateNegocioRequest extends FormRequest
         $chatPersonality = trim((string) $this->input('chat_personality', ''));
         $chatRequiredFields = trim((string) $this->input('chat_required_fields', ''));
         $chatBehaviorOverrides = $this->buildChatBehaviorOverrides();
+        $mailRecordatorioHorasAntes = trim((string) $this->input('mail_recordatorio_horas_antes', ''));
+        $mailEncuestaHorasDespues = trim((string) $this->input('mail_encuesta_horas_despues', ''));
 
         $this->merge([
             'nombre' => $nombre !== '' ? $nombre : null,
@@ -42,6 +44,11 @@ class UpdateNegocioRequest extends FormRequest
             'chat_required_fields' => $chatRequiredFields !== '' ? $chatRequiredFields : null,
             'chat_system_rules' => trim((string) $this->input('chat_system_rules', '')) !== '' ? trim((string) $this->input('chat_system_rules', '')) : null,
             'chat_behavior_overrides' => $chatBehaviorOverrides !== [] ? $chatBehaviorOverrides : null,
+            'mail_confirmacion_activo' => $this->normalizeBoolean($this->input('mail_confirmacion_activo')),
+            'mail_recordatorio_activo' => $this->normalizeBoolean($this->input('mail_recordatorio_activo')),
+            'mail_encuesta_activo' => $this->normalizeBoolean($this->input('mail_encuesta_activo')),
+            'mail_recordatorio_horas_antes' => $mailRecordatorioHorasAntes !== '' ? $mailRecordatorioHorasAntes : 24,
+            'mail_encuesta_horas_despues' => $mailEncuestaHorasDespues !== '' ? $mailEncuestaHorasDespues : 24,
         ]);
     }
 
@@ -95,6 +102,11 @@ class UpdateNegocioRequest extends FormRequest
                 },
             ],
             'chat_system_rules' => ['nullable', 'string'],
+            'mail_confirmacion_activo' => ['required', 'boolean'],
+            'mail_recordatorio_activo' => ['required', 'boolean'],
+            'mail_encuesta_activo' => ['required', 'boolean'],
+            'mail_recordatorio_horas_antes' => ['required', 'integer', 'min:1', 'max:168'],
+            'mail_encuesta_horas_despues' => ['required', 'integer', 'min:1', 'max:168'],
             'chat_behavior_overrides' => ['nullable', 'array'],
             'chat_behavior_overrides.human_role' => ['nullable', 'string', 'max:255'],
             'chat_behavior_overrides.default_register' => ['nullable', 'string'],
@@ -149,6 +161,10 @@ class UpdateNegocioRequest extends FormRequest
             'max_recursos_combinables.integer' => 'El máximo de recursos combinables debe ser un número entero.',
             'max_recursos_combinables.min' => 'El máximo de recursos combinables debe ser al menos 1.',
             'max_recursos_combinables.max' => 'El máximo de recursos combinables no puede superar 5.',
+            'mail_recordatorio_horas_antes.min' => 'Las horas de recordatorio deben ser al menos 1.',
+            'mail_recordatorio_horas_antes.max' => 'Las horas de recordatorio no pueden superar 168 (1 semana).',
+            'mail_encuesta_horas_despues.min' => 'Las horas de encuesta deben ser al menos 1.',
+            'mail_encuesta_horas_despues.max' => 'Las horas de encuesta no pueden superar 168 (1 semana).',
             'chat_behavior_overrides.human_role.max' => 'El rol humano no puede superar los 255 caracteres.',
             'chat_behavior_overrides.inventory_exposure_policy.in' => 'La política de exposición de inventario seleccionada no es válida.',
             'chat_behavior_overrides.vocabulary_hints.*.max' => 'Cada pista de vocabulario no puede superar los 100 caracteres.',

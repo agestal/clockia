@@ -40,6 +40,7 @@ class LlmFirstChatOrchestrator
         $behaviorProfile = $this->behaviorProfileResolver->resolve($negocio);
         $state ??= new ConversationState(negocioId: $negocioId);
         $toolClient = $this->toolClientResolver->resolve($toolMode);
+        $state = $this->applyMessageFactsToState($state, $message);
         $normalizedMessage = $this->messageNormalizer->normalize($message);
         $llmMessage = $normalizedMessage === trim($message)
             ? $message
@@ -369,6 +370,8 @@ class LlmFirstChatOrchestrator
                 $grouped[$key] = [
                     'hora_inicio' => $start,
                     'hora_fin' => $end,
+                    'booking_time_mode' => $slot['booking_time_mode'] ?? 'fixed_slot',
+                    'accepts_start_time_within_slot' => (bool) ($slot['accepts_start_time_within_slot'] ?? false),
                     'resource_labels' => [],
                     'customer_descriptors' => [],
                     'slot_count' => 0,
@@ -517,8 +520,31 @@ class LlmFirstChatOrchestrator
             'servicio_id' => 'el servicio',
             'fecha' => 'la fecha',
             'numero_personas' => 'el número de personas',
+            'hora_inicio' => 'la hora',
+            'contact_name' => 'el nombre del responsable',
+            'contact_phone' => 'el teléfono de contacto',
+            'contact_email' => 'el email de contacto',
+            'document_type' => 'el tipo de documento',
+            'document_value' => 'el número o referencia del documento',
             'negocio_id' => 'el negocio',
         ];
+
+        $contactFields = array_values(array_intersect($missingFields, ['contact_name', 'contact_phone', 'contact_email']));
+        $documentFields = array_values(array_intersect($missingFields, ['document_type', 'document_value']));
+
+        if ($contactFields !== [] || $documentFields !== []) {
+            $parts = [];
+
+            if ($contactFields !== []) {
+                $parts[] = 'los datos de contacto del responsable';
+            }
+
+            if ($documentFields !== []) {
+                $parts[] = 'la documentación necesaria';
+            }
+
+            return 'Para seguir necesito '.implode(' y ', $parts).'.';
+        }
 
         $readable = collect($missingFields)
             ->map(fn (string $field) => $labels[$field] ?? $field)
@@ -537,14 +563,86 @@ class LlmFirstChatOrchestrator
             $group = $groupedOptions[0];
             $start = $group['hora_inicio'] ?? null;
             $end = $group['hora_fin'] ?? null;
+            $isFlexibleWindow = (bool) ($group['accepts_start_time_within_slot'] ?? false);
 
             if ($start !== null && $end !== null) {
-                return "Hay una única franja clara disponible: {$start} - {$end}.";
+                return $isFlexibleWindow
+                    ? "Hay disponibilidad dentro de la franja {$start} - {$end}."
+                    : "Hay una única franja clara disponible: {$start} - {$end}.";
             }
 
             return 'Hay una única opción clara disponible.';
         }
 
         return 'Hay varias alternativas disponibles, pero conviene agruparlas de forma comprensible para el cliente.';
+    }
+
+    private function applyMessageFactsToState(ConversationState $state, string $message): ConversationState
+    {
+        if ($state->contactEmail === null && preg_match('/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i', $message, $matches) === 1) {
+            $state->contactEmail = mb_strtolower($matches[0], 'UTF-8');
+        }
+
+        if ($state->contactPhone === null) {
+            preg_match_all('/(?<!\d)(?:\+34\s*)?(?:\d[\s-]*){9,12}(?!\d)/', $message, $matches);
+
+            foreach ($matches[0] ?? [] as $candidate) {
+                $digits = preg_replace('/\D+/', '', $candidate);
+                if ($digits !== null && strlen($digits) >= 9 && strlen($digits) <= 12) {
+                    $state->contactPhone = trim($candidate);
+                    break;
+                }
+            }
+        }
+
+        if ($state->numeroPersonas === null && preg_match('/\b(para mí|para mi|yo solo|yo sola|solo yo|solo 1|una persona|uno solo|una sola)\b/ui', $message) === 1) {
+            $state->numeroPersonas = 1;
+        }
+
+        $detectedDocumentType = $this->detectDocumentType($message);
+
+        if ($state->documentType === null && $detectedDocumentType !== null) {
+            $state->documentType = $detectedDocumentType;
+        }
+
+        if ($state->documentValue === null) {
+            $documentValue = $this->extractDocumentValue($message);
+            if ($documentValue !== null && ($detectedDocumentType !== null || $state->documentType !== null)) {
+                $state->documentValue = $documentValue;
+            }
+        }
+
+        return $state;
+    }
+
+    private function detectDocumentType(string $message): ?string
+    {
+        $normalized = mb_strtolower($message, 'UTF-8');
+
+        return match (true) {
+            str_contains($normalized, 'carnet de conducir'),
+            str_contains($normalized, 'carné de conducir'),
+            str_contains($normalized, 'permiso de conducir') => 'carné de conducir',
+            str_contains($normalized, 'pasaporte') => 'pasaporte',
+            str_contains($normalized, 'dni') => 'DNI',
+            default => null,
+        };
+    }
+
+    private function extractDocumentValue(string $message): ?string
+    {
+        if (preg_match('/\b\d{7,8}[A-Z]\b/i', $message, $matches) === 1) {
+            return strtoupper($matches[0]);
+        }
+
+        if (preg_match('/\b[A-Z]\d{7}[A-Z]\b/i', $message, $matches) === 1) {
+            return strtoupper($matches[0]);
+        }
+
+        if (preg_match('/\b[A-Z0-9-]{6,20}\b/i', $message, $matches) === 1) {
+            return strtoupper($matches[0]);
+        }
+
+        return null;
     }
 }
