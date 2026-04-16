@@ -181,7 +181,7 @@ export class ClockiaWidget extends HTMLElement {
             return;
         }
         if (service.max_participants && this.state.participants > service.max_participants) {
-            this.state.error = `Este servicio admite como máximo ${service.max_participants} participantes.`;
+            this.state.error = `Este servicio admite como m\u00e1ximo ${service.max_participants} participantes.`;
             this.renderRoot();
             return;
         }
@@ -202,7 +202,7 @@ export class ClockiaWidget extends HTMLElement {
                 participants: this.state.participants,
             });
             if (!check.available) {
-                this.state.bookingError = check.error || 'El hueco elegido ya no está disponible.';
+                this.state.bookingError = check.error || 'El hueco elegido ya no est\u00e1 disponible.';
                 this.renderRoot();
                 return;
             }
@@ -300,7 +300,7 @@ export class ClockiaWidget extends HTMLElement {
         root.appendChild(header);
 
         if (this.state.loading) {
-            root.appendChild(h('div', {}, [h('span', { class: 'ck-loader' }), 'Cargando…']));
+            root.appendChild(h('div', {}, [h('span', { class: 'ck-loader' }), 'Cargando\u2026']));
             this.shadowRoot.appendChild(root);
             return;
         }
@@ -347,7 +347,7 @@ export class ClockiaWidget extends HTMLElement {
 
         if (this.state.view === 'date' && this.state.selectedDate) {
             const section = h('div', { class: 'ck-section' }, [
-                h('h3', {}, `Experiencias disponibles – ${formatDateHuman(this.state.selectedDate)}`),
+                h('h3', {}, `Experiencias disponibles \u2013 ${formatDateHuman(this.state.selectedDate)}`),
             ]);
 
             const partsRow = h('div', { class: 'ck-row', style: { marginTop: '8px', marginBottom: '8px' } }, [
@@ -371,7 +371,7 @@ export class ClockiaWidget extends HTMLElement {
             section.appendChild(partsRow);
 
             if (this.state.loadingDate) {
-                section.appendChild(h('div', {}, [h('span', { class: 'ck-loader' }), 'Cargando experiencias…']));
+                section.appendChild(h('div', {}, [h('span', { class: 'ck-loader' }), 'Cargando experiencias\u2026']));
             } else {
                 const listContainer = h('div');
                 renderExperienceList({
@@ -433,7 +433,7 @@ export class ClockiaWidget extends HTMLElement {
 
     renderDone(root) {
         const booking = this.state.confirmation;
-        root.appendChild(h('div', { class: 'ck-success' }, '¡Reserva confirmada!'));
+        root.appendChild(h('div', { class: 'ck-success' }, '\u00a1Reserva confirmada!'));
         const summary = h('div', { class: 'ck-summary' }, [
             h('div', { class: 'ck-summary-row' }, [h('span', {}, 'Localizador'), h('strong', {}, booking.reference || '-')]),
             h('div', { class: 'ck-summary-row' }, [h('span', {}, 'Experiencia'), h('strong', {}, booking.service_name || '-')]),

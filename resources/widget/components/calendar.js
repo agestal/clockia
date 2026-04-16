@@ -4,9 +4,9 @@ export function renderCalendar({ container, year, month, days, selectedDate, onP
     clearElement(container);
 
     const nav = h('div', { class: 'ck-calendar-nav' }, [
-        h('button', { class: 'ck-btn', type: 'button', onclick: onPrev, 'aria-label': 'Mes anterior' }, '‹'),
+        h('button', { class: 'ck-btn', type: 'button', onclick: onPrev, 'aria-label': 'Mes anterior' }, '\u2039'),
         h('div', { class: 'ck-month-label' }, `${MONTHS_ES[month - 1]} ${year}`),
-        h('button', { class: 'ck-btn', type: 'button', onclick: onNext, 'aria-label': 'Mes siguiente' }, '›'),
+        h('button', { class: 'ck-btn', type: 'button', onclick: onNext, 'aria-label': 'Mes siguiente' }, '\u203a'),
     ]);
     container.appendChild(nav);
 

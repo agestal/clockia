@@ -145,8 +145,8 @@ button.ck-btn:hover { border-color: var(--ck-primary); }
 .ck-form { display: grid; gap: 12px; margin-top: 12px; }
 .ck-form .ck-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 520px) { .ck-form .ck-row { grid-template-columns: 1fr; } }
-.ck-form label { display: block; font-size: calc(var(--ck-font-size) * 0.9); font-weight: 500; margin-bottom: 4px; color: var(--ck-text); }
-.ck-form input, .ck-form textarea {
+.ck-root label { display: block; font-size: calc(var(--ck-font-size) * 0.9); font-weight: 500; margin-bottom: 4px; color: var(--ck-text); }
+.ck-root input, .ck-root textarea, .ck-root select {
     width: 100%;
     padding: 10px 12px;
     border: 1px solid var(--ck-border);
@@ -155,9 +155,11 @@ button.ck-btn:hover { border-color: var(--ck-primary); }
     color: var(--ck-text);
     font-family: inherit;
     font-size: inherit;
+    box-sizing: border-box;
 }
-.ck-form input:focus, .ck-form textarea:focus { outline: 2px solid var(--ck-primary); outline-offset: 1px; border-color: var(--ck-primary); }
-.ck-form textarea { min-height: 80px; resize: vertical; }
+.ck-root input:focus, .ck-root textarea:focus, .ck-root select:focus { outline: 2px solid var(--ck-primary); outline-offset: 1px; border-color: var(--ck-primary); }
+.ck-root textarea { min-height: 80px; resize: vertical; }
+.ck-root input[type="number"] { max-width: 160px; }
 .ck-form .ck-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 
 .ck-summary {

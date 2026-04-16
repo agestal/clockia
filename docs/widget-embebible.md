@@ -106,7 +106,7 @@ El fichero resultante (`public/widget/clockia-widget.js`) es un IIFE standalone 
 ### Opción A — Custom Element (recomendado)
 
 ```html
-<script src="https://TU_DOMINIO/widget/clockia-widget.js" defer></script>
+<script src="https://TU_DOMINIO/widget/clockia-widget.js" charset="utf-8" defer></script>
 
 <clockia-widget
     business-id="8"
@@ -129,7 +129,7 @@ Los atributos `primary-color`, `secondary-color`, etc. son **opcionales**: si no
 
 ```html
 <div id="clockia-widget"></div>
-<script src="https://TU_DOMINIO/widget/clockia-widget.js"></script>
+<script src="https://TU_DOMINIO/widget/clockia-widget.js" charset="utf-8"></script>
 <script>
   Clockia.init({
     businessId: 8,

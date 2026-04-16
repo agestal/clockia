@@ -6,7 +6,7 @@
     $defaultImportDays = (int) config('services.google_calendar.import_days', 30);
 @endphp
 
-<div class="card shadow-sm border-0 mt-4">
+<div class="card shadow-sm border-0 mt-4" id="google-calendar-settings">
     <div class="card-body">
         <div class="d-flex flex-wrap align-items-start justify-content-between">
             <div class="pr-md-4">

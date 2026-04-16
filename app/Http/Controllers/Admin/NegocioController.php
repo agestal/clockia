@@ -14,6 +14,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 
 class NegocioController extends Controller
 {
@@ -133,6 +134,74 @@ class NegocioController extends Controller
         ]);
     }
 
+    public function googleCalendarSetup(Request $request): View|RedirectResponse
+    {
+        $negocios = $this->shortcutBusinesses($request)
+            ->loadMissing([
+                'tipoNegocio',
+                'integracionGoogleCalendar.cuentaActiva',
+            ]);
+
+        return $this->businessShortcutResponse(
+            $negocios,
+            title: 'Google Calendar',
+            description: 'Accede a la configuración de Google Calendar de cada negocio y entra directamente en su panel de sincronización.',
+            buttonLabel: 'Configurar Google Calendar',
+            anchor: 'google-calendar-settings',
+            emptyMessage: 'Todavía no hay negocios disponibles para configurar Google Calendar.',
+            mapStatus: function (Negocio $negocio): array {
+                $integration = $negocio->integracionGoogleCalendar;
+                $account = $integration?->cuentaActiva;
+
+                if ($integration?->activo && $integration->estaConectada() && $account) {
+                    return [
+                        'label' => 'Conectado',
+                        'badge' => 'success',
+                        'detail' => $account->email_externo ?: 'Cuenta autorizada',
+                    ];
+                }
+
+                if ($integration) {
+                    return [
+                        'label' => ucfirst((string) $integration->estado),
+                        'badge' => $integration->activo ? 'warning' : 'secondary',
+                        'detail' => $integration->activo ? 'Pendiente de conexión completa' : 'Desactivado',
+                    ];
+                }
+
+                return [
+                    'label' => 'Sin configurar',
+                    'badge' => 'secondary',
+                    'detail' => 'Aún no hay cuenta conectada',
+                ];
+            }
+        );
+    }
+
+    public function widgetSetup(Request $request): View|RedirectResponse
+    {
+        $negocios = $this->shortcutBusinesses($request)
+            ->loadMissing('tipoNegocio');
+
+        return $this->businessShortcutResponse(
+            $negocios,
+            title: 'Widget Calendario',
+            description: 'Revisa el widget público de cada negocio y entra directamente en la parte de personalización e integración.',
+            buttonLabel: 'Configurar widget',
+            anchor: 'widget-calendar-settings',
+            emptyMessage: 'Todavía no hay negocios disponibles para configurar el widget.',
+            mapStatus: function (Negocio $negocio): array {
+                return [
+                    'label' => $negocio->widget_enabled ? 'Activo' : 'Inactivo',
+                    'badge' => $negocio->widget_enabled ? 'primary' : 'secondary',
+                    'detail' => $negocio->widget_public_key
+                        ? 'Clave pública disponible'
+                        : 'Sin clave pública generada',
+                ];
+            }
+        );
+    }
+
     public function update(
         UpdateNegocioRequest $request,
         Negocio $negocio,
@@ -227,6 +296,65 @@ class NegocioController extends Controller
             })->values(),
             'pagination' => ['more' => $hasMore],
         ]);
+    }
+
+    private function businessShortcutResponse(
+        Collection $negocios,
+        string $title,
+        string $description,
+        string $buttonLabel,
+        string $anchor,
+        string $emptyMessage,
+        callable $mapStatus
+    ): View|RedirectResponse {
+        if ($negocios->isEmpty()) {
+            return redirect()
+                ->route('admin.negocios.index')
+                ->with('error', $emptyMessage);
+        }
+
+        if ($negocios->count() === 1) {
+            return $this->shortcutRedirect($negocios->first(), $anchor);
+        }
+
+        $items = $negocios->map(function (Negocio $negocio) use ($anchor, $mapStatus) {
+            return [
+                'negocio' => $negocio,
+                'status' => $mapStatus($negocio),
+                'configure_url' => route('admin.negocios.edit', $negocio).'#'.$anchor,
+            ];
+        });
+
+        return view('admin.negocios.shortcut-selector', [
+            'shortcutTitle' => $title,
+            'shortcutDescription' => $description,
+            'shortcutButtonLabel' => $buttonLabel,
+            'shortcutItems' => $items,
+        ]);
+    }
+
+    private function shortcutBusinesses(Request $request): Collection
+    {
+        $userBusinesses = $request->user()?->negocios()
+            ->with('tipoNegocio')
+            ->orderBy('nombre')
+            ->get();
+
+        if ($userBusinesses && $userBusinesses->isNotEmpty()) {
+            return $userBusinesses;
+        }
+
+        return Negocio::query()
+            ->with('tipoNegocio')
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    private function shortcutRedirect(Negocio $negocio, string $anchor): RedirectResponse
+    {
+        return redirect()->to(
+            route('admin.negocios.edit', $negocio).'#'.$anchor
+        );
     }
 
     private function timezoneOptions(): array

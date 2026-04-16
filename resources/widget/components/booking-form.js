@@ -60,14 +60,14 @@ export function renderBookingForm({ container, service, date, time, participants
             h('input', { id: 'ck-email', name: 'email', type: 'email', autocomplete: 'email' }),
         ]),
         h('div', {}, [
-            h('label', { for: 'ck-phone' }, 'Teléfono *'),
+            h('label', { for: 'ck-phone' }, 'Tel\u00e9fono *'),
             h('input', { id: 'ck-phone', name: 'phone', type: 'tel', required: 'required', autocomplete: 'tel' }),
         ]),
     ]);
 
     const notes = h('div', {}, [
         h('label', { for: 'ck-notes' }, 'Observaciones'),
-        h('textarea', { id: 'ck-notes', name: 'notes', rows: '3', placeholder: 'Alergias, niños, necesidades especiales...' }),
+        h('textarea', { id: 'ck-notes', name: 'notes', rows: '3', placeholder: 'Alergias, ni\u00f1os, necesidades especiales...' }),
     ]);
 
     form.appendChild(row1);
@@ -79,12 +79,12 @@ export function renderBookingForm({ container, service, date, time, participants
     }
 
     const actions = h('div', { class: 'ck-actions' }, [
-        h('button', { type: 'button', class: 'ck-btn ck-back', onclick: onBack }, '‹ Atrás'),
+        h('button', { type: 'button', class: 'ck-btn ck-back', onclick: onBack }, '\u2039 Atr\u00e1s'),
         h('button', {
             type: 'submit',
             class: 'ck-btn-primary',
             disabled: submitting ? 'disabled' : null,
-        }, submitting ? 'Reservando…' : 'Confirmar reserva'),
+        }, submitting ? 'Reservando\u2026' : 'Confirmar reserva'),
     ]);
     form.appendChild(actions);
 

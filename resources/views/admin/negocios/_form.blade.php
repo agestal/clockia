@@ -552,7 +552,7 @@
             </div>
 
             @if($isEdit)
-            <div class="form-group col-12">
+            <div class="form-group col-12" id="widget-calendar-settings">
                 <hr>
                 <h3 class="h6 text-uppercase text-muted mb-3">Widget embebible</h3>
                 <p class="text-muted small mb-0">Permite a tus clientes reservar desde una web externa. Comparte la misma lógica del chatbot: mismos emails, mismas encuestas, mismas validaciones.</p>
@@ -670,7 +670,7 @@
                     rows="6"
                     readonly
                     style="font-family: Menlo, Consolas, monospace; font-size: 0.82rem;"
->&lt;script src="{{ url('/widget/clockia-widget.js') }}" defer&gt;&lt;/script&gt;
+>&lt;script src="{{ url('/widget/clockia-widget.js') }}" charset="utf-8" defer&gt;&lt;/script&gt;
 &lt;clockia-widget
     business-id="{{ $negocio->id }}"
     widget-key="{{ $negocio->widget_public_key }}"
@@ -685,7 +685,7 @@
                 <details class="border rounded p-3 bg-light">
                     <summary class="text-muted small" style="cursor:pointer;">Alternativa: inicialización por JavaScript (click para ver)</summary>
                     <pre class="mb-0 mt-2 small" style="white-space:pre-wrap;">&lt;div id="clockia-widget"&gt;&lt;/div&gt;
-&lt;script src="{{ url('/widget/clockia-widget.js') }}"&gt;&lt;/script&gt;
+&lt;script src="{{ url('/widget/clockia-widget.js') }}" charset="utf-8"&gt;&lt;/script&gt;
 &lt;script&gt;
   Clockia.init({
     businessId: {{ $negocio->id }},

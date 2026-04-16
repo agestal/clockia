@@ -4,7 +4,7 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "build:widget": "vite build --config vite.widget.config.js",
+        "build:widget": "vite build --config vite.widget.config.js && node -e \"const fs=require('fs');const p='public/widget/clockia-widget.js';const buf=fs.readFileSync(p);if(buf[0]!==0xEF||buf[1]!==0xBB||buf[2]!==0xBF){fs.writeFileSync(p,Buffer.concat([Buffer.from([0xEF,0xBB,0xBF]),buf]));}\"",
         "dev": "vite",
         "dev:widget": "vite build --config vite.widget.config.js --watch"
     },

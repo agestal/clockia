@@ -17,7 +17,7 @@ class Dashboard extends Component
 {
     public array $stats = [];
     public array $quickLinks = [];
-    public array $recentReservations = [];
+    public array $widgetLinks = [];
     public array $operationalSummary = [];
     public array $chatEntry = [];
 
@@ -181,32 +181,33 @@ class Dashboard extends Component
             ],
         ];
 
-        $this->recentReservations = Reserva::query()
-            ->with([
-                'cliente:id,nombre',
-                'negocio:id,nombre',
-                'servicio:id,nombre',
-                'estadoReserva:id,nombre',
-            ])
-            ->where(function ($query) use ($now, $today) {
-                $query->where('inicio_datetime', '>=', $now)
-                    ->orWhere(function ($inner) use ($today) {
-                        $inner->whereNull('inicio_datetime')
-                            ->whereDate('fecha', '>=', $today);
-                    });
-            })
-            ->orderByRaw('COALESCE(inicio_datetime, CONCAT(fecha, " ", hora_inicio)) asc')
-            ->limit(6)
-            ->get()
-            ->map(function (Reserva $reserva): array {
-                $schedule = $reserva->fecha?->format('d/m/Y').' · '.substr((string) $reserva->hora_inicio, 0, 5);
+        $userBusinesses = auth()->user()?->negocios();
 
+        $widgetBusinesses = $userBusinesses
+            ? $userBusinesses
+                ->with('tipoNegocio:id,nombre')
+                ->orderBy('nombre')
+                ->get()
+            : collect();
+
+        if ($widgetBusinesses->isEmpty()) {
+            $widgetBusinesses = Negocio::query()
+                ->with('tipoNegocio:id,nombre')
+                ->orderBy('nombre')
+                ->get();
+        }
+
+        $this->widgetLinks = $widgetBusinesses
+            ->map(function (Negocio $negocio): array {
                 return [
-                    'title' => $reserva->cliente?->nombre ?? 'Cliente sin nombre',
-                    'subtitle' => trim(($reserva->servicio?->nombre ?? 'Servicio').($reserva->negocio?->nombre ? ' · '.$reserva->negocio->nombre : '')),
-                    'schedule' => $schedule,
-                    'status' => $reserva->estadoReserva?->nombre ?? 'Sin estado',
-                    'href' => route('admin.reservas.show', $reserva),
+                    'title' => $negocio->nombre,
+                    'subtitle' => $negocio->tipoNegocio?->nombre ?? 'Negocio',
+                    'status' => $negocio->widget_enabled ? 'Activo' : 'Inactivo',
+                    'detail' => $negocio->widget_enabled
+                        ? 'Widget listo para publicar'
+                        : 'Pendiente de activar',
+                    'enabled' => (bool) $negocio->widget_enabled,
+                    'href' => route('admin.negocios.edit', $negocio).'#widget-calendar-settings',
                 ];
             })
             ->all();

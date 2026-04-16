@@ -53,6 +53,10 @@ Route::prefix('admin')
         'verified',
     ])
     ->group(function () {
+        Route::get('negocios/google-calendar', [NegocioController::class, 'googleCalendarSetup'])
+            ->name('negocios.shortcuts.google-calendar');
+        Route::get('negocios/widget-calendario', [NegocioController::class, 'widgetSetup'])
+            ->name('negocios.shortcuts.widget');
         Route::resource('tipos-negocio', TipoNegocioController::class)
             ->parameters(['tipos-negocio' => 'tipo_negocio']);
         Route::resource('tipos-precio', TipoPrecioController::class)

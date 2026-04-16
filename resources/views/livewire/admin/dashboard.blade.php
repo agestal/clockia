@@ -65,27 +65,32 @@
     <div class="row clockia-dashboard__panels">
         <div class="col-lg-7">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header clockia-card-header-inline">
                     <h3 class="card-title">
-                        <i class="fas fa-calendar-day mr-2 text-primary"></i>
-                        Próximas reservas
+                        <i class="fas fa-window-maximize mr-2 text-primary"></i>
+                        Widgets del calendario
                     </h3>
+                    <a href="{{ route('admin.negocios.shortcuts.widget') }}" class="btn btn-sm btn-outline-primary">
+                        Configurar widgets
+                    </a>
                 </div>
                 <div class="list-group list-group-flush">
-                    @forelse ($recentReservations as $reservation)
-                        <a href="{{ $reservation['href'] }}" class="list-group-item clockia-reservation-link">
-                            <span class="clockia-reservation-link__content">
-                                <span class="clockia-reservation-link__title">{{ $reservation['title'] }}</span>
-                                <span class="clockia-reservation-link__subtitle">{{ $reservation['subtitle'] }}</span>
+                    @forelse ($widgetLinks as $widget)
+                        <a href="{{ $widget['href'] }}" class="list-group-item clockia-widget-link">
+                            <span class="clockia-widget-link__content">
+                                <span class="clockia-widget-link__title">{{ $widget['title'] }}</span>
+                                <span class="clockia-widget-link__subtitle">{{ $widget['subtitle'] }}</span>
                             </span>
-                            <span class="clockia-reservation-link__meta">
-                                <span class="clockia-reservation-link__schedule">{{ $reservation['schedule'] }}</span>
-                                <span class="clockia-reservation-link__status">{{ $reservation['status'] }}</span>
+                            <span class="clockia-widget-link__meta">
+                                <span class="clockia-widget-link__status @if ($widget['enabled']) is-active @endif">
+                                    {{ $widget['status'] }}
+                                </span>
+                                <span class="clockia-widget-link__detail">{{ $widget['detail'] }}</span>
                             </span>
                         </a>
                     @empty
                         <div class="clockia-empty-state">
-                            No hay reservas próximas registradas por ahora.
+                            No hay negocios disponibles para configurar el widget.
                         </div>
                     @endforelse
                 </div>

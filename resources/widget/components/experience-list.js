@@ -4,7 +4,7 @@ export function renderExperienceList({ container, services, selectedServiceId, s
     clearElement(container);
 
     if (!services.length) {
-        container.appendChild(h('div', { class: 'ck-muted' }, 'No hay experiencias disponibles para este día.'));
+        container.appendChild(h('div', { class: 'ck-muted' }, 'No hay experiencias disponibles para este d\u00eda.'));
         return;
     }
 
@@ -27,9 +27,9 @@ export function renderExperienceList({ container, services, selectedServiceId, s
 
         const metaParts = [];
         if (service.duration_minutes) metaParts.push(`${service.duration_minutes} min`);
-        if (service.min_participants) metaParts.push(`Mín ${service.min_participants} pers.`);
-        if (service.max_participants) metaParts.push(`Máx ${service.max_participants} pers.`);
-        if (metaParts.length) wrapper.appendChild(h('div', { class: 'ck-exp-meta' }, metaParts.join(' · ')));
+        if (service.min_participants) metaParts.push(`M\u00edn ${service.min_participants} pers.`);
+        if (service.max_participants) metaParts.push(`M\u00e1x ${service.max_participants} pers.`);
+        if (metaParts.length) wrapper.appendChild(h('div', { class: 'ck-exp-meta' }, metaParts.join(' \u00b7 ')));
 
         if (service.description) wrapper.appendChild(h('div', { class: 'ck-exp-desc' }, service.description));
 
