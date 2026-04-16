@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Negocio;
+use App\Support\AdminAccess;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -10,6 +11,10 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureBusinessAccess
 {
+    public function __construct(
+        private readonly AdminAccess $adminAccess,
+    ) {}
+
     public function handle(Request $request, Closure $next): mixed
     {
         $user = $request->user();
@@ -19,9 +24,7 @@ class EnsureBusinessAccess
             return $this->forbiddenResponse();
         }
 
-        $hasAccess = $user->negocios()
-            ->whereKey($business->getKey())
-            ->exists();
+        $hasAccess = $this->adminAccess->canAccessBusinessId($user, (int) $business->getKey());
 
         if (! $hasAccess) {
             return $this->forbiddenResponse();

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\InteractsWithAdminAccess;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\InlineUpdateNegocioRequest;
 use App\Http\Requests\Admin\StoreNegocioRequest;
@@ -15,11 +16,49 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Symfony\Component\HttpFoundation\Response;
 
 class NegocioController extends Controller
 {
-    public function index(Request $request): View
+    use InteractsWithAdminAccess;
+
+    public function index(Request $request): View|RedirectResponse
     {
+        if (! $request->user()?->hasFullAdminAccess()) {
+            $negocios = $this->adminAccess()
+                ->accessibleBusinessesQuery($request->user())
+                ->with('tipoNegocio')
+                ->withCount(['servicios', 'recursos', 'reservas'])
+                ->orderBy('nombre')
+                ->get();
+
+            if ($negocios->isEmpty()) {
+                return redirect()
+                    ->route('dashboard')
+                    ->with('error', 'No tienes ningún negocio asignado todavía.');
+            }
+
+            if ($negocios->count() === 1) {
+                return redirect()->route('admin.negocios.edit', $negocios->first());
+            }
+
+            return $this->businessShortcutResponse(
+                $negocios,
+                title: 'Tus negocios',
+                description: 'Selecciona el negocio que quieres gestionar en el panel.',
+                buttonLabel: 'Abrir negocio',
+                anchor: null,
+                emptyMessage: 'No tienes ningún negocio asignado todavía.',
+                mapStatus: function (Negocio $negocio): array {
+                    return [
+                        'label' => $negocio->activo ? 'Activo' : 'Inactivo',
+                        'badge' => $negocio->activo ? 'success' : 'secondary',
+                        'detail' => $negocio->reservas_count.' reservas · '.$negocio->recursos_count.' recursos',
+                    ];
+                }
+            );
+        }
+
         $search = $request->string('search')->trim()->value();
         $sort = $request->string('sort', 'nombre')->value();
         $direction = $request->string('direction', 'asc')->value();
@@ -54,6 +93,12 @@ class NegocioController extends Controller
 
     public function create(): View
     {
+        abort_unless(
+            auth()->user()?->hasFullAdminAccess(),
+            Response::HTTP_FORBIDDEN,
+            'Solo un administrador global puede crear negocios.'
+        );
+
         return view('admin.negocios.create', [
             'negocio' => new Negocio([
                 'zona_horaria' => 'Europe/Madrid',
@@ -69,6 +114,12 @@ class NegocioController extends Controller
 
     public function store(StoreNegocioRequest $request, GoogleCalendarAuthService $googleCalendarAuthService): RedirectResponse
     {
+        abort_unless(
+            $request->user()?->hasFullAdminAccess(),
+            Response::HTTP_FORBIDDEN,
+            'Solo un administrador global puede crear negocios.'
+        );
+
         $validated = $request->validated();
         $googleCalendarEnabled = (bool) ($validated['google_calendar_enabled'] ?? false);
         unset($validated['google_calendar_enabled']);
@@ -222,6 +273,12 @@ class NegocioController extends Controller
 
     public function destroy(Negocio $negocio): RedirectResponse
     {
+        abort_unless(
+            auth()->user()?->hasFullAdminAccess(),
+            Response::HTTP_FORBIDDEN,
+            'Solo un administrador global puede eliminar negocios.'
+        );
+
         $negocio->loadCount(['servicios', 'recursos', 'reservas']);
 
         if ($negocio->servicios_count > 0 || $negocio->recursos_count > 0 || $negocio->reservas_count > 0) {
@@ -273,6 +330,7 @@ class NegocioController extends Controller
         $query = Negocio::query()
             ->with('tipoNegocio:id,nombre')
             ->select(['id', 'nombre', 'tipo_negocio_id', 'activo'])
+            ->tap(fn ($builder) => $this->scopeAccessibleBusinesses($builder, $request, 'id'))
             ->orderBy('nombre')
             ->when($term !== '', function ($builder) use ($term) {
                 $builder->where('nombre', 'like', "%{$term}%");
@@ -303,7 +361,7 @@ class NegocioController extends Controller
         string $title,
         string $description,
         string $buttonLabel,
-        string $anchor,
+        ?string $anchor,
         string $emptyMessage,
         callable $mapStatus
     ): View|RedirectResponse {
@@ -321,7 +379,7 @@ class NegocioController extends Controller
             return [
                 'negocio' => $negocio,
                 'status' => $mapStatus($negocio),
-                'configure_url' => route('admin.negocios.edit', $negocio).'#'.$anchor,
+                'configure_url' => $this->editUrl($negocio, $anchor),
             ];
         });
 
@@ -335,26 +393,23 @@ class NegocioController extends Controller
 
     private function shortcutBusinesses(Request $request): Collection
     {
-        $userBusinesses = $request->user()?->negocios()
-            ->with('tipoNegocio')
-            ->orderBy('nombre')
-            ->get();
-
-        if ($userBusinesses && $userBusinesses->isNotEmpty()) {
-            return $userBusinesses;
-        }
-
-        return Negocio::query()
+        return $this->adminAccess()
+            ->accessibleBusinessesQuery($request->user())
             ->with('tipoNegocio')
             ->orderBy('nombre')
             ->get();
     }
 
-    private function shortcutRedirect(Negocio $negocio, string $anchor): RedirectResponse
+    private function shortcutRedirect(Negocio $negocio, ?string $anchor): RedirectResponse
     {
-        return redirect()->to(
-            route('admin.negocios.edit', $negocio).'#'.$anchor
-        );
+        return redirect()->to($this->editUrl($negocio, $anchor));
+    }
+
+    private function editUrl(Negocio $negocio, ?string $anchor = null): string
+    {
+        $url = route('admin.negocios.edit', $negocio);
+
+        return $anchor ? $url.'#'.$anchor : $url;
     }
 
     private function timezoneOptions(): array

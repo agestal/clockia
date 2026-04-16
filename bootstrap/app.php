@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Laravel\Passport\Exceptions\MissingScopeException;
 use Symfony\Component\HttpFoundation\Response;
 use App\Http\Middleware\EnsureBusinessAccess;
+use App\Http\Middleware\EnsureAdminPanelAccess;
 use Laravel\Passport\Http\Middleware\CheckToken;
 use Laravel\Passport\Http\Middleware\CheckTokenForAnyScope;
 
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'business.access' => EnsureBusinessAccess::class,
+            'admin.panel.access' => EnsureAdminPanelAccess::class,
             'scopes' => CheckToken::class,
             'scope' => CheckTokenForAnyScope::class,
             'widget.key' => \App\Http\Middleware\WidgetKeyAuth::class,

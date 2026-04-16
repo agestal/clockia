@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\InteractsWithAdminAccess;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\InlineUpdateServicioRequest;
 use App\Http\Requests\Admin\StoreServicioRequest;
@@ -19,6 +20,8 @@ use Illuminate\Support\Facades\DB;
 
 class ServicioController extends Controller
 {
+    use InteractsWithAdminAccess;
+
     public function index(Request $request): View
     {
         $search = $request->string('search')->trim()->value();
@@ -32,6 +35,7 @@ class ServicioController extends Controller
         $servicios = Servicio::query()
             ->with(['negocio', 'tipoPrecio'])
             ->withCount(['recursos', 'reservas'])
+            ->tap(fn ($query) => $this->scopeAccessibleBusinesses($query, $request, 'negocio_id'))
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($innerQuery) use ($search) {
                     $innerQuery
@@ -67,8 +71,13 @@ class ServicioController extends Controller
     public function store(StoreServicioRequest $request): RedirectResponse
     {
         $validated = $request->validated();
+        $this->abortUnlessBusinessAccessible($request, $validated['negocio_id'] ?? null);
+
         $recursos = $validated['recursos'] ?? [];
         unset($validated['recursos']);
+        foreach ($recursos as $recursoId) {
+            $this->abortUnlessModelAccessible($request, Recurso::class, (int) $recursoId);
+        }
 
         $servicio = DB::transaction(function () use ($validated, $recursos) {
             $servicio = Servicio::create($validated);
@@ -111,8 +120,13 @@ class ServicioController extends Controller
     public function update(UpdateServicioRequest $request, Servicio $servicio): RedirectResponse
     {
         $validated = $request->validated();
+        $this->abortUnlessBusinessAccessible($request, $validated['negocio_id'] ?? null);
+
         $recursos = $validated['recursos'] ?? [];
         unset($validated['recursos']);
+        foreach ($recursos as $recursoId) {
+            $this->abortUnlessModelAccessible($request, Recurso::class, (int) $recursoId);
+        }
 
         DB::transaction(function () use ($servicio, $validated, $recursos) {
             $servicio->update($validated);
@@ -176,6 +190,7 @@ class ServicioController extends Controller
         $query = Servicio::query()
             ->with(['negocio:id,nombre', 'tipoPrecio:id,nombre'])
             ->select(['id', 'nombre', 'negocio_id', 'tipo_precio_id', 'activo'])
+            ->tap(fn ($builder) => $this->scopeAccessibleBusinesses($builder, $request, 'negocio_id'))
             ->when($negocioId > 0, function ($builder) use ($negocioId) {
                 $builder->where('negocio_id', $negocioId);
             })
@@ -218,11 +233,20 @@ class ServicioController extends Controller
     {
         $selectedId = session()->getOldInput('negocio_id', $servicio?->negocio_id);
 
-        if (! $selectedId) {
-            return null;
+        $query = $this->adminAccess()
+            ->scopeBusinesses(Negocio::query(), auth()->user(), 'id')
+            ->select(['id', 'nombre'])
+            ->orderBy('nombre');
+
+        if ($selectedId) {
+            return $query->find($selectedId);
         }
 
-        return Negocio::query()->select(['id', 'nombre'])->find($selectedId);
+        if (! auth()->user()?->hasFullAdminAccess()) {
+            return $query->first();
+        }
+
+        return null;
     }
 
     private function resolveSelectedTipoPrecio(?Servicio $servicio = null): ?TipoPrecio
@@ -241,7 +265,8 @@ class ServicioController extends Controller
         $selectedIds = session()->getOldInput('recursos');
 
         if (is_array($selectedIds)) {
-            return Recurso::query()
+            return $this->adminAccess()
+                ->scopeBusinesses(Recurso::query(), auth()->user(), 'negocio_id')
                 ->with(['negocio:id,nombre', 'tipoRecurso:id,nombre'])
                 ->whereIn('id', $selectedIds)
                 ->orderBy('nombre')

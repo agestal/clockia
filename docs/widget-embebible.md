@@ -1,6 +1,17 @@
-# Widget embebible de reservas
+# Widgets embebibles (reservas + chat)
 
-Widget público de reservas para Clockia. Permite a cualquier negocio (bodegas, restaurantes, experiencias…) recibir reservas desde una web externa **usando exactamente la misma lógica de negocio que el chatbot**: mismos emails, mismas encuestas, mismas validaciones, mismo evento `BookingCreated`.
+Dos widgets públicos por negocio, compartiendo la misma clave pública y la misma capa de autenticación. Ambos reutilizan el núcleo existente de Clockia sin duplicar lógica.
+
+| Widget | Endpoint raíz | Reutiliza | Frontend |
+|--------|--------------|-----------|----------|
+| **Reservas** | `/api/widget/businesses/{id}/…` (booking) | `ReservationFinalizationService::finalize()` | `<clockia-widget>` |
+| **Chat** | `/api/widget/businesses/{id}/chat/…` | `LlmFirstChatOrchestrator::handle()` + `ConversationMemoryStore` | `<clockia-chat-widget>` |
+
+---
+
+## Widget de reservas
+
+Permite a cualquier negocio (bodegas, restaurantes, experiencias…) recibir reservas desde una web externa **usando exactamente la misma lógica de negocio que el chatbot**: mismos emails, mismas encuestas, mismas validaciones, mismo evento `BookingCreated`.
 
 ---
 
@@ -348,7 +359,96 @@ echo \$n->widget_public_key;
 
 ---
 
-## 10. Checklist de entrega
+## 11. Widget de chat flotante
+
+Widget independiente que muestra una burbuja flotante en la esquina inferior derecha de la web. Al pincharla se abre un panel de chat que conversa con el mismo chatbot que tienes en `admin/chat/test`.
+
+### Qué reutiliza
+
+- [app/Services/Chat/LlmFirstChatOrchestrator.php](app/Services/Chat/LlmFirstChatOrchestrator.php) `handle($message, $negocioId, $context, $state, 'mcp')` — exactamente la misma que `ChatTestController::execute()`.
+- [app/Services/Conversation/ConversationMemoryStore.php](app/Services/Conversation/ConversationMemoryStore.php) — estado en cache con TTL. Mismo formato de `context`/`history`/`state`.
+- Personalidad, reglas, `chat_behavior_overrides` y `chat_required_fields` configurados en el negocio se aplican igual.
+
+No hay UI de selección de negocio: el widget está ya vinculado al negocio por `business-id`, así que habla solo de **ese** negocio.
+
+### Endpoints
+
+Base: `/api/widget/businesses/{business}/chat/…` con middleware `widget.key:chat` + `throttle:30,1`.
+
+| Método | Path | Descripción |
+|--------|------|-------------|
+| `GET`  | `/chat/greeting` | Devuelve `{business, greeting}`. Primer saludo. |
+| `GET`  | `/chat/history?conversation_id=…` | Devuelve historial persistido en cache (si el cliente vuelve). |
+| `POST` | `/chat/message` | Body: `{message, conversation_id?}`. Devuelve `{conversation_id, reply, mode, tool}`. |
+
+El `conversation_id` se genera la primera vez si no viene. El cliente lo persiste en `localStorage` por negocio (`clockia_chat_cid_{businessId}`). Si se pierde o se borra, la próxima llamada crea uno nuevo y el backend arranca una conversación limpia.
+
+### Integración
+
+```html
+<script src="https://TU_DOMINIO/widget/clockia-chat-widget.js" charset="utf-8" defer></script>
+<clockia-chat-widget
+    business-id="8"
+    widget-key="cea60fa5-fcf4-40f7-baff-e57333a802d2"
+    api-base="https://TU_DOMINIO/api/widget"
+></clockia-chat-widget>
+```
+
+Atributos opcionales (todos alimentan el Shadow DOM interno):
+- `title` — texto que aparece en la cabecera (por defecto: nombre del negocio devuelto por `/greeting`)
+- `primary-color`, `secondary-color`, `text-color`, `background-color`
+- `font-family`, `font-size-base`, `border-radius`
+
+Alternativa JS:
+```html
+<script src="https://TU_DOMINIO/widget/clockia-chat-widget.js" charset="utf-8"></script>
+<script>
+  Clockia.initChat({
+    businessId: 8,
+    widgetKey: 'cea60fa5-fcf4-40f7-baff-e57333a802d2',
+    apiBase: 'https://TU_DOMINIO/api/widget',
+    primaryColor: '#7B3F00',
+  });
+</script>
+```
+
+### UX
+
+- Burbuja flotante 60×60 en esquina inferior derecha.
+- Al abrir: panel 380×560 con cabecera, historial, input multilínea, botón enviar.
+- Enter envía, Shift+Enter salto de línea.
+- Indicador de "escribiendo" mientras espera respuesta del LLM.
+- Botón `↻` en cabecera para reiniciar conversación (borra `localStorage` y empieza nueva).
+- Responsive: en móvil (<480px) el panel ocupa casi toda la pantalla.
+
+### Activar en un negocio
+
+Backoffice → editar negocio → sección "Widget de chat" → toggle "Activar widget de chat" → guardar → copiar snippet.
+
+El chat usa la **misma clave pública** que el widget de reservas, así que no hace falta otra.
+
+### Ficheros nuevos
+
+- `database/migrations/2026_04_16_100001_add_chat_widget_enabled_to_negocios_table.php`
+- `app/Http/Controllers/Widget/ChatWidgetController.php`
+- `resources/widget-chat/` (entry, web component, api, styles)
+- `vite.chat-widget.config.js`
+- Script `npm run build:chat-widget` / `npm run build:widgets` (ambos).
+
+### Build
+
+```bash
+# solo chat
+npm run build:chat-widget
+# → public/widget/clockia-chat-widget.js (~15 kB, ~5 kB gzip)
+
+# ambos de una vez
+npm run build:widgets
+```
+
+---
+
+## 12. Checklist de entrega
 
 - [x] Migración + campos en `negocios`
 - [x] Middleware `WidgetKeyAuth` con validación en tiempo constante
@@ -362,3 +462,7 @@ echo \$n->widget_public_key;
 - [x] Backoffice: toggle, campos visuales, snippet copiable
 - [x] Documentación con ejemplos de integración
 - [x] Smoke test: config, calendar, date, clave inválida → 401, widget.js servido
+- [x] Widget de chat flotante (`<clockia-chat-widget>`) con Shadow DOM y responsive
+- [x] `POST /chat/message` delega en `LlmFirstChatOrchestrator::handle()` (mismo chatbot)
+- [x] Estado en `ConversationMemoryStore` (cache, TTL), `conversation_id` en localStorage
+- [x] Toggle independiente `chat_widget_enabled` en backoffice (comparte clave pública)

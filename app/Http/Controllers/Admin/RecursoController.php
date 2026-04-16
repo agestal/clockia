@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\InteractsWithAdminAccess;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\InlineUpdateRecursoRequest;
 use App\Http\Requests\Admin\StoreRecursoRequest;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\DB;
 
 class RecursoController extends Controller
 {
+    use InteractsWithAdminAccess;
+
     public function index(Request $request): View
     {
         $search = $request->string('search')->trim()->value();
@@ -30,6 +33,7 @@ class RecursoController extends Controller
         $recursos = Recurso::query()
             ->with(['negocio', 'tipoRecurso'])
             ->withCount(['disponibilidades', 'bloqueos', 'reservas'])
+            ->tap(fn ($query) => $this->scopeAccessibleBusinesses($query, $request, 'negocio_id'))
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($innerQuery) use ($search) {
                     $innerQuery
@@ -68,7 +72,10 @@ class RecursoController extends Controller
 
     public function store(StoreRecursoRequest $request): RedirectResponse
     {
-        $recurso = Recurso::create($request->validated());
+        $validated = $request->validated();
+        $this->abortUnlessBusinessAccessible($request, $validated['negocio_id'] ?? null);
+
+        $recurso = Recurso::create($validated);
 
         return redirect()
             ->route('admin.recursos.show', $recurso)
@@ -110,7 +117,10 @@ class RecursoController extends Controller
 
     public function update(UpdateRecursoRequest $request, Recurso $recurso): RedirectResponse
     {
-        $recurso->update($request->validated());
+        $validated = $request->validated();
+        $this->abortUnlessBusinessAccessible($request, $validated['negocio_id'] ?? null);
+
+        $recurso->update($validated);
 
         return redirect()
             ->route('admin.recursos.edit', $recurso)
@@ -169,6 +179,7 @@ class RecursoController extends Controller
         $query = Recurso::query()
             ->with(['negocio:id,nombre', 'tipoRecurso:id,nombre'])
             ->select(['id', 'nombre', 'negocio_id', 'tipo_recurso_id', 'activo'])
+            ->tap(fn ($builder) => $this->scopeAccessibleBusinesses($builder, $request, 'negocio_id'))
             ->when($negocioId > 0, function ($builder) use ($negocioId) {
                 $builder->where('negocio_id', $negocioId);
             })
@@ -201,11 +212,20 @@ class RecursoController extends Controller
     {
         $selectedId = session()->getOldInput('negocio_id', $recurso?->negocio_id);
 
-        if (! $selectedId) {
-            return null;
+        $query = $this->adminAccess()
+            ->scopeBusinesses(Negocio::query(), auth()->user(), 'id')
+            ->select(['id', 'nombre'])
+            ->orderBy('nombre');
+
+        if ($selectedId) {
+            return $query->find($selectedId);
         }
 
-        return Negocio::query()->select(['id', 'nombre'])->find($selectedId);
+        if (! auth()->user()?->hasFullAdminAccess()) {
+            return $query->first();
+        }
+
+        return null;
     }
 
     private function resolveSelectedTipoRecurso(?Recurso $recurso = null): ?TipoRecurso

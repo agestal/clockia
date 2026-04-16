@@ -4,9 +4,11 @@ namespace App\Providers;
 
 use App\Events\BookingCreated;
 use App\Listeners\SyncBookingToGoogleCalendar;
+use App\Models\User;
 use Laravel\Passport\Passport;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,6 +26,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Event::listen(BookingCreated::class, SyncBookingToGoogleCalendar::class);
+
+        Gate::before(function (User $user, string $ability): ?bool {
+            return $user->hasFullAdminAccess() ? true : null;
+        });
+
+        Gate::define('manage-platform-admin', fn (User $user): bool => $user->hasFullAdminAccess());
 
         Passport::tokensCan([
             'business:read' => 'Read business context information.',

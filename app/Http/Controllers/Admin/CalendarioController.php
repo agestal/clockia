@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\InteractsWithAdminAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Disponibilidad;
 use App\Models\Negocio;
@@ -15,9 +16,14 @@ use Illuminate\Http\Request;
 
 class CalendarioController extends Controller
 {
+    use InteractsWithAdminAccess;
+
     public function index(): View
     {
-        $negocios = Negocio::activos()->orderBy('nombre')->get(['id', 'nombre']);
+        $negocios = $this->adminAccess()
+            ->scopeBusinesses(Negocio::query()->activos(), auth()->user(), 'id')
+            ->orderBy('nombre')
+            ->get(['id', 'nombre']);
 
         return view('admin.calendario.index', compact('negocios'));
     }
@@ -33,6 +39,7 @@ class CalendarioController extends Controller
         $negocioId = (int) $validated['negocio_id'];
         $year = (int) $validated['year'];
         $month = (int) $validated['month'];
+        $this->abortUnlessBusinessAccessible($request, $negocioId);
 
         $negocio = Negocio::with('tipoNegocio:id,nombre')->findOrFail($negocioId);
         $start = Carbon::create($year, $month, 1)->startOfDay();
@@ -145,6 +152,8 @@ class CalendarioController extends Controller
             'negocio_id' => ['required', 'integer', 'exists:negocios,id'],
             'date' => ['required', 'date'],
         ]);
+
+        $this->abortUnlessBusinessAccessible($request, (int) $validated['negocio_id']);
 
         $reservas = Reserva::where('negocio_id', $validated['negocio_id'])
             ->where('fecha', $validated['date'])

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Fortify\CreateNewUser;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Fortify\Features;
 use Laravel\Jetstream\Jetstream;
@@ -39,7 +41,7 @@ class RegistrationTest extends TestCase
             $this->markTestSkipped('Registration support is not enabled.');
         }
 
-        $response = $this->post('/register', [
+        $user = app(CreateNewUser::class)->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
             'password' => 'password',
@@ -47,7 +49,8 @@ class RegistrationTest extends TestCase
             'terms' => Jetstream::hasTermsAndPrivacyPolicyFeature(),
         ]);
 
-        $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $this->assertSame('test@example.com', $user->email);
+        $this->assertSame(User::ROLE_BUSINESS_ADMIN, $user->role);
+        $this->assertDatabaseHas('users', ['email' => 'test@example.com']);
     }
 }

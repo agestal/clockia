@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\InteractsWithAdminAccess;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\InlineUpdateClienteRequest;
 use App\Http\Requests\Admin\StoreClienteRequest;
@@ -14,6 +15,8 @@ use Illuminate\Http\Request;
 
 class ClienteController extends Controller
 {
+    use InteractsWithAdminAccess;
+
     public function index(Request $request): View
     {
         $search = $request->string('search')->trim()->value();
@@ -26,6 +29,7 @@ class ClienteController extends Controller
 
         $clientes = Cliente::query()
             ->withCount('reservas')
+            ->tap(fn ($query) => $this->scopeAccessibleClients($query, $request))
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($innerQuery) use ($search) {
                     $innerQuery
@@ -69,6 +73,13 @@ class ClienteController extends Controller
 
         $reservas = $cliente->reservas()
             ->with(['negocio', 'servicio', 'estadoReserva'])
+            ->tap(function ($query) {
+                $businessIds = $this->adminAccess()->accessibleBusinessIds(auth()->user());
+
+                if ($businessIds !== null) {
+                    $query->whereIn('negocio_id', $businessIds !== [] ? $businessIds : [0]);
+                }
+            })
             ->latest('fecha')
             ->limit(10)
             ->get([
@@ -145,6 +156,7 @@ class ClienteController extends Controller
 
         $query = Cliente::query()
             ->select(['id', 'nombre', 'email', 'telefono'])
+            ->tap(fn ($builder) => $this->scopeAccessibleClients($builder, $request))
             ->orderBy('nombre')
             ->when($term !== '', function ($builder) use ($term) {
                 $builder->where(function ($innerQuery) use ($term) {

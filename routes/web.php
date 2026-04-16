@@ -51,6 +51,7 @@ Route::prefix('admin')
         'auth',
         config('jetstream.auth_session'),
         'verified',
+        'admin.panel.access',
     ])
     ->group(function () {
         Route::get('negocios/google-calendar', [NegocioController::class, 'googleCalendarSetup'])

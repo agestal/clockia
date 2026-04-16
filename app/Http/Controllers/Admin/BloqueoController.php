@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\InteractsWithAdminAccess;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreBloqueoRequest;
 use App\Http\Requests\Admin\UpdateBloqueoRequest;
@@ -9,12 +10,15 @@ use App\Models\Bloqueo;
 use App\Models\Negocio;
 use App\Models\Recurso;
 use App\Models\TipoBloqueo;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class BloqueoController extends Controller
 {
+    use InteractsWithAdminAccess;
+
     public function index(Request $request): View
     {
         $search = $request->string('search')->trim()->value();
@@ -25,7 +29,7 @@ class BloqueoController extends Controller
         $sort = in_array($sort, $allowedSorts, true) ? $sort : 'fecha';
         $direction = in_array($direction, ['asc', 'desc'], true) ? $direction : 'desc';
 
-        $bloqueos = Bloqueo::query()
+        $bloqueos = $this->scopeAccessibleBlocks(Bloqueo::query(), $request)
             ->with(['recurso', 'tipoBloqueo', 'negocio'])
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($innerQuery) use ($search) {
@@ -70,7 +74,13 @@ class BloqueoController extends Controller
 
     public function store(StoreBloqueoRequest $request): RedirectResponse
     {
-        $bloqueo = Bloqueo::create($request->validated());
+        $validated = $request->validated();
+        if (($validated['negocio_id'] ?? null) !== null) {
+            $this->abortUnlessBusinessAccessible($request, $validated['negocio_id']);
+        }
+        $this->abortUnlessModelAccessible($request, Recurso::class, $validated['recurso_id'] ?? null);
+
+        $bloqueo = Bloqueo::create($validated);
 
         return redirect()
             ->route('admin.bloqueos.show', $bloqueo)
@@ -106,7 +116,13 @@ class BloqueoController extends Controller
 
     public function update(UpdateBloqueoRequest $request, Bloqueo $bloqueo): RedirectResponse
     {
-        $bloqueo->update($request->validated());
+        $validated = $request->validated();
+        if (($validated['negocio_id'] ?? null) !== null) {
+            $this->abortUnlessBusinessAccessible($request, $validated['negocio_id']);
+        }
+        $this->abortUnlessModelAccessible($request, Recurso::class, $validated['recurso_id'] ?? null);
+
+        $bloqueo->update($validated);
 
         return redirect()
             ->route('admin.bloqueos.edit', $bloqueo)
@@ -124,7 +140,8 @@ class BloqueoController extends Controller
 
     private function resourceOptions()
     {
-        return Recurso::query()
+        return $this->adminAccess()
+            ->scopeBusinesses(Recurso::query(), auth()->user(), 'negocio_id')
             ->orderBy('nombre')
             ->get(['id', 'nombre']);
     }
@@ -138,9 +155,27 @@ class BloqueoController extends Controller
 
     private function businessOptions()
     {
-        return Negocio::query()
+        return $this->adminAccess()
+            ->scopeBusinesses(Negocio::query(), auth()->user(), 'id')
             ->orderBy('nombre')
             ->get(['id', 'nombre']);
+    }
+
+    private function scopeAccessibleBlocks(Builder $query, Request $request): Builder
+    {
+        $businessIds = $this->accessibleBusinessIds($request);
+
+        if ($businessIds === null) {
+            return $query;
+        }
+
+        $filteredIds = $businessIds !== [] ? $businessIds : [0];
+
+        return $query->where(function (Builder $builder) use ($filteredIds) {
+            $builder
+                ->whereIn('negocio_id', $filteredIds)
+                ->orWhereHas('recurso', fn (Builder $resourceQuery) => $resourceQuery->whereIn('negocio_id', $filteredIds));
+        });
     }
 
     private function dayOptions(): array

@@ -53,6 +53,7 @@ class UpdateNegocioRequest extends FormRequest
             'google_calendar_enabled' => $this->normalizeBoolean($this->input('google_calendar_enabled')),
             'widget_enabled' => $this->normalizeBoolean($this->input('widget_enabled')),
             'widget_settings' => $widgetSettings !== [] ? $widgetSettings : null,
+            'chat_widget_enabled' => $this->normalizeBoolean($this->input('chat_widget_enabled')),
         ]);
     }
 
@@ -123,6 +124,7 @@ class UpdateNegocioRequest extends FormRequest
             'chat_behavior_overrides.vocabulary_hints' => ['nullable', 'array'],
             'chat_behavior_overrides.vocabulary_hints.*' => ['nullable', 'string', 'max:100'],
             'widget_enabled' => ['required', 'boolean'],
+            'chat_widget_enabled' => ['required', 'boolean'],
             'widget_settings' => ['nullable', 'array'],
             'widget_settings.primary_color' => ['nullable', 'string', 'max:20'],
             'widget_settings.secondary_color' => ['nullable', 'string', 'max:20'],

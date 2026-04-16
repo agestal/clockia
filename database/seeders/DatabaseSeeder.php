@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
         ], [
             'name' => 'Adrian',
             'email' => 'adrian88gm@gmail.com',
+            'role' => User::ROLE_PLATFORM_ADMIN,
             'password' => Hash::make('laxoso12x'),
             'email_verified_at' => now(),
         ]);

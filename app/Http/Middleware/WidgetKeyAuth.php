@@ -9,7 +9,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class WidgetKeyAuth
 {
-    public function handle(Request $request, Closure $next): Response
+    public function handle(Request $request, Closure $next, string $feature = 'booking'): Response
     {
         $business = $request->route('business');
 
@@ -25,7 +25,16 @@ class WidgetKeyAuth
             return response()->json(['error' => 'Negocio no encontrado.'], 404);
         }
 
-        if (! $business->activo || ! $business->widget_enabled) {
+        if (! $business->activo) {
+            return response()->json(['error' => 'El negocio no está activo.'], 403);
+        }
+
+        $enabled = match ($feature) {
+            'chat' => (bool) $business->chat_widget_enabled,
+            default => (bool) $business->widget_enabled,
+        };
+
+        if (! $enabled) {
             return response()->json(['error' => 'El widget no está activo para este negocio.'], 403);
         }
 

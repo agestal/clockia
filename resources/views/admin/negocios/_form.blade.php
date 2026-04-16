@@ -764,9 +764,108 @@
                         }
                     });
                 }
+
+                // Chat widget copy button
+                const chatSnippetBox = document.getElementById('chat_widget_snippet_code');
+                const chatCopyBtn = document.getElementById('btn-copy-chat-widget-snippet');
+                if (chatCopyBtn && chatSnippetBox) {
+                    chatCopyBtn.addEventListener('click', async function () {
+                        try {
+                            await navigator.clipboard.writeText(chatSnippetBox.value);
+                            const original = chatCopyBtn.innerHTML;
+                            chatCopyBtn.innerHTML = '<i class="fas fa-check"></i> Copiado';
+                            chatCopyBtn.classList.remove('btn-outline-primary');
+                            chatCopyBtn.classList.add('btn-success');
+                            setTimeout(function () {
+                                chatCopyBtn.innerHTML = original;
+                                chatCopyBtn.classList.remove('btn-success');
+                                chatCopyBtn.classList.add('btn-outline-primary');
+                            }, 1800);
+                        } catch (err) {
+                            chatSnippetBox.select();
+                            document.execCommand('copy');
+                        }
+                    });
+                }
+
+                // Keep chat snippet in sync when the key is regenerated
+                if (regenBtn && chatSnippetBox) {
+                    regenBtn.addEventListener('click', function () {
+                        // This handler runs AFTER the main regen above; we don't have the new key yet.
+                        // We piggyback on the DOM: after the main key input updates, sync the chat snippet too.
+                        const obs = new MutationObserver(function () {
+                            if (keyInput && chatSnippetBox) {
+                                chatSnippetBox.value = chatSnippetBox.value.replace(/widget-key="[^"]*"/, 'widget-key="' + keyInput.value + '"');
+                            }
+                        });
+                        obs.observe(keyInput, { attributes: true, attributeFilter: ['value'] });
+                        // Fallback: sync by polling once after a short delay
+                        setTimeout(function () {
+                            if (keyInput && chatSnippetBox) {
+                                chatSnippetBox.value = chatSnippetBox.value.replace(/widget-key="[^"]*"/, 'widget-key="' + keyInput.value + '"');
+                            }
+                            obs.disconnect();
+                        }, 1500);
+                    });
+                }
             })();
             </script>
             @endpush
+
+            {{-- Chat widget section --}}
+            <div class="form-group col-12" id="chat-widget-settings">
+                <hr>
+                <h3 class="h6 text-uppercase text-muted mb-3">Widget de chat (chatbot embebible)</h3>
+                <p class="text-muted small mb-0">Añade un chatbot flotante en la web del cliente. Usa la misma lógica conversacional que el chat interno, con la personalidad y reglas configuradas arriba.</p>
+            </div>
+
+            <div class="form-group col-lg-6 d-flex align-items-center">
+                <div class="custom-control custom-switch mt-2">
+                    <input type="hidden" name="chat_widget_enabled" value="0">
+                    <input
+                        type="checkbox"
+                        class="custom-control-input @error('chat_widget_enabled') is-invalid @enderror"
+                        id="chat_widget_enabled"
+                        name="chat_widget_enabled"
+                        value="1"
+                        @checked(old('chat_widget_enabled', $negocio->chat_widget_enabled ?? false))
+                    >
+                    <label class="custom-control-label" for="chat_widget_enabled">Activar widget de chat</label>
+                </div>
+                @error('chat_widget_enabled')
+                    <span class="invalid-feedback d-block ml-3" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-6 d-flex align-items-center">
+                <small class="form-text text-muted mt-3">
+                    Utiliza la misma <strong>clave pública</strong> y los mismos <strong>colores/tipografía</strong> configurados arriba.
+                </small>
+            </div>
+
+            <div class="form-group col-12">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label mb-0">Snippet de integración del chat</label>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn-copy-chat-widget-snippet">
+                        <i class="far fa-copy"></i> Copiar
+                    </button>
+                </div>
+                <textarea
+                    id="chat_widget_snippet_code"
+                    class="form-control bg-light small"
+                    rows="5"
+                    readonly
+                    style="font-family: Menlo, Consolas, monospace; font-size: 0.82rem;"
+>&lt;script src="{{ url('/widget/clockia-chat-widget.js') }}" charset="utf-8" defer&gt;&lt;/script&gt;
+&lt;clockia-chat-widget
+    business-id="{{ $negocio->id }}"
+    widget-key="{{ $negocio->widget_public_key }}"
+    api-base="{{ url('/api/widget') }}"
+&gt;&lt;/clockia-chat-widget&gt;</textarea>
+                <small class="form-text text-muted">
+                    Pega este bloque al final del <code>&lt;body&gt;</code> de la web. El chatbot aparecerá flotando en la esquina inferior derecha. Funciona independientemente del widget de reservas.
+                </small>
+            </div>
             @endif
             {{-- end widget section --}}
         </div>

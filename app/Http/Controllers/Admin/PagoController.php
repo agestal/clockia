@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\InteractsWithAdminAccess;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\InlineUpdatePagoRequest;
 use App\Http\Requests\Admin\StorePagoRequest;
@@ -19,6 +20,8 @@ use Illuminate\Support\Facades\DB;
 
 class PagoController extends Controller
 {
+    use InteractsWithAdminAccess;
+
     public function index(Request $request): View
     {
         $search = $request->string('search')->trim()->value();
@@ -31,6 +34,7 @@ class PagoController extends Controller
 
         $pagos = Pago::query()
             ->with(['reserva', 'tipoPago', 'estadoPago', 'conceptoPago'])
+            ->tap(fn ($query) => $this->scopeAccessibleBusinessRelation($query, $request, 'reserva', 'negocio_id'))
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($innerQuery) use ($search) {
                     $innerQuery
@@ -81,7 +85,10 @@ class PagoController extends Controller
 
     public function store(StorePagoRequest $request): RedirectResponse
     {
-        $pago = DB::transaction(fn () => Pago::create($request->validated()));
+        $validated = $request->validated();
+        $this->abortUnlessModelAccessible($request, Reserva::class, $validated['reserva_id'] ?? null);
+
+        $pago = DB::transaction(fn () => Pago::create($validated));
 
         return redirect()
             ->route('admin.pagos.show', $pago)
@@ -113,6 +120,9 @@ class PagoController extends Controller
 
     public function update(UpdatePagoRequest $request, Pago $pago): RedirectResponse
     {
+        $validated = $request->validated();
+        $this->abortUnlessModelAccessible($request, Reserva::class, $validated['reserva_id'] ?? null);
+
         DB::transaction(function () use ($request, $pago) {
             $pago->update($request->validated());
         });
@@ -155,6 +165,7 @@ class PagoController extends Controller
         $query = Pago::query()
             ->with(['reserva:id,fecha,hora_inicio,hora_fin', 'estadoPago:id,nombre'])
             ->select(['id', 'reserva_id', 'estado_pago_id', 'importe', 'referencia_externa'])
+            ->tap(fn ($builder) => $this->scopeAccessibleBusinessRelation($builder, $request, 'reserva', 'negocio_id'))
             ->latest('created_at')
             ->when($term !== '', function ($builder) use ($term) {
                 $builder->where(function ($innerQuery) use ($term) {
@@ -200,6 +211,7 @@ class PagoController extends Controller
 
         return Reserva::query()
             ->with(['cliente:id,nombre', 'servicio:id,nombre'])
+            ->tap(fn ($query) => $this->adminAccess()->scopeBusinesses($query, auth()->user(), 'negocio_id'))
             ->select(['id', 'cliente_id', 'servicio_id', 'fecha', 'hora_inicio', 'hora_fin'])
             ->find($selectedId);
     }

@@ -70,6 +70,7 @@ class Negocio extends Model
         'widget_enabled',
         'widget_public_key',
         'widget_settings',
+        'chat_widget_enabled',
     ];
 
     protected function casts(): array
@@ -89,6 +90,7 @@ class Negocio extends Model
             'mail_encuesta_horas_despues' => 'integer',
             'widget_enabled' => 'boolean',
             'widget_settings' => 'array',
+            'chat_widget_enabled' => 'boolean',
         ];
     }
 

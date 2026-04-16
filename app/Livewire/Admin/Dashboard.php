@@ -10,18 +10,53 @@ use App\Models\Pago;
 use App\Models\Recurso;
 use App\Models\Reserva;
 use App\Models\Servicio;
+use App\Models\User;
+use App\Support\AdminAccess;
 use Carbon\Carbon;
 use Livewire\Component;
 
 class Dashboard extends Component
 {
+    public string $dashboardType = 'platform';
+
     public array $stats = [];
     public array $quickLinks = [];
     public array $widgetLinks = [];
     public array $operationalSummary = [];
     public array $chatEntry = [];
+    public array $businessProfile = [];
+    public array $businessUpcomingReservations = [];
 
     public function mount(): void
+    {
+        /** @var User|null $user */
+        $user = auth()->user();
+
+        if ($user && ! $user->hasFullAdminAccess()) {
+            $this->mountBusinessDashboard($user);
+
+            return;
+        }
+
+        $this->mountPlatformDashboard($user);
+    }
+
+    public function render()
+    {
+        $isBusinessDashboard = $this->dashboardType === 'business';
+
+        return view($isBusinessDashboard ? 'livewire.admin.dashboard-business' : 'livewire.admin.dashboard')
+            ->layout('layouts.app', [
+                'header' => view('livewire.admin.partials.dashboard-header', [
+                    'title' => $isBusinessDashboard ? 'Mi negocio' : 'Dashboard',
+                    'description' => $isBusinessDashboard
+                        ? 'Resumen operativo del negocio, accesos clave y próximas reservas.'
+                        : 'Resumen operativo del backoffice, accesos rápidos y entrada directa al chat.',
+                ]),
+            ]);
+    }
+
+    private function mountPlatformDashboard(?User $user): void
     {
         $today = Carbon::today();
         $now = now();
@@ -167,7 +202,7 @@ class Dashboard extends Component
             [
                 'label' => 'Reservas para hoy',
                 'value' => $reservasHoy,
-                'href' => route('admin.reservas.index', ['date_from' => $today->toDateString()]),
+                'href' => route('admin.reservas.index'),
             ],
             [
                 'label' => 'Bloqueos próximos',
@@ -181,14 +216,10 @@ class Dashboard extends Component
             ],
         ];
 
-        $userBusinesses = auth()->user()?->negocios();
-
-        $widgetBusinesses = $userBusinesses
-            ? $userBusinesses
-                ->with('tipoNegocio:id,nombre')
-                ->orderBy('nombre')
-                ->get()
-            : collect();
+        $widgetBusinesses = $user?->negocios()
+            ->with('tipoNegocio:id,nombre')
+            ->orderBy('nombre')
+            ->get() ?? collect();
 
         if ($widgetBusinesses->isEmpty()) {
             $widgetBusinesses = Negocio::query()
@@ -213,12 +244,234 @@ class Dashboard extends Component
             ->all();
     }
 
-    public function render()
+    private function mountBusinessDashboard(User $user): void
     {
-        return view('livewire.admin.dashboard')
-            ->layout('layouts.app', [
-                'header' => view('livewire.admin.partials.dashboard-header'),
-            ]);
+        $this->dashboardType = 'business';
+
+        $business = app(AdminAccess::class)
+            ->accessibleBusinessesQuery($user)
+            ->with('tipoNegocio')
+            ->orderBy('nombre')
+            ->first();
+
+        if (! $business) {
+            $this->operationalSummary = [
+                [
+                    'label' => 'Asignación',
+                    'value' => 'Pendiente',
+                    'href' => route('dashboard'),
+                ],
+            ];
+
+            return;
+        }
+
+        $today = Carbon::today();
+        $now = now();
+
+        $reservasBase = Reserva::query()->where('negocio_id', $business->id);
+        $serviciosBase = Servicio::query()->where('negocio_id', $business->id);
+        $recursosBase = Recurso::query()->where('negocio_id', $business->id);
+        $pagosPendientes = Pago::query()
+            ->whereHas('reserva', fn ($query) => $query->where('negocio_id', $business->id))
+            ->whereHas('estadoPago', fn ($query) => $query->where('nombre', 'Pendiente'));
+
+        $reservasHoy = (clone $reservasBase)->whereDate('fecha', $today)->count();
+        $reservasProximas = (clone $reservasBase)
+            ->where(function ($query) use ($now, $today) {
+                $query->where('inicio_datetime', '>=', $now)
+                    ->orWhere(function ($inner) use ($today) {
+                        $inner->whereNull('inicio_datetime')
+                            ->whereDate('fecha', '>=', $today);
+                    });
+            })
+            ->count();
+        $serviciosActivos = (clone $serviciosBase)->activos()->count();
+        $serviciosTotal = (clone $serviciosBase)->count();
+        $recursosActivos = (clone $recursosBase)->activos()->count();
+        $recursosTotal = (clone $recursosBase)->count();
+        $pagosPendientesCount = (clone $pagosPendientes)->count();
+        $pagosPendientesImporte = (float) (clone $pagosPendientes)->sum('importe');
+
+        $integration = $business->integracionGoogleCalendar()->with('cuentaActiva')->first();
+        $googleStatus = match (true) {
+            ! $integration => 'Sin configurar',
+            $integration->activo && $integration->estaConectada() => 'Conectado',
+            $integration->activo => 'Pendiente',
+            default => 'Desactivado',
+        };
+
+        $this->stats = [
+            [
+                'label' => 'Reservas hoy',
+                'value' => $reservasHoy,
+                'meta' => $business->nombre,
+                'icon' => 'fas fa-calendar-day',
+                'href' => route('admin.reservas.index'),
+            ],
+            [
+                'label' => 'Reservas próximas',
+                'value' => $reservasProximas,
+                'meta' => 'Agenda futura del negocio',
+                'icon' => 'fas fa-calendar-check',
+                'href' => route('admin.calendario.index'),
+            ],
+            [
+                'label' => 'Servicios activos',
+                'value' => $serviciosActivos,
+                'meta' => $this->buildCountMeta($serviciosTotal, 'servicio total', 'servicios totales'),
+                'icon' => 'fas fa-concierge-bell',
+                'href' => route('admin.servicios.index'),
+            ],
+            [
+                'label' => 'Recursos activos',
+                'value' => $recursosActivos,
+                'meta' => $this->buildCountMeta($recursosTotal, 'recurso total', 'recursos totales'),
+                'icon' => 'fas fa-layer-group',
+                'href' => route('admin.recursos.index'),
+            ],
+        ];
+
+        $this->businessProfile = [
+            'name' => $business->nombre,
+            'type' => $business->tipoNegocio?->nombre ?? 'Negocio',
+            'email' => $business->email ?: 'Sin email',
+            'phone' => $business->telefono ?: 'Sin teléfono',
+            'timezone' => $business->zona_horaria,
+            'status' => $business->activo ? 'Activo' : 'Inactivo',
+            'edit_href' => route('admin.negocios.edit', $business),
+        ];
+
+        $this->operationalSummary = [
+            [
+                'label' => 'Google Calendar',
+                'value' => $googleStatus,
+                'href' => route('admin.negocios.edit', $business).'#google-calendar-settings',
+            ],
+            [
+                'label' => 'Widget calendario',
+                'value' => $business->widget_enabled ? 'Activo' : 'Inactivo',
+                'href' => route('admin.negocios.edit', $business).'#widget-calendar-settings',
+            ],
+            [
+                'label' => 'Pagos pendientes',
+                'value' => $pagosPendientesCount.' · '.$this->formatEuros($pagosPendientesImporte),
+                'href' => route('admin.pagos.index'),
+            ],
+            [
+                'label' => 'Administrador',
+                'value' => $user->name,
+                'href' => route('admin.negocios.edit', $business),
+            ],
+        ];
+
+        $this->quickLinks = [
+            [
+                'title' => 'Configurar negocio',
+                'description' => 'Datos generales, tono conversacional y reglas del negocio.',
+                'icon' => 'fas fa-store',
+                'href' => route('admin.negocios.edit', $business),
+                'badge' => $business->activo ? 'Activo' : 'Inactivo',
+            ],
+            [
+                'title' => 'Google Calendar',
+                'description' => 'Cuenta conectada, calendarios y sincronización inicial.',
+                'icon' => 'fas fa-calendar-plus',
+                'href' => route('admin.negocios.edit', $business).'#google-calendar-settings',
+                'badge' => $googleStatus,
+            ],
+            [
+                'title' => 'Widget calendario',
+                'description' => 'Ajustes del widget público y clave de integración.',
+                'icon' => 'fas fa-window-maximize',
+                'href' => route('admin.negocios.edit', $business).'#widget-calendar-settings',
+                'badge' => $business->widget_enabled ? 'Activo' : 'Inactivo',
+            ],
+            [
+                'title' => 'Reservas',
+                'description' => 'Seguimiento diario, estados y gestión operativa.',
+                'icon' => 'fas fa-calendar-alt',
+                'href' => route('admin.reservas.index'),
+                'badge' => (string) $reservasProximas,
+            ],
+            [
+                'title' => 'Calendario',
+                'description' => 'Visión mensual del negocio y detalle diario.',
+                'icon' => 'fas fa-calendar-week',
+                'href' => route('admin.calendario.index'),
+                'badge' => 'Agenda',
+            ],
+            [
+                'title' => 'Servicios',
+                'description' => 'Oferta reservable, duraciones y precios base.',
+                'icon' => 'fas fa-concierge-bell',
+                'href' => route('admin.servicios.index'),
+                'badge' => (string) $serviciosActivos,
+            ],
+            [
+                'title' => 'Recursos',
+                'description' => 'Capacidades, combinaciones y recursos operativos.',
+                'icon' => 'fas fa-layer-group',
+                'href' => route('admin.recursos.index'),
+                'badge' => (string) $recursosActivos,
+            ],
+            [
+                'title' => 'Disponibilidades',
+                'description' => 'Horarios base y aperturas por recurso.',
+                'icon' => 'fas fa-clock',
+                'href' => route('admin.disponibilidades.index'),
+                'badge' => 'Horario',
+            ],
+            [
+                'title' => 'Bloqueos',
+                'description' => 'Cierres puntuales, incidencias y eventos especiales.',
+                'icon' => 'fas fa-ban',
+                'href' => route('admin.bloqueos.index'),
+                'badge' => 'Agenda',
+            ],
+            [
+                'title' => 'Clientes',
+                'description' => 'Ficha de clientes y su historial de reservas.',
+                'icon' => 'fas fa-users',
+                'href' => route('admin.clientes.index'),
+                'badge' => 'CRM',
+            ],
+            [
+                'title' => 'Pagos',
+                'description' => 'Cobros, referencias y estados pendientes.',
+                'icon' => 'fas fa-wallet',
+                'href' => route('admin.pagos.index'),
+                'badge' => (string) $pagosPendientesCount,
+            ],
+        ];
+
+        $this->businessUpcomingReservations = Reserva::query()
+            ->where('negocio_id', $business->id)
+            ->whereHas('estadoReserva', fn ($query) => $query->whereNotIn('nombre', ['Cancelada']))
+            ->where(function ($query) use ($now, $today) {
+                $query->where('inicio_datetime', '>=', $now)
+                    ->orWhere(function ($inner) use ($today) {
+                        $inner->whereNull('inicio_datetime')
+                            ->whereDate('fecha', '>=', $today);
+                    });
+            })
+            ->with(['cliente:id,nombre', 'servicio:id,nombre', 'estadoReserva:id,nombre'])
+            ->orderBy('inicio_datetime')
+            ->orderBy('fecha')
+            ->limit(6)
+            ->get()
+            ->map(function (Reserva $reserva): array {
+                return [
+                    'id' => $reserva->id,
+                    'date' => $reserva->fecha?->format('d/m/Y'),
+                    'time' => substr((string) $reserva->hora_inicio, 0, 5).' - '.substr((string) $reserva->hora_fin, 0, 5),
+                    'client' => $reserva->cliente?->nombre ?? 'Sin cliente',
+                    'service' => $reserva->servicio?->nombre ?? 'Sin servicio',
+                    'status' => $reserva->estadoReserva?->nombre ?? 'Sin estado',
+                    'href' => route('admin.reservas.show', $reserva),
+                ];
+            })
+            ->all();
     }
 
     private function buildCountMeta(int $value, string $singular, string $plural): string

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\InteractsWithAdminAccess;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\InlineUpdateDisponibilidadRequest;
 use App\Http\Requests\Admin\StoreDisponibilidadRequest;
@@ -15,6 +16,8 @@ use Illuminate\Http\Request;
 
 class DisponibilidadController extends Controller
 {
+    use InteractsWithAdminAccess;
+
     public function index(Request $request): View
     {
         $search = $request->string('search')->trim()->value();
@@ -29,6 +32,7 @@ class DisponibilidadController extends Controller
 
         $disponibilidades = Disponibilidad::query()
             ->with('recurso')
+            ->tap(fn ($query) => $this->scopeAccessibleBusinessRelation($query, $request, 'recurso', 'negocio_id'))
             ->when($search !== '', function ($query) use ($search, $dayOptions) {
                 $query->where(function ($innerQuery) use ($search, $dayOptions) {
                     $innerQuery->whereHas('recurso', function ($recursoQuery) use ($search) {
@@ -70,7 +74,10 @@ class DisponibilidadController extends Controller
 
     public function store(StoreDisponibilidadRequest $request): RedirectResponse
     {
-        $disponibilidad = Disponibilidad::create($request->validated());
+        $validated = $request->validated();
+        $this->abortUnlessModelAccessible($request, Recurso::class, $validated['recurso_id'] ?? null);
+
+        $disponibilidad = Disponibilidad::create($validated);
 
         return redirect()
             ->route('admin.disponibilidades.show', $disponibilidad)
@@ -102,7 +109,10 @@ class DisponibilidadController extends Controller
 
     public function update(UpdateDisponibilidadRequest $request, Disponibilidad $disponibilidad): RedirectResponse
     {
-        $disponibilidad->update($request->validated());
+        $validated = $request->validated();
+        $this->abortUnlessModelAccessible($request, Recurso::class, $validated['recurso_id'] ?? null);
+
+        $disponibilidad->update($validated);
 
         return redirect()
             ->route('admin.disponibilidades.edit', $disponibilidad)
@@ -136,7 +146,8 @@ class DisponibilidadController extends Controller
 
     private function resourceOptions()
     {
-        return Recurso::query()
+        return $this->adminAccess()
+            ->scopeBusinesses(Recurso::query(), auth()->user(), 'negocio_id')
             ->orderBy('nombre')
             ->get(['id', 'nombre']);
     }

@@ -11,6 +11,7 @@ use App\Jobs\ImportGoogleCalendarEventsJob;
 use App\Models\Negocio;
 use App\Services\Integrations\GoogleCalendarAuthService;
 use App\Services\Integrations\GoogleCalendarClient;
+use App\Support\AdminAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ class GoogleCalendarController extends Controller
     public function __construct(
         private readonly GoogleCalendarAuthService $authService,
         private readonly GoogleCalendarClient $client,
+        private readonly AdminAccess $adminAccess,
     ) {}
 
     public function connect(GoogleCalendarConnectRequest $request): JsonResponse|RedirectResponse
@@ -144,8 +146,8 @@ class GoogleCalendarController extends Controller
 
     private function resolveBusiness(Request $request, int $businessId): Negocio
     {
-        $business = $request->user()
-            ?->negocios()
+        $business = $this->adminAccess
+            ->accessibleBusinessesQuery($request->user())
             ->whereKey($businessId)
             ->first();
 

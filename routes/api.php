@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\ResourceController;
 use App\Http\Controllers\Api\V1\ServiceController;
 use App\Http\Controllers\Api\GoogleCalendarController;
 use App\Http\Controllers\Mcp\McpBridgeController;
+use App\Http\Controllers\Widget\ChatWidgetController;
 use App\Http\Controllers\Widget\WidgetPublicController;
 use Illuminate\Support\Facades\Route;
 
@@ -87,13 +88,19 @@ Route::middleware(['auth:api'])->prefix('integrations/google')->group(function (
 Route::get('integrations/google/callback', [GoogleCalendarController::class, 'callback']);
 
 // ─── Widget público embebible ───
-Route::prefix('widget')->name('widget.')->middleware(['throttle:60,1'])->group(function () {
-    Route::prefix('businesses/{business}')->middleware(['widget.key'])->group(function () {
+Route::prefix('widget')->name('widget.')->group(function () {
+    Route::prefix('businesses/{business}')->middleware(['widget.key:booking', 'throttle:60,1'])->group(function () {
         Route::get('config', [WidgetPublicController::class, 'config'])->name('config');
         Route::get('availability/calendar', [WidgetPublicController::class, 'calendar'])->name('calendar');
         Route::get('availability/date', [WidgetPublicController::class, 'date'])->name('date');
         Route::post('availability/check', [WidgetPublicController::class, 'check'])->name('check');
         Route::post('bookings', [WidgetPublicController::class, 'book'])->name('book');
+    });
+
+    Route::prefix('businesses/{business}/chat')->middleware(['widget.key:chat', 'throttle:30,1'])->group(function () {
+        Route::get('greeting', [ChatWidgetController::class, 'greeting'])->name('chat.greeting');
+        Route::get('history', [ChatWidgetController::class, 'history'])->name('chat.history');
+        Route::post('message', [ChatWidgetController::class, 'message'])->name('chat.message');
     });
 });
 

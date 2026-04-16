@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\InteractsWithAdminAccess;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\InlineUpdateReservaRequest;
 use App\Http\Requests\Admin\StoreReservaRequest;
@@ -20,6 +21,8 @@ use Illuminate\Support\Facades\DB;
 
 class ReservaController extends Controller
 {
+    use InteractsWithAdminAccess;
+
     public function index(Request $request): View
     {
         $search = $request->string('search')->trim()->value();
@@ -33,6 +36,7 @@ class ReservaController extends Controller
         $reservas = Reserva::query()
             ->with(['negocio', 'servicio', 'recurso', 'cliente', 'estadoReserva'])
             ->withCount('pagos')
+            ->tap(fn ($query) => $this->scopeAccessibleBusinesses($query, $request, 'negocio_id'))
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($innerQuery) use ($search) {
                     $innerQuery
@@ -85,6 +89,10 @@ class ReservaController extends Controller
     public function store(StoreReservaRequest $request): RedirectResponse
     {
         $validated = $request->validated();
+        $this->abortUnlessBusinessAccessible($request, $validated['negocio_id'] ?? null);
+        $this->abortUnlessModelAccessible($request, Servicio::class, $validated['servicio_id'] ?? null);
+        $this->abortUnlessModelAccessible($request, Recurso::class, $validated['recurso_id'] ?? null);
+        $this->abortUnlessModelAccessible($request, Cliente::class, $validated['cliente_id'] ?? null);
         $validated['localizador'] = Reserva::generarLocalizador();
 
         $reserva = DB::transaction(function () use ($validated) {
@@ -139,6 +147,12 @@ class ReservaController extends Controller
 
     public function update(UpdateReservaRequest $request, Reserva $reserva): RedirectResponse
     {
+        $validated = $request->validated();
+        $this->abortUnlessBusinessAccessible($request, $validated['negocio_id'] ?? null);
+        $this->abortUnlessModelAccessible($request, Servicio::class, $validated['servicio_id'] ?? null);
+        $this->abortUnlessModelAccessible($request, Recurso::class, $validated['recurso_id'] ?? null);
+        $this->abortUnlessModelAccessible($request, Cliente::class, $validated['cliente_id'] ?? null);
+
         DB::transaction(function () use ($request, $reserva) {
             $reserva->update($request->validated());
             $this->sincronizarRecursoPrincipal($reserva);
@@ -191,6 +205,7 @@ class ReservaController extends Controller
         $query = Reserva::query()
             ->with(['cliente:id,nombre', 'servicio:id,nombre'])
             ->select(['id', 'cliente_id', 'servicio_id', 'fecha', 'hora_inicio', 'hora_fin'])
+            ->tap(fn ($builder) => $this->scopeAccessibleBusinesses($builder, $request, 'negocio_id'))
             ->latest('fecha')
             ->when($term !== '', function ($builder) use ($term) {
                 $builder->where(function ($innerQuery) use ($term) {
@@ -278,11 +293,20 @@ class ReservaController extends Controller
     {
         $selectedId = session()->getOldInput('negocio_id', $reserva?->negocio_id);
 
-        if (! $selectedId) {
-            return null;
+        $query = $this->adminAccess()
+            ->scopeBusinesses(Negocio::query(), auth()->user(), 'id')
+            ->select(['id', 'nombre'])
+            ->orderBy('nombre');
+
+        if ($selectedId) {
+            return $query->find($selectedId);
         }
 
-        return Negocio::query()->select(['id', 'nombre'])->find($selectedId);
+        if (! auth()->user()?->hasFullAdminAccess()) {
+            return $query->first();
+        }
+
+        return null;
     }
 
     private function resolveSelectedServicio(?Reserva $reserva = null): ?Servicio
@@ -293,7 +317,10 @@ class ReservaController extends Controller
             return null;
         }
 
-        return Servicio::query()->select(['id', 'nombre'])->find($selectedId);
+        return $this->adminAccess()
+            ->scopeBusinesses(Servicio::query(), auth()->user(), 'negocio_id')
+            ->select(['id', 'nombre'])
+            ->find($selectedId);
     }
 
     private function resolveSelectedRecurso(?Reserva $reserva = null): ?Recurso
@@ -304,7 +331,10 @@ class ReservaController extends Controller
             return null;
         }
 
-        return Recurso::query()->select(['id', 'nombre'])->find($selectedId);
+        return $this->adminAccess()
+            ->scopeBusinesses(Recurso::query(), auth()->user(), 'negocio_id')
+            ->select(['id', 'nombre'])
+            ->find($selectedId);
     }
 
     private function resolveSelectedCliente(?Reserva $reserva = null): ?Cliente
@@ -315,7 +345,10 @@ class ReservaController extends Controller
             return null;
         }
 
-        return Cliente::query()->select(['id', 'nombre', 'email', 'telefono'])->find($selectedId);
+        return $this->adminAccess()
+            ->scopeClients(Cliente::query(), auth()->user())
+            ->select(['id', 'nombre', 'email', 'telefono'])
+            ->find($selectedId);
     }
 
     private function resolveSelectedEstadoReserva(?Reserva $reserva = null): ?EstadoReserva

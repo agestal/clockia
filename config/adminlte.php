@@ -345,6 +345,7 @@ return [
                             'text' => 'Combinaciones de recursos',
                             'url' => 'admin/recurso-combinaciones',
                             'icon' => 'far fa-fw fa-circle',
+                            'can' => 'manage-platform-admin',
                             'active' => ['admin/recurso-combinaciones*'],
                         ],
                     ],
@@ -420,6 +421,7 @@ return [
         [
             'text' => 'Configurar la app',
             'icon' => 'fas fa-fw fa-sliders',
+            'can' => 'manage-platform-admin',
             'submenu' => [
                 [
                     'text' => 'Catalogos de negocio',
@@ -507,25 +509,28 @@ return [
                 ],
             ],
         ],
-        ['header' => 'Desarrollo'],
+        ['header' => 'Desarrollo', 'can' => 'manage-platform-admin'],
         [
             'text' => 'Chat Test',
             'route' => 'admin.chat-test.index',
             'icon' => 'fas fa-fw fa-robot',
+            'can' => 'manage-platform-admin',
             'active' => ['admin/chat/test*'],
         ],
-        ['header' => 'Cuenta'],
+        ['header' => 'Cuenta', 'can' => 'manage-platform-admin'],
         [
             'text' => 'Perfil',
             'route' => 'profile.show',
             'icon' => 'fas fa-fw fa-user',
+            'can' => 'manage-platform-admin',
             'active' => ['user/profile'],
         ],
-        ['header' => 'Navegacion'],
+        ['header' => 'Navegacion', 'can' => 'manage-platform-admin'],
         [
             'text' => 'Ver sitio web',
             'url' => '/',
             'icon' => 'fas fa-fw fa-arrow-up-right-from-square',
+            'can' => 'manage-platform-admin',
         ],
     ],
 
