@@ -37,12 +37,17 @@ class BackofficeUsersSeeder extends Seeder
             }
         }
 
+        User::query()
+            ->where('role', User::ROLE_BUSINESS_ADMIN)
+            ->where(function ($query) {
+                $query
+                    ->where('email', 'like', 'demo+%@example.test')
+                    ->orWhere('email', 'like', 'admin@%.test');
+            })
+            ->delete();
+
         foreach ($businesses as $business) {
-            $email = sprintf(
-                'demo+%s-%d@example.test',
-                Str::slug($business->nombre, '-'),
-                $business->id
-            );
+            $email = $this->demoEmailForBusiness($business->nombre);
 
             $user = User::updateOrCreate(
                 ['email' => $email],
@@ -57,6 +62,22 @@ class BackofficeUsersSeeder extends Seeder
 
             $user->negocios()->sync([$business->id]);
         }
+    }
+
+    private function demoEmailForBusiness(string $businessName): string
+    {
+        $aliases = [
+            'Bodegas Martín Códax' => 'martincodax',
+            'Bodegas Viña Atlántica' => 'vinatlantica',
+            'Pazo de Señoráns' => 'senorans',
+            'Terras Gauda' => 'terrasgauda',
+            'Paco & Lola' => 'pacolola',
+            'Palacio de Fefiñanes' => 'fefinanes',
+        ];
+
+        $slug = $aliases[$businessName] ?? Str::slug($businessName, '');
+
+        return sprintf('admin@%s.test', $slug);
     }
 
     private function users(): array
