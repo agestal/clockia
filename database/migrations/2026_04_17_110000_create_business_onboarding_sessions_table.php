@@ -41,9 +41,7 @@ return new class extends Migration
 
         Schema::create('business_onboarding_sources', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('business_onboarding_session_id')
-                ->constrained('business_onboarding_sessions')
-                ->cascadeOnDelete();
+            $table->unsignedBigInteger('business_onboarding_session_id');
             $table->string('url', 500);
             $table->string('page_role', 80)->nullable();
             $table->string('title')->nullable();
@@ -53,6 +51,11 @@ return new class extends Migration
             $table->timestamp('discovered_at')->nullable();
             $table->timestamps();
 
+            $table->index('business_onboarding_session_id', 'bos_sources_session_idx');
+            $table->foreign('business_onboarding_session_id', 'bos_sources_session_fk')
+                ->references('id')
+                ->on('business_onboarding_sessions')
+                ->cascadeOnDelete();
             $table->unique(['business_onboarding_session_id', 'url'], 'bos_session_url_unique');
         });
     }
