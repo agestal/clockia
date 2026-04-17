@@ -24,13 +24,17 @@ use App\Http\Controllers\Admin\CalendarioController;
 use App\Http\Controllers\Admin\ChatTestController;
 use App\Http\Controllers\Admin\GoogleCalendarIntegrationController;
 use App\Http\Controllers\EncuestaPublicaController;
+use App\Http\Controllers\PublicSiteController;
 use App\Livewire\Admin\Dashboard;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return auth()->check()
-        ? redirect()->route('dashboard')
-        : redirect()->route('login');
+Route::controller(PublicSiteController::class)->group(function () {
+    Route::get('/', 'home')->name('public.home');
+    Route::get('/enoturismo', 'enotourism')->name('public.enotourism');
+    Route::get('/funcionalidades', 'features')->name('public.features');
+    Route::get('/widgets', 'widgets')->name('public.widgets');
+    Route::get('/integraciones', 'integrations')->name('public.integrations');
+    Route::get('/servicios', 'services')->name('public.services');
 });
 
 Route::get('/encuesta/{token}', [EncuestaPublicaController::class, 'show'])->name('encuesta.show');

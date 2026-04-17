@@ -61,6 +61,11 @@ class McpBridgeController extends Controller
         $profile = $this->profileResolver->resolve($negocio);
 
         $negocio->load('tipoNegocio:id,nombre');
+        $serviciosDinamicos = $negocio->servicios()
+            ->activos()
+            ->get()
+            ->filter(fn ($servicio) => $servicio->usaProgramacionDinamica())
+            ->values();
 
         return response()->json([
             'negocio_id' => $profile->negocioId,
@@ -75,10 +80,23 @@ class McpBridgeController extends Controller
             'email' => $negocio->email,
             'direccion' => $negocio->direccion,
             'descripcion_publica' => $negocio->descripcion_publica,
+            'dias_apertura' => $negocio->diasAperturaEfectivos(),
             'politica_cancelacion' => $negocio->politica_cancelacion,
             'horas_minimas_cancelacion' => $negocio->horas_minimas_cancelacion,
             'permite_modificacion' => $negocio->permite_modificacion,
             'max_recursos_combinables' => $negocio->max_recursos_combinables,
+            'usa_experiencias_dinamicas' => $serviciosDinamicos->isNotEmpty(),
+            'experiencias_dinamicas' => $serviciosDinamicos
+                ->map(fn ($servicio) => [
+                    'id' => $servicio->id,
+                    'nombre' => $servicio->nombre,
+                    'duracion_minutos' => $servicio->duracion_minutos,
+                    'aforo' => $servicio->aforo,
+                    'hora_inicio' => $servicio->horaInicioCorta(),
+                    'hora_fin' => $servicio->horaFinCorta(),
+                ])
+                ->values()
+                ->all(),
         ]);
     }
 

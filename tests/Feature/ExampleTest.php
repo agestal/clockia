@@ -14,6 +14,9 @@ class ExampleTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertRedirect(route('login', absolute: false));
+        $response
+            ->assertOk()
+            ->assertSee('Clockia', false)
+            ->assertSee('Reservas pensadas para visitas, catas y experiencias de bodega.', false);
     }
 }
