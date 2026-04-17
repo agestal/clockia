@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
+use App\Events\BookingCancelled;
 use App\Events\BookingCreated;
+use App\Listeners\NotifyAdminBookingCancelled;
+use App\Listeners\NotifyAdminBookingCreated;
 use App\Listeners\SyncBookingToGoogleCalendar;
 use App\Models\User;
 use Laravel\Passport\Passport;
@@ -26,6 +29,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Event::listen(BookingCreated::class, SyncBookingToGoogleCalendar::class);
+        Event::listen(BookingCreated::class, NotifyAdminBookingCreated::class);
+        Event::listen(BookingCancelled::class, NotifyAdminBookingCancelled::class);
 
         Gate::before(function (User $user, string $ability): ?bool {
             return $user->hasFullAdminAccess() ? true : null;

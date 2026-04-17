@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Models\Encuesta;
 use App\Models\Reserva;
+use App\Support\EmailTemplateRenderer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -14,17 +15,19 @@ class EncuestaSatisfaccion extends Mailable
 {
     use Queueable, SerializesModels;
 
+    public array $template;
+
     public function __construct(
         public readonly Reserva $reserva,
         public readonly Encuesta $encuesta,
-    ) {}
+    ) {
+        $this->template = app(EmailTemplateRenderer::class)->forSurvey($this->reserva, $this->encuesta);
+    }
 
     public function envelope(): Envelope
     {
-        $negocio = $this->reserva->negocio?->nombre ?? 'Clockia';
-
         return new Envelope(
-            subject: "¿Qué tal tu experiencia? — {$negocio}",
+            subject: $this->template['asunto'] ?? 'Queremos saber como fue tu experiencia',
         );
     }
 
@@ -32,6 +35,9 @@ class EncuestaSatisfaccion extends Mailable
     {
         return new Content(
             view: 'emails.encuesta-satisfaccion',
+            with: [
+                'template' => $this->template,
+            ],
         );
     }
 }

@@ -39,6 +39,8 @@ class AdminRoleAccessTest extends TestCase
             ->assertSeeText('Widget calendario')
             ->assertSeeText('Negocios')
             ->assertSeeText('Reservas')
+            ->assertSeeText('Plantillas de email')
+            ->assertSeeText('Encuestas')
             ->assertDontSeeText('Configurar la app')
             ->assertDontSeeText('Chat Test')
             ->assertDontSeeText('Ver sitio web');
@@ -117,6 +119,8 @@ class AdminRoleAccessTest extends TestCase
         $response->assertOk()
             ->assertSeeText('Dashboard')
             ->assertSeeText('Configurar la app')
+            ->assertSeeText('Plantillas de email')
+            ->assertSeeText('Encuestas')
             ->assertSeeText('Chat Test');
     }
 
@@ -131,6 +135,8 @@ class AdminRoleAccessTest extends TestCase
         $response->assertOk()
             ->assertSeeText('Dashboard')
             ->assertSeeText('Configurar la app')
+            ->assertSeeText('Plantillas de email')
+            ->assertSeeText('Encuestas')
             ->assertSeeText('Chat Test');
     }
 

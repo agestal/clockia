@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Reserva;
+use App\Support\EmailTemplateRenderer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -13,16 +14,18 @@ class ReservaConfirmada extends Mailable
 {
     use Queueable, SerializesModels;
 
+    public array $template;
+
     public function __construct(
         public readonly Reserva $reserva,
-    ) {}
+    ) {
+        $this->template = app(EmailTemplateRenderer::class)->forConfirmation($this->reserva);
+    }
 
     public function envelope(): Envelope
     {
-        $negocio = $this->reserva->negocio?->nombre ?? 'Clockia';
-
         return new Envelope(
-            subject: "Confirmación de reserva — {$negocio}",
+            subject: $this->template['asunto'] ?? 'Confirmacion de reserva',
         );
     }
 
@@ -30,6 +33,9 @@ class ReservaConfirmada extends Mailable
     {
         return new Content(
             view: 'emails.reserva-confirmada',
+            with: [
+                'template' => $this->template,
+            ],
         );
     }
 }

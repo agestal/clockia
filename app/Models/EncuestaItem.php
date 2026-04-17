@@ -14,6 +14,7 @@ class EncuestaItem extends Model
 
     protected $fillable = [
         'negocio_id',
+        'encuesta_plantilla_id',
         'clave',
         'etiqueta',
         'descripcion',
@@ -25,6 +26,7 @@ class EncuestaItem extends Model
     {
         return [
             'negocio_id' => 'integer',
+            'encuesta_plantilla_id' => 'integer',
             'orden' => 'integer',
             'activo' => 'boolean',
         ];
@@ -33,5 +35,10 @@ class EncuestaItem extends Model
     public function negocio(): BelongsTo
     {
         return $this->belongsTo(Negocio::class);
+    }
+
+    public function plantilla(): BelongsTo
+    {
+        return $this->belongsTo(EncuestaPlantilla::class, 'encuesta_plantilla_id');
     }
 }

@@ -5,8 +5,10 @@ namespace App\Support;
 use App\Models\Bloqueo;
 use App\Models\Cliente;
 use App\Models\Disponibilidad;
+use App\Models\EncuestaPlantilla;
 use App\Models\Negocio;
 use App\Models\Pago;
+use App\Models\PlantillaEmail;
 use App\Models\Recurso;
 use App\Models\Reserva;
 use App\Models\Servicio;
@@ -120,7 +122,9 @@ class AdminAccess
             $model instanceof Negocio => $this->canAccessBusinessId($user, $model->id),
             $model instanceof Servicio,
             $model instanceof Recurso,
-            $model instanceof Reserva => $this->canAccessBusinessId($user, $model->negocio_id),
+            $model instanceof Reserva,
+            $model instanceof PlantillaEmail,
+            $model instanceof EncuestaPlantilla => $this->canAccessBusinessId($user, $model->negocio_id),
             $model instanceof Disponibilidad => $this->canAccessBusinessId($user, $model->recurso?->negocio_id),
             $model instanceof Bloqueo => $this->canAccessBusinessId($user, $model->negocio_id ?? $model->recurso?->negocio_id),
             $model instanceof Pago => $this->canAccessBusinessId($user, $model->reserva?->negocio_id),
@@ -149,6 +153,8 @@ class AdminAccess
             'admin.clientes.*',
             'admin.pagos.*',
             'admin.calendario.*',
+            'admin.plantillas-email.*',
+            'admin.encuesta-plantillas.*',
             'admin.ajax.negocios.search',
             'admin.ajax.servicios.search',
             'admin.ajax.recursos.search',

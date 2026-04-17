@@ -68,6 +68,12 @@ class Negocio extends Model
         'mail_recordatorio_horas_antes',
         'mail_encuesta_activo',
         'mail_encuesta_horas_despues',
+        'notif_email_destino',
+        'notif_reserva_nueva',
+        'notif_anulacion_reserva',
+        'notif_encuesta_respondida',
+        'notif_aforo_lleno_experiencia',
+        'notif_aforo_lleno_dia',
         'widget_enabled',
         'widget_public_key',
         'widget_settings',
@@ -90,6 +96,11 @@ class Negocio extends Model
             'mail_recordatorio_horas_antes' => 'integer',
             'mail_encuesta_activo' => 'boolean',
             'mail_encuesta_horas_despues' => 'integer',
+            'notif_reserva_nueva' => 'boolean',
+            'notif_anulacion_reserva' => 'boolean',
+            'notif_encuesta_respondida' => 'boolean',
+            'notif_aforo_lleno_experiencia' => 'boolean',
+            'notif_aforo_lleno_dia' => 'boolean',
             'widget_enabled' => 'boolean',
             'widget_settings' => 'array',
             'chat_widget_enabled' => 'boolean',
@@ -183,6 +194,16 @@ class Negocio extends Model
     public function reservas(): HasMany
     {
         return $this->hasMany(Reserva::class);
+    }
+
+    public function plantillasEmail(): HasMany
+    {
+        return $this->hasMany(PlantillaEmail::class);
+    }
+
+    public function encuestaPlantillas(): HasMany
+    {
+        return $this->hasMany(EncuestaPlantilla::class);
     }
 
     public function bloqueos(): HasMany

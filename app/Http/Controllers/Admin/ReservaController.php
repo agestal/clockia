@@ -183,8 +183,18 @@ class ReservaController extends Controller
 
     public function inlineUpdate(InlineUpdateReservaRequest $request, Reserva $reserva): JsonResponse
     {
+        $previousEstadoId = $reserva->estado_reserva_id;
+
         $reserva->update($request->validated());
         $reserva->load('estadoReserva');
+
+        if ($reserva->estado_reserva_id !== $previousEstadoId && $reserva->estadoReserva?->nombre === 'Cancelada') {
+            $reserva->update([
+                'fecha_cancelacion' => now(),
+                'cancelada_por' => auth()->user()?->name ?? 'admin',
+            ]);
+            \App\Events\BookingCancelled::dispatch($reserva);
+        }
 
         return response()->json([
             'message' => 'El estado de la reserva se ha actualizado correctamente.',

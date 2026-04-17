@@ -416,6 +416,24 @@ return [
                         ],
                     ],
                 ],
+                [
+                    'text' => 'Comunicacion',
+                    'icon' => 'fas fa-fw fa-envelope-open-text',
+                    'submenu' => [
+                        [
+                            'text' => 'Plantillas de email',
+                            'route' => 'admin.plantillas-email.index',
+                            'icon' => 'far fa-fw fa-circle',
+                            'active' => ['admin/plantillas-email', 'admin/plantillas-email/*'],
+                        ],
+                        [
+                            'text' => 'Encuestas',
+                            'route' => 'admin.encuesta-plantillas.index',
+                            'icon' => 'far fa-fw fa-circle',
+                            'active' => ['admin/encuesta-plantillas', 'admin/encuesta-plantillas/*'],
+                        ],
+                    ],
+                ],
             ],
         ],
         [

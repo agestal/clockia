@@ -1,3 +1,10 @@
+@php
+    $preguntas = collect($survey['preguntas'] ?? [])->values();
+    $scaleMin = (int) ($survey['escala_min'] ?? 0);
+    $scaleMax = (int) ($survey['escala_max'] ?? 10);
+    $permiteComentario = (bool) ($survey['permite_comentario_final'] ?? true);
+    $totalSteps = $preguntas->count() + ($permiteComentario ? 1 : 0);
+@endphp
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -5,245 +12,346 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Encuesta de satisfaccion - {{ $encuesta->negocio?->nombre }}</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { box-sizing: border-box; }
         body {
+            margin: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f6f8;
-            color: #333;
+            background: #f4f0e9;
+            color: #2c241d;
             min-height: 100vh;
             padding: 24px 16px;
         }
         .container {
-            max-width: 600px;
+            max-width: 680px;
             margin: 0 auto;
         }
         .card {
             background: #fff;
             border-radius: 12px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
             overflow: hidden;
-            margin-bottom: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
         }
         .header {
-            background: linear-gradient(135deg, #007bff, #0056b3);
-            padding: 28px 32px;
+            background: #7b3f00;
             color: #fff;
+            padding: 28px 32px;
         }
         .header h1 {
-            font-size: 1.3rem;
-            font-weight: 600;
-            margin-bottom: 6px;
+            margin: 0 0 8px;
+            font-size: 1.45rem;
         }
         .header p {
-            font-size: 0.88rem;
-            opacity: 0.85;
+            margin: 0;
+            opacity: 0.9;
+            line-height: 1.5;
+            font-size: 0.95rem;
         }
         .body {
-            padding: 28px 32px;
+            padding: 28px 32px 32px;
         }
         .intro {
-            text-align: center;
-            margin-bottom: 28px;
-            color: #555;
-            font-size: 0.92rem;
+            margin: 0 0 20px;
+            color: #5c5045;
             line-height: 1.6;
-        }
-        .item {
-            margin-bottom: 28px;
-            padding-bottom: 24px;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .item:last-of-type {
-            border-bottom: none;
-            margin-bottom: 12px;
-        }
-        .item-label {
-            font-weight: 600;
             font-size: 0.95rem;
-            margin-bottom: 4px;
         }
-        .item-desc {
-            font-size: 0.82rem;
-            color: #888;
-            margin-bottom: 12px;
-        }
-        .rating-row {
-            display: flex;
-            gap: 4px;
-            flex-wrap: wrap;
-            justify-content: space-between;
-        }
-        .rating-row input[type="radio"] {
-            display: none;
-        }
-        .rating-row label {
+        .progress {
             display: flex;
             align-items: center;
-            justify-content: center;
-            width: 42px;
-            height: 42px;
-            border-radius: 8px;
-            border: 2px solid #e0e0e0;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            color: #666;
-            background: #fafafa;
-            user-select: none;
+            gap: 12px;
+            margin-bottom: 22px;
         }
-        .rating-row label:hover {
-            border-color: #007bff;
-            color: #007bff;
-            background: #f0f7ff;
+        .progress-bar {
+            flex: 1;
+            height: 8px;
+            background: #ece4db;
+            border-radius: 999px;
+            overflow: hidden;
         }
-        .rating-row input[type="radio"]:checked + label {
-            background: #007bff;
-            border-color: #007bff;
-            color: #fff;
+        .progress-fill {
+            height: 100%;
+            background: #7b3f00;
+            width: 0;
+            transition: width 0.2s ease;
         }
-        .rating-hints {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 6px;
-            font-size: 0.72rem;
-            color: #aaa;
+        .progress-label {
+            min-width: 92px;
+            text-align: right;
+            color: #7b6b5a;
+            font-size: 0.82rem;
         }
-        .comment-section {
-            margin-top: 8px;
+        .step {
+            display: none;
         }
-        .comment-section label {
+        .step.active {
             display: block;
-            font-weight: 600;
-            font-size: 0.95rem;
-            margin-bottom: 8px;
         }
-        .comment-section textarea {
-            width: 100%;
-            border: 2px solid #e0e0e0;
+        .step-title {
+            margin: 0 0 8px;
+            font-size: 1.15rem;
+        }
+        .step-description {
+            margin: 0 0 24px;
+            color: #7b6b5a;
+            line-height: 1.55;
+        }
+        .rating-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+            gap: 10px;
+        }
+        .rating-option {
+            appearance: none;
+            border: 1px solid #d9cbbd;
+            background: #fff;
+            color: #5c5045;
             border-radius: 8px;
-            padding: 12px;
-            font-size: 0.9rem;
-            font-family: inherit;
-            resize: vertical;
-            min-height: 80px;
-            transition: border-color 0.15s ease;
-        }
-        .comment-section textarea:focus {
-            outline: none;
-            border-color: #007bff;
-        }
-        .submit-btn {
-            display: block;
-            width: 100%;
-            padding: 14px;
-            background: #007bff;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
+            min-height: 52px;
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 20px;
-            transition: background 0.15s ease;
+            transition: all 0.15s ease;
         }
-        .submit-btn:hover {
-            background: #0056b3;
+        .rating-option:hover,
+        .rating-option.is-selected {
+            background: #7b3f00;
+            border-color: #7b3f00;
+            color: #fff;
         }
-        .footer {
-            text-align: center;
-            padding: 16px 32px;
-            background: #f8f9fa;
-            font-size: 0.75rem;
-            color: #aaa;
+        .scale-hint {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            color: #8e8072;
+            font-size: 0.78rem;
         }
-        .error-msg {
-            color: #dc3545;
-            font-size: 0.8rem;
-            margin-top: 4px;
+        .comment-box {
+            width: 100%;
+            min-height: 130px;
+            border: 1px solid #d9cbbd;
+            border-radius: 8px;
+            padding: 14px 16px;
+            font: inherit;
+            resize: vertical;
+        }
+        .comment-box:focus {
+            outline: none;
+            border-color: #7b3f00;
+            box-shadow: 0 0 0 3px rgba(123, 63, 0, 0.08);
+        }
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 28px;
+        }
+        .btn {
+            border: 0;
+            border-radius: 8px;
+            min-height: 44px;
+            padding: 0 18px;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-secondary {
+            background: #efe6dc;
+            color: #5c5045;
+        }
+        .btn-primary {
+            background: #7b3f00;
+            color: #fff;
         }
         .alert-danger {
             background: #f8d7da;
             color: #721c24;
-            padding: 12px 16px;
             border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 0.88rem;
+            padding: 12px 14px;
+            margin-bottom: 18px;
+            font-size: 0.9rem;
+        }
+        .footer {
+            padding: 16px 32px;
+            background: #faf7f3;
+            color: #8e8072;
+            text-align: center;
+            font-size: 0.78rem;
+        }
+        @media (max-width: 640px) {
+            .header, .body, .footer {
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+            .actions {
+                flex-direction: column-reverse;
+            }
+            .actions .btn {
+                width: 100%;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <form method="POST" action="{{ url('/encuesta/' . $encuesta->token) }}">
+        <form method="POST" action="{{ route('encuesta.submit', $encuesta->token) }}" class="card" data-survey-form novalidate>
             @csrf
 
-            <div class="card">
-                <div class="header">
-                    <h1>Tu opinion nos importa</h1>
-                    <p>{{ $encuesta->negocio?->nombre }}</p>
+            <div class="header">
+                <h1>{{ $survey['titulo_publico'] ?? 'Comparte tu valoracion' }}</h1>
+                <p>{{ $encuesta->negocio?->nombre }}</p>
+            </div>
+
+            <div class="body">
+                <p class="intro">
+                    Hola{{ $encuesta->reserva?->nombreResponsableEfectivo() ? ', '.$encuesta->reserva->nombreResponsableEfectivo() : '' }}.
+                    {{ $survey['intro_publica'] ?? 'Nos ayuda mucho saber como ha ido la experiencia.' }}
+                    @if($encuesta->reserva?->servicio)
+                        Tu visita corresponde a <strong>{{ $encuesta->reserva->servicio->nombre }}</strong>
+                        del {{ optional($encuesta->reserva->fecha)?->locale('es')->translatedFormat('j \d\e F \d\e Y') }}.
+                    @endif
+                </p>
+
+                @if($errors->any())
+                    <div class="alert-danger">
+                        Revisa las respuestas antes de enviar la encuesta.
+                    </div>
+                @endif
+
+                <div class="progress">
+                    <div class="progress-bar"><div class="progress-fill" data-progress-fill></div></div>
+                    <div class="progress-label" data-progress-label></div>
                 </div>
 
-                <div class="body">
-                    <div class="intro">
-                        Hola{{ $encuesta->reserva?->nombre_responsable ? ', '.$encuesta->reserva->nombre_responsable : '' }}.
-                        Nos encantaria conocer tu experiencia con
-                        <strong>{{ $encuesta->reserva?->servicio?->nombre }}</strong>
-                        del {{ optional($encuesta->reserva?->fecha)?->locale('es')->translatedFormat('j \d\e F \d\e Y') }}.
-                    </div>
+                @foreach($preguntas as $index => $pregunta)
+                    @php($fieldName = 'item_'.$pregunta['id'])
+                    <section class="step @if($index === 0) active @endif" data-step data-step-index="{{ $index }}">
+                        <h2 class="step-title">{{ $pregunta['etiqueta'] }}</h2>
+                        @if(! empty($pregunta['descripcion']))
+                            <p class="step-description">{{ $pregunta['descripcion'] }}</p>
+                        @endif
 
-                    @if($errors->any())
-                        <div class="alert-danger">
-                            Por favor, valora todos los aspectos antes de enviar.
+                        <input type="hidden" name="{{ $fieldName }}" value="{{ old($fieldName) }}" data-rating-input>
+
+                        <div class="rating-grid">
+                            @for($value = $scaleMin; $value <= $scaleMax; $value++)
+                                <button
+                                    type="button"
+                                    class="rating-option @if(old($fieldName) !== null && (int) old($fieldName) === $value) is-selected @endif"
+                                    data-rating-value="{{ $value }}"
+                                >{{ $value }}</button>
+                            @endfor
                         </div>
-                    @endif
 
-                    @foreach($items as $item)
-                        <div class="item">
-                            <div class="item-label">{{ $item->etiqueta }}</div>
-                            @if($item->descripcion)
-                                <div class="item-desc">{{ $item->descripcion }}</div>
-                            @endif
-
-                            <div class="rating-row">
-                                @for($i = 0; $i <= 10; $i++)
-                                    <input
-                                        type="radio"
-                                        name="item_{{ $item->id }}"
-                                        id="item_{{ $item->id }}_{{ $i }}"
-                                        value="{{ $i }}"
-                                        @checked(old("item_{$item->id}") == (string) $i)
-                                    >
-                                    <label for="item_{{ $item->id }}_{{ $i }}">{{ $i }}</label>
-                                @endfor
-                            </div>
-                            <div class="rating-hints">
-                                <span>Muy mal</span>
-                                <span>Excelente</span>
-                            </div>
-
-                            @error("item_{$item->id}")
-                                <div class="error-msg">{{ $message }}</div>
-                            @enderror
+                        <div class="scale-hint">
+                            <span>{{ $scaleMin }}</span>
+                            <span>{{ $scaleMax }}</span>
                         </div>
-                    @endforeach
 
-                    <div class="comment-section">
-                        <label for="comentario_general">Comentario adicional (opcional)</label>
+                        <div class="actions">
+                            <button type="button" class="btn btn-secondary" data-prev @if($index === 0) style="visibility:hidden;" @endif>Anterior</button>
+                            <button type="button" class="btn btn-primary" data-next>Continuar</button>
+                        </div>
+                    </section>
+                @endforeach
+
+                @if($permiteComentario)
+                    <section class="step" data-step data-step-index="{{ $preguntas->count() }}">
+                        <h2 class="step-title">Comentario final</h2>
+                        <p class="step-description">Este campo es opcional.</p>
                         <textarea
                             name="comentario_general"
-                            id="comentario_general"
-                            placeholder="Cuentanos cualquier cosa que nos ayude a mejorar..."
+                            class="comment-box"
+                            maxlength="5000"
+                            placeholder="{{ $survey['comentario_placeholder'] ?? 'Si quieres, dejanos algun comentario adicional.' }}"
                         >{{ old('comentario_general') }}</textarea>
+
+                        <div class="actions">
+                            <button type="button" class="btn btn-secondary" data-prev>Anterior</button>
+                            <button type="submit" class="btn btn-primary">Enviar encuesta</button>
+                        </div>
+                    </section>
+                @else
+                    <div class="step" data-step data-step-index="{{ $preguntas->count() }}">
+                        <div class="actions">
+                            <button type="submit" class="btn btn-primary">Enviar encuesta</button>
+                        </div>
                     </div>
+                @endif
+            </div>
 
-                    <button type="submit" class="submit-btn">Enviar valoracion</button>
-                </div>
-
-                <div class="footer">
-                    {{ $encuesta->negocio?->nombre }} &middot; Encuesta de satisfaccion
-                </div>
+            <div class="footer">
+                {{ $encuesta->negocio?->nombre }}
             </div>
         </form>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.querySelector('[data-survey-form]');
+
+            if (!form) {
+                return;
+            }
+
+            const steps = Array.from(form.querySelectorAll('[data-step]'));
+            const progressFill = form.querySelector('[data-progress-fill]');
+            const progressLabel = form.querySelector('[data-progress-label]');
+            let currentStep = Math.max(0, steps.findIndex(step => {
+                const input = step.querySelector('[data-rating-input]');
+                return input && !input.value;
+            }));
+
+            if (currentStep === -1) {
+                currentStep = 0;
+            }
+
+            const updateProgress = () => {
+                const total = {{ max($totalSteps, 1) }};
+                const current = Math.min(currentStep + 1, total);
+                const percentage = total > 0 ? (current / total) * 100 : 0;
+                progressFill.style.width = `${percentage}%`;
+                progressLabel.textContent = `Paso ${current} de ${total}`;
+            };
+
+            const showStep = index => {
+                currentStep = Math.min(Math.max(index, 0), steps.length - 1);
+                steps.forEach((step, stepIndex) => step.classList.toggle('active', stepIndex === currentStep));
+                updateProgress();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            steps.forEach((step, stepIndex) => {
+                const input = step.querySelector('[data-rating-input]');
+                const options = Array.from(step.querySelectorAll('[data-rating-value]'));
+                const nextButton = step.querySelector('[data-next]');
+                const prevButton = step.querySelector('[data-prev]');
+
+                options.forEach(option => {
+                    option.addEventListener('click', () => {
+                        if (!input) {
+                            return;
+                        }
+
+                        input.value = option.dataset.ratingValue || '';
+                        options.forEach(candidate => candidate.classList.remove('is-selected'));
+                        option.classList.add('is-selected');
+                    });
+                });
+
+                nextButton?.addEventListener('click', () => {
+                    if (input && !input.value) {
+                        return;
+                    }
+
+                    showStep(stepIndex + 1);
+                });
+
+                prevButton?.addEventListener('click', () => showStep(stepIndex - 1));
+            });
+
+            updateProgress();
+            showStep(currentStep);
+        });
+    </script>
 </body>
 </html>

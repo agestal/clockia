@@ -22,7 +22,9 @@ use App\Http\Controllers\Admin\IntegracionMapeoController;
 use App\Http\Controllers\Admin\OcupacionExternaController;
 use App\Http\Controllers\Admin\CalendarioController;
 use App\Http\Controllers\Admin\ChatTestController;
+use App\Http\Controllers\Admin\EncuestaPlantillaController;
 use App\Http\Controllers\Admin\GoogleCalendarIntegrationController;
+use App\Http\Controllers\Admin\PlantillaEmailController;
 use App\Http\Controllers\EncuestaPublicaController;
 use App\Http\Controllers\PublicSiteController;
 use App\Livewire\Admin\Dashboard;
@@ -94,6 +96,11 @@ Route::prefix('admin')
             ->parameters(['disponibilidades' => 'disponibilidad']);
         Route::resource('bloqueos', BloqueoController::class)
             ->parameters(['bloqueos' => 'bloqueo']);
+        Route::resource('plantillas-email', PlantillaEmailController::class)
+            ->only(['index', 'edit', 'update'])
+            ->parameters(['plantillas-email' => 'plantilla_email']);
+        Route::resource('encuesta-plantillas', EncuestaPlantillaController::class)
+            ->parameters(['encuesta-plantillas' => 'encuesta_plantilla']);
         Route::resource('recurso-combinaciones', RecursoCombinacionController::class)
             ->parameters(['recurso-combinaciones' => 'recurso_combinacion']);
         Route::resource('integraciones', IntegracionController::class)

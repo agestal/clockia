@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use App\Mail\EncuestaSatisfaccion;
 use App\Models\Encuesta;
-use App\Models\EncuestaItem;
+use App\Models\EncuestaPlantilla;
 use App\Models\Reserva;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -26,32 +26,27 @@ class EnviarMailEncuesta implements ShouldQueue
         $this->reserva->load(['negocio', 'servicio']);
 
         $email = $this->reserva->email_responsable;
+        $negocio = $this->reserva->negocio;
 
-        if (! $email) {
+        if (! $email || ! $negocio) {
             return;
         }
 
-        // Ensure the negocio has survey items, create default if not
-        $negocioId = $this->reserva->negocio_id;
-        $itemsExist = EncuestaItem::where('negocio_id', $negocioId)->where('activo', true)->exists();
+        $plantilla = EncuestaPlantilla::defaultForBusiness($negocio);
+        $snapshot = $plantilla->buildSnapshot();
 
-        if (! $itemsExist) {
-            EncuestaItem::create([
-                'negocio_id' => $negocioId,
-                'clave' => 'servicio_general',
-                'etiqueta' => 'Valoración general del servicio',
-                'descripcion' => '¿Cómo valorarías tu experiencia en general?',
-                'orden' => 1,
-                'activo' => true,
-            ]);
+        if (($snapshot['preguntas'] ?? []) === []) {
+            return;
         }
 
-        // Create encuesta
         $encuesta = Encuesta::create([
             'reserva_id' => $this->reserva->id,
-            'negocio_id' => $negocioId,
+            'negocio_id' => $negocio->id,
+            'encuesta_plantilla_id' => $plantilla->id,
             'token' => Encuesta::generarToken(),
+            'activo' => true,
             'enviada_en' => now(),
+            'contenido_snapshot' => $snapshot,
         ]);
 
         Mail::to($email)->send(new EncuestaSatisfaccion($this->reserva, $encuesta));
