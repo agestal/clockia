@@ -26,11 +26,17 @@ class StoreServiceRequest extends FormRequest
         $requiredDocumentation = trim((string) $this->input('requiredDocumentation', ''));
         $minCancellationHours = trim((string) $this->input('minCancellationHours', ''));
         $depositPercentage = trim((string) $this->input('depositPercentage', ''));
+        $capacity = trim((string) $this->input('capacity', ''));
+        $startTime = $this->normalizeTimeForValidation($this->input('start_time'));
+        $endTime = $this->normalizeTimeForValidation($this->input('end_time'));
 
         $this->merge([
             'name' => $name !== '' ? $name : null,
             'description' => $description !== '' ? $description : null,
             'duration_minutes' => $durationMinutes !== '' ? $durationMinutes : null,
+            'capacity' => $capacity !== '' ? $capacity : null,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
             'base_price' => $basePrice !== '' ? $this->normalizeDecimal($basePrice) : null,
             'requires_payment' => $this->has('requires_payment')
                 ? $this->normalizeBoolean($this->input('requires_payment'))
@@ -77,6 +83,9 @@ class StoreServiceRequest extends FormRequest
             ],
             'description' => ['nullable', 'string'],
             'duration_minutes' => ['required', 'integer', 'min:1'],
+            'capacity' => ['nullable', 'integer', 'min:1'],
+            'start_time' => ['nullable', 'date_format:H:i'],
+            'end_time' => ['nullable', 'date_format:H:i'],
             'base_price' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
             'price_type_id' => ['required', 'integer', 'exists:tipos_precio,id'],
             'requires_payment' => ['required', 'boolean'],
@@ -98,6 +107,31 @@ class StoreServiceRequest extends FormRequest
         ];
     }
 
+    public function withValidator(\Illuminate\Validation\Validator $validator): void
+    {
+        $validator->after(function (\Illuminate\Validation\Validator $validator): void {
+            $capacity = $this->input('capacity');
+            $startTime = $this->input('start_time');
+            $endTime = $this->input('end_time');
+
+            $hasDynamicField = $capacity !== null || $startTime !== null || $endTime !== null;
+
+            if (! $hasDynamicField) {
+                return;
+            }
+
+            if ($capacity === null || $startTime === null || $endTime === null) {
+                $validator->errors()->add('capacity', 'The capacity, start_time and end_time fields are required together for dynamic experiences.');
+
+                return;
+            }
+
+            if ($endTime <= $startTime) {
+                $validator->errors()->add('end_time', 'The end_time must be a time after start_time.');
+            }
+        });
+    }
+
     public function serviceAttributes(): array
     {
         $validated = $this->validated();
@@ -106,6 +140,13 @@ class StoreServiceRequest extends FormRequest
             'nombre' => $validated['name'],
             'descripcion' => $validated['description'] ?? null,
             'duracion_minutos' => (int) $validated['duration_minutes'],
+            'aforo' => isset($validated['capacity']) ? (int) $validated['capacity'] : null,
+            'hora_inicio' => isset($validated['start_time']) && $validated['start_time'] !== null
+                ? $this->normalizeTimeForStorage($validated['start_time'])
+                : null,
+            'hora_fin' => isset($validated['end_time']) && $validated['end_time'] !== null
+                ? $this->normalizeTimeForStorage($validated['end_time'])
+                : null,
             'precio_base' => number_format((float) $validated['base_price'], 2, '.', ''),
             'tipo_precio_id' => (int) $validated['price_type_id'],
             'requiere_pago' => (bool) $validated['requires_payment'],
@@ -177,5 +218,21 @@ class StoreServiceRequest extends FormRequest
         $normalized = str_replace([' ', ','], ['', '.'], $value);
 
         return number_format((float) $normalized, 2, '.', '');
+    }
+
+    private function normalizeTimeForValidation(mixed $value): ?string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        return strlen($value) >= 5 ? substr($value, 0, 5) : $value;
+    }
+
+    private function normalizeTimeForStorage(string $value): string
+    {
+        return $value.':00';
     }
 }

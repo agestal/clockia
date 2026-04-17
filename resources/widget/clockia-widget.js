@@ -116,7 +116,9 @@ export class ClockiaWidget extends HTMLElement {
         this.state.error = null;
         this.renderRoot();
         try {
-            const data = await this.state.api.calendar(year, month);
+            const data = await this.state.api.calendar(year, month, {
+                participants: this.state.participants,
+            });
             this.state.year = data.year;
             this.state.month = data.month;
             this.state.days = data.days;

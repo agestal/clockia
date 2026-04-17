@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\UpdateBloqueoRequest;
 use App\Models\Bloqueo;
 use App\Models\Negocio;
 use App\Models\Recurso;
+use App\Models\Servicio;
 use App\Models\TipoBloqueo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\View\View;
@@ -30,7 +31,7 @@ class BloqueoController extends Controller
         $direction = in_array($direction, ['asc', 'desc'], true) ? $direction : 'desc';
 
         $bloqueos = $this->scopeAccessibleBlocks(Bloqueo::query(), $request)
-            ->with(['recurso', 'tipoBloqueo', 'negocio'])
+            ->with(['recurso', 'tipoBloqueo', 'negocio', 'servicio'])
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($innerQuery) use ($search) {
                     $innerQuery
@@ -44,6 +45,9 @@ class BloqueoController extends Controller
                         })
                         ->orWhereHas('negocio', function ($negocioQuery) use ($search) {
                             $negocioQuery->where('nombre', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('servicio', function ($servicioQuery) use ($search) {
+                            $servicioQuery->where('nombre', 'like', "%{$search}%");
                         });
                 });
             })
@@ -66,6 +70,7 @@ class BloqueoController extends Controller
             'recursos' => $this->resourceOptions(),
             'tiposBloqueo' => $this->blockTypeOptions(),
             'negocios' => $this->businessOptions(),
+            'servicios' => $this->serviceOptions(),
             'dayOptions' => $this->dayOptions(),
             'horaInicioValue' => old('hora_inicio'),
             'horaFinValue' => old('hora_fin'),
@@ -75,10 +80,12 @@ class BloqueoController extends Controller
     public function store(StoreBloqueoRequest $request): RedirectResponse
     {
         $validated = $request->validated();
+        $validated = $this->resolveBusinessForService($validated);
         if (($validated['negocio_id'] ?? null) !== null) {
             $this->abortUnlessBusinessAccessible($request, $validated['negocio_id']);
         }
         $this->abortUnlessModelAccessible($request, Recurso::class, $validated['recurso_id'] ?? null);
+        $this->abortUnlessModelAccessible($request, Servicio::class, $validated['servicio_id'] ?? null);
 
         $bloqueo = Bloqueo::create($validated);
 
@@ -89,7 +96,7 @@ class BloqueoController extends Controller
 
     public function show(Bloqueo $bloqueo): View
     {
-        $bloqueo->load(['recurso', 'tipoBloqueo', 'negocio']);
+        $bloqueo->load(['recurso', 'tipoBloqueo', 'negocio', 'servicio']);
 
         return view('admin.bloqueos.show', [
             'bloqueo' => $bloqueo,
@@ -101,13 +108,14 @@ class BloqueoController extends Controller
 
     public function edit(Bloqueo $bloqueo): View
     {
-        $bloqueo->load(['recurso', 'tipoBloqueo', 'negocio']);
+        $bloqueo->load(['recurso', 'tipoBloqueo', 'negocio', 'servicio']);
 
         return view('admin.bloqueos.edit', [
             'bloqueo' => $bloqueo,
             'recursos' => $this->resourceOptions(),
             'tiposBloqueo' => $this->blockTypeOptions(),
             'negocios' => $this->businessOptions(),
+            'servicios' => $this->serviceOptions(),
             'dayOptions' => $this->dayOptions(),
             'horaInicioValue' => $this->timeForDisplay($bloqueo->hora_inicio),
             'horaFinValue' => $this->timeForDisplay($bloqueo->hora_fin),
@@ -117,10 +125,12 @@ class BloqueoController extends Controller
     public function update(UpdateBloqueoRequest $request, Bloqueo $bloqueo): RedirectResponse
     {
         $validated = $request->validated();
+        $validated = $this->resolveBusinessForService($validated);
         if (($validated['negocio_id'] ?? null) !== null) {
             $this->abortUnlessBusinessAccessible($request, $validated['negocio_id']);
         }
         $this->abortUnlessModelAccessible($request, Recurso::class, $validated['recurso_id'] ?? null);
+        $this->abortUnlessModelAccessible($request, Servicio::class, $validated['servicio_id'] ?? null);
 
         $bloqueo->update($validated);
 
@@ -161,6 +171,15 @@ class BloqueoController extends Controller
             ->get(['id', 'nombre']);
     }
 
+    private function serviceOptions()
+    {
+        return $this->adminAccess()
+            ->scopeBusinesses(Servicio::query(), auth()->user(), 'negocio_id')
+            ->with('negocio:id,nombre')
+            ->orderBy('nombre')
+            ->get(['id', 'nombre', 'negocio_id']);
+    }
+
     private function scopeAccessibleBlocks(Builder $query, Request $request): Builder
     {
         $businessIds = $this->accessibleBusinessIds($request);
@@ -174,7 +193,8 @@ class BloqueoController extends Controller
         return $query->where(function (Builder $builder) use ($filteredIds) {
             $builder
                 ->whereIn('negocio_id', $filteredIds)
-                ->orWhereHas('recurso', fn (Builder $resourceQuery) => $resourceQuery->whereIn('negocio_id', $filteredIds));
+                ->orWhereHas('recurso', fn (Builder $resourceQuery) => $resourceQuery->whereIn('negocio_id', $filteredIds))
+                ->orWhereHas('servicio', fn (Builder $serviceQuery) => $serviceQuery->whereIn('negocio_id', $filteredIds));
         });
     }
 
@@ -198,5 +218,24 @@ class BloqueoController extends Controller
         }
 
         return substr($time, 0, 5);
+    }
+
+    private function resolveBusinessForService(array $validated): array
+    {
+        $serviceId = $validated['servicio_id'] ?? null;
+
+        if ($serviceId === null) {
+            return $validated;
+        }
+
+        $serviceBusinessId = Servicio::query()
+            ->whereKey($serviceId)
+            ->value('negocio_id');
+
+        if ($serviceBusinessId !== null) {
+            $validated['negocio_id'] = (int) $serviceBusinessId;
+        }
+
+        return $validated;
     }
 }

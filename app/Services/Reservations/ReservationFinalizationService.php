@@ -24,6 +24,7 @@ class ReservationFinalizationService
         private readonly SearchAvailabilityTool $searchAvailabilityTool,
         private readonly CreateQuoteTool $createQuoteTool,
         private readonly PolicyResolver $policyResolver,
+        private readonly DynamicExperienceAvailabilityService $dynamicExperienceAvailability,
     ) {}
 
     public function finalize(CreateBookingInput $input): Reserva
@@ -59,7 +60,10 @@ class ReservationFinalizationService
 
             // For session-based bookings, inherit resource from session if not set
             if ($sesionId !== null) {
-                $sesion = Sesion::find($sesionId);
+                $sesion = Sesion::query()
+                    ->whereKey($sesionId)
+                    ->lockForUpdate()
+                    ->first();
                 if ($sesion === null) {
                     throw new RuntimeException('La sesión indicada no existe.');
                 }
@@ -73,6 +77,28 @@ class ReservationFinalizationService
                 $aforoRestante = max(0, ($sesion->aforo_total ?? 0) - (int) $reservados);
                 if ($input->numero_personas !== null && $input->numero_personas > $aforoRestante) {
                     throw new RuntimeException('No queda aforo suficiente en esta sesión. Plazas disponibles: '.$aforoRestante.'.');
+                }
+            } elseif ($this->dynamicExperienceAvailability->supports($servicio)) {
+                Servicio::query()
+                    ->whereKey($servicio->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                $slotActualizado = $this->dynamicExperienceAvailability->slotForSelection(
+                    $negocio,
+                    $servicio,
+                    $input->fecha,
+                    (string) data_get($slot, 'hora_inicio'),
+                    data_get($slot, 'hora_fin')
+                );
+
+                if ($slotActualizado === null) {
+                    throw new RuntimeException('La franja elegida ya no está disponible.');
+                }
+
+                $aforoRestante = (int) ($slotActualizado['aforo_restante'] ?? 0);
+                if ($input->numero_personas !== null && $input->numero_personas > $aforoRestante) {
+                    throw new RuntimeException('No queda aforo suficiente en esta franja. Plazas disponibles: '.$aforoRestante.'.');
                 }
             }
 

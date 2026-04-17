@@ -45,6 +45,16 @@
                 placeholder: 'Selecciona un recurso',
             });
 
+            $('.js-select2-servicio').select2({
+                theme: 'bootstrap4',
+                placeholder: 'Selecciona una experiencia',
+            });
+
+            $('.js-select2-negocio').select2({
+                theme: 'bootstrap4',
+                placeholder: 'Selecciona un negocio',
+            });
+
             $('.js-select2-tipo-bloqueo').select2({
                 theme: 'bootstrap4',
                 placeholder: 'Selecciona un tipo de bloqueo',

@@ -38,7 +38,16 @@ export function renderCalendar({ container, year, month, days, selectedDate, onP
             attrs.onclick = () => onSelect(iso);
             attrs.tabindex = '0';
         }
-        grid.appendChild(h('div', attrs, String(d)));
+
+        const children = [
+            h('div', { class: 'ck-day-number' }, String(d)),
+        ];
+
+        if (!info.is_past && info.occupancy_percent !== null && info.occupancy_percent !== undefined) {
+            children.push(h('div', { class: 'ck-day-occupancy' }, `${info.occupancy_percent}%`));
+        }
+
+        grid.appendChild(h('div', attrs, children));
     }
 
     container.appendChild(grid);

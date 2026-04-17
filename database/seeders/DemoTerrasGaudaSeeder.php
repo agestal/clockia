@@ -76,6 +76,7 @@ class DemoTerrasGaudaSeeder extends Seeder
                 'email' => 'enoturismo@terrasgauda.example',
                 'telefono' => '+34 986 621 001',
                 'zona_horaria' => 'Europe/Madrid',
+                'dias_apertura' => [0, 1, 2, 3, 4, 5, 6],
                 'activo' => true,
                 'descripcion_publica' => 'Bodega de referencia en la subzona de O Rosal de Rias Baixas, elaborando vinos distintivos que combinan Albariño con variedades autoctonas como Caino Blanco y Loureira. Entre los vinedos del valle del Miño, cerca de la frontera portuguesa, ofrece experiencias inmersivas de enoturismo.',
                 'direccion' => 'Carretera Tui - A Guarda, Km 55, 36760 O Rosal, Pontevedra',
@@ -136,7 +137,7 @@ class DemoTerrasGaudaSeeder extends Seeder
         $this->syncServicioRecursos($servicios, $recursos);
         $this->seedDisponibilidades($recursos);
         $this->seedSesiones($negocio, $servicios, $recursos);
-        $this->seedBloqueos($negocio, $recursos, [
+        $this->seedBloqueos($negocio, $servicios, [
             'mantenimiento' => $tipoBloqueoMantenimiento,
             'evento' => $tipoBloqueoEvento,
             'cierre' => $tipoBloqueoCierre,
@@ -253,6 +254,9 @@ class DemoTerrasGaudaSeeder extends Seeder
                 'duracion_minutos' => 60,
                 'numero_personas_minimo' => 1,
                 'numero_personas_maximo' => 20,
+                'aforo' => 20,
+                'hora_inicio' => '16:00:00',
+                'hora_fin' => '19:00:00',
                 'precio_base' => 16.00,
                 'precio_menor' => 0.00,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -280,6 +284,9 @@ class DemoTerrasGaudaSeeder extends Seeder
                 'duracion_minutos' => 90,
                 'numero_personas_minimo' => 2,
                 'numero_personas_maximo' => 2,
+                'aforo' => 2,
+                'hora_inicio' => '11:00:00',
+                'hora_fin' => '14:00:00',
                 'precio_base' => 25.00,
                 'precio_menor' => null,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -307,6 +314,9 @@ class DemoTerrasGaudaSeeder extends Seeder
                 'duracion_minutos' => 90,
                 'numero_personas_minimo' => 3,
                 'numero_personas_maximo' => 8,
+                'aforo' => 8,
+                'hora_inicio' => '11:00:00',
+                'hora_fin' => '14:00:00',
                 'precio_base' => 29.00,
                 'precio_menor' => null,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -334,6 +344,9 @@ class DemoTerrasGaudaSeeder extends Seeder
                 'duracion_minutos' => 90,
                 'numero_personas_minimo' => 2,
                 'numero_personas_maximo' => 10,
+                'aforo' => 10,
+                'hora_inicio' => '11:00:00',
+                'hora_fin' => '14:00:00',
                 'precio_base' => 22.00,
                 'precio_menor' => 9.00,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -529,19 +542,20 @@ class DemoTerrasGaudaSeeder extends Seeder
         }
     }
 
-    private function seedBloqueos(Negocio $negocio, Collection $recursos, array $tiposBloqueo): void
+    private function seedBloqueos(Negocio $negocio, Collection $servicios, array $tiposBloqueo): void
     {
         $fullDayDate = Carbon::today()->next(Carbon::WEDNESDAY)->addWeek()->toDateString();
         $partialDate = Carbon::today()->next(Carbon::SATURDAY)->addWeek()->toDateString();
 
         Bloqueo::updateOrCreate(
             [
-                'recurso_id' => $recursos['Sala de Catas']->id,
+                'servicio_id' => $servicios['Dejate Conquistar']->id,
                 'tipo_bloqueo_id' => $tiposBloqueo['mantenimiento']->id,
                 'fecha' => $fullDayDate,
             ],
             [
                 'negocio_id' => $negocio->id,
+                'recurso_id' => null,
                 'hora_inicio' => null,
                 'hora_fin' => null,
                 'motivo' => 'Mantenimiento de climatizacion y revision de equipamiento de la sala.',
@@ -555,7 +569,7 @@ class DemoTerrasGaudaSeeder extends Seeder
 
         Bloqueo::updateOrCreate(
             [
-                'recurso_id' => $recursos['Salon Privado']->id,
+                'servicio_id' => $servicios['Terras Gauda para Dos']->id,
                 'tipo_bloqueo_id' => $tiposBloqueo['evento']->id,
                 'fecha' => $partialDate,
                 'hora_inicio' => '11:00:00',
@@ -563,6 +577,27 @@ class DemoTerrasGaudaSeeder extends Seeder
             ],
             [
                 'negocio_id' => $negocio->id,
+                'recurso_id' => null,
+                'motivo' => 'Evento privado corporativo reservado con antelacion.',
+                'activo' => true,
+                'es_recurrente' => false,
+                'dia_semana' => null,
+                'fecha_inicio' => null,
+                'fecha_fin' => null,
+            ]
+        );
+
+        Bloqueo::updateOrCreate(
+            [
+                'servicio_id' => $servicios['En Buena Compañia']->id,
+                'tipo_bloqueo_id' => $tiposBloqueo['evento']->id,
+                'fecha' => $partialDate,
+                'hora_inicio' => '11:00:00',
+                'hora_fin' => '12:30:00',
+            ],
+            [
+                'negocio_id' => $negocio->id,
+                'recurso_id' => null,
                 'motivo' => 'Evento privado corporativo reservado con antelacion.',
                 'activo' => true,
                 'es_recurrente' => false,

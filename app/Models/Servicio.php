@@ -44,6 +44,9 @@ class Servicio extends Model
         'duracion_minutos',
         'numero_personas_minimo',
         'numero_personas_maximo',
+        'aforo',
+        'hora_inicio',
+        'hora_fin',
         'precio_base',
         'precio_menor',
         'tipo_precio_id',
@@ -73,6 +76,7 @@ class Servicio extends Model
             'duracion_minutos' => 'integer',
             'numero_personas_minimo' => 'integer',
             'numero_personas_maximo' => 'integer',
+            'aforo' => 'integer',
             'precio_base' => 'decimal:2',
             'precio_menor' => 'decimal:2',
             'tipo_precio_id' => 'integer',
@@ -122,8 +126,40 @@ class Servicio extends Model
         return $this->hasMany(Reserva::class);
     }
 
+    public function bloqueos(): HasMany
+    {
+        return $this->hasMany(Bloqueo::class);
+    }
+
     public function scopeActivos(Builder $query): Builder
     {
         return $query->where('activo', true);
+    }
+
+    public function usaProgramacionDinamica(): bool
+    {
+        return $this->aforo !== null
+            && $this->aforo > 0
+            && $this->duracion_minutos > 0
+            && filled($this->hora_inicio)
+            && filled($this->hora_fin);
+    }
+
+    public function horaInicioCorta(): ?string
+    {
+        if (! filled($this->hora_inicio)) {
+            return null;
+        }
+
+        return substr((string) $this->hora_inicio, 0, 5);
+    }
+
+    public function horaFinCorta(): ?string
+    {
+        if (! filled($this->hora_fin)) {
+            return null;
+        }
+
+        return substr((string) $this->hora_fin, 0, 5);
     }
 }

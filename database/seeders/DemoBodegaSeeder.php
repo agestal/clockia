@@ -78,6 +78,7 @@ class DemoBodegaSeeder extends Seeder
                 'email' => 'reservas@vinaatlantica.example',
                 'telefono' => '+34 986 52 40 80',
                 'zona_horaria' => 'Europe/Madrid',
+                'dias_apertura' => [0, 3, 4, 5, 6],
                 'activo' => true,
                 'descripcion_publica' => 'Bodega de Albariño en Rías Baixas con experiencias guiadas, catas comentadas y recorridos entre viñedos pensados para grupos pequeños y escapadas de fin de semana.',
                 'direccion' => 'Lugar de Castrelo, 18, 36639 Cambados, Pontevedra',
@@ -136,7 +137,7 @@ class DemoBodegaSeeder extends Seeder
         $this->syncServicioRecursos($servicios, $recursos);
         $this->seedDisponibilidades($recursos);
         $this->seedSesiones($negocio, $servicios, $recursos);
-        $this->seedBloqueos($negocio, $recursos, [
+        $this->seedBloqueos($negocio, $servicios, [
             'mantenimiento' => $tipoBloqueoMantenimiento,
             'evento' => $tipoBloqueoEvento,
             'cierre' => $tipoBloqueoCierre,
@@ -255,6 +256,9 @@ class DemoBodegaSeeder extends Seeder
                 'duracion_minutos' => 75,
                 'numero_personas_minimo' => 2,
                 'numero_personas_maximo' => 18,
+                'aforo' => 18,
+                'hora_inicio' => '11:00:00',
+                'hora_fin' => '13:30:00',
                 'precio_base' => 22.00,
                 'precio_menor' => 12.00,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -282,6 +286,9 @@ class DemoBodegaSeeder extends Seeder
                 'duracion_minutos' => 90,
                 'numero_personas_minimo' => 2,
                 'numero_personas_maximo' => 16,
+                'aforo' => 16,
+                'hora_inicio' => '13:00:00',
+                'hora_fin' => '16:00:00',
                 'precio_base' => 32.00,
                 'precio_menor' => 18.00,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -309,6 +316,9 @@ class DemoBodegaSeeder extends Seeder
                 'duracion_minutos' => 90,
                 'numero_personas_minimo' => 4,
                 'numero_personas_maximo' => 18,
+                'aforo' => 18,
+                'hora_inicio' => '17:00:00',
+                'hora_fin' => '20:00:00',
                 'precio_base' => 28.00,
                 'precio_menor' => null,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -336,6 +346,9 @@ class DemoBodegaSeeder extends Seeder
                 'duracion_minutos' => 105,
                 'numero_personas_minimo' => 4,
                 'numero_personas_maximo' => 10,
+                'aforo' => 10,
+                'hora_inicio' => '18:45:00',
+                'hora_fin' => '22:15:00',
                 'precio_base' => 48.00,
                 'precio_menor' => null,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -363,6 +376,9 @@ class DemoBodegaSeeder extends Seeder
                 'duracion_minutos' => 120,
                 'numero_personas_minimo' => 4,
                 'numero_personas_maximo' => 8,
+                'aforo' => 8,
+                'hora_inicio' => '12:00:00',
+                'hora_fin' => '16:00:00',
                 'precio_base' => 58.00,
                 'precio_menor' => null,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -601,7 +617,7 @@ class DemoBodegaSeeder extends Seeder
         }
     }
 
-    private function seedBloqueos(Negocio $negocio, Collection $recursos, array $tiposBloqueo): void
+    private function seedBloqueos(Negocio $negocio, Collection $servicios, array $tiposBloqueo): void
     {
         $fullDayDate = Carbon::today()->next(Carbon::FRIDAY)->addWeek()->toDateString();
         $partialDate = Carbon::today()->next(Carbon::SATURDAY)->addWeek()->toDateString();
@@ -609,12 +625,13 @@ class DemoBodegaSeeder extends Seeder
 
         Bloqueo::updateOrCreate(
             [
-                'recurso_id' => $recursos['Mirador Atlántico']->id,
+                'servicio_id' => $servicios['Orixe']->id,
                 'tipo_bloqueo_id' => $tiposBloqueo['mantenimiento']->id,
                 'fecha' => $fullDayDate,
             ],
             [
                 'negocio_id' => $negocio->id,
+                'recurso_id' => null,
                 'hora_inicio' => null,
                 'hora_fin' => null,
                 'motivo' => 'Mantenimiento del mirador y revisión de climatización.',
@@ -628,7 +645,7 @@ class DemoBodegaSeeder extends Seeder
 
         Bloqueo::updateOrCreate(
             [
-                'recurso_id' => $recursos['Sala Privada do Lagar']->id,
+                'servicio_id' => $servicios['Cata Cantiga de Amor']->id,
                 'tipo_bloqueo_id' => $tiposBloqueo['evento']->id,
                 'fecha' => $partialDate,
                 'hora_inicio' => '18:45:00',
@@ -636,6 +653,7 @@ class DemoBodegaSeeder extends Seeder
             ],
             [
                 'negocio_id' => $negocio->id,
+                'recurso_id' => null,
                 'motivo' => 'Evento privado corporativo ya cerrado.',
                 'activo' => true,
                 'es_recurrente' => false,
@@ -647,7 +665,7 @@ class DemoBodegaSeeder extends Seeder
 
         Bloqueo::updateOrCreate(
             [
-                'recurso_id' => $recursos['Sala Ondas']->id,
+                'servicio_id' => $servicios['Ondas do Mar']->id,
                 'tipo_bloqueo_id' => $tiposBloqueo['cierre']->id,
                 'fecha' => $closureDate,
                 'hora_inicio' => '13:00:00',
@@ -655,6 +673,7 @@ class DemoBodegaSeeder extends Seeder
             ],
             [
                 'negocio_id' => $negocio->id,
+                'recurso_id' => null,
                 'motivo' => 'Cierre puntual por montaje de cata profesional.',
                 'activo' => true,
                 'es_recurrente' => false,

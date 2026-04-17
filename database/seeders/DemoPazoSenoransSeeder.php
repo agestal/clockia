@@ -76,6 +76,7 @@ class DemoPazoSenoransSeeder extends Seeder
                 'email' => 'eventos@pazodesenorans.example',
                 'telefono' => '+34 986 715 373',
                 'zona_horaria' => 'Europe/Madrid',
+                'dias_apertura' => [1, 2, 3, 4, 5],
                 'activo' => true,
                 'descripcion_publica' => 'Pazo historico del siglo XVI en el corazon del Valle del Salnes, elaborando algunos de los Albariños mas aclamados de Rias Baixas desde 1989. Combina siglos de tradicion viticola con su propia destileria, produciendo vinos excepcionales y aguardientes artesanos entre una arquitectura de epoca impresionante.',
                 'direccion' => 'Vilanoviña s/n, 36637 Meis, Pontevedra',
@@ -136,7 +137,7 @@ class DemoPazoSenoransSeeder extends Seeder
         $this->syncServicioRecursos($servicios, $recursos);
         $this->seedDisponibilidades($recursos);
         $this->seedSesiones($negocio, $servicios, $recursos);
-        $this->seedBloqueos($negocio, $recursos, [
+        $this->seedBloqueos($negocio, $servicios, [
             'mantenimiento' => $tipoBloqueoMantenimiento,
             'evento' => $tipoBloqueoEvento,
             'cierre' => $tipoBloqueoCierre,
@@ -253,6 +254,9 @@ class DemoPazoSenoransSeeder extends Seeder
                 'duracion_minutos' => 120,
                 'numero_personas_minimo' => 2,
                 'numero_personas_maximo' => 16,
+                'aforo' => 16,
+                'hora_inicio' => '10:30:00',
+                'hora_fin' => '14:30:00',
                 'precio_base' => 20.00,
                 'precio_menor' => 0.00,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -280,6 +284,9 @@ class DemoPazoSenoransSeeder extends Seeder
                 'duracion_minutos' => 90,
                 'numero_personas_minimo' => 2,
                 'numero_personas_maximo' => 8,
+                'aforo' => 8,
+                'hora_inicio' => '12:30:00',
+                'hora_fin' => '15:30:00',
                 'precio_base' => 35.00,
                 'precio_menor' => null,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -461,19 +468,20 @@ class DemoPazoSenoransSeeder extends Seeder
         }
     }
 
-    private function seedBloqueos(Negocio $negocio, Collection $recursos, array $tiposBloqueo): void
+    private function seedBloqueos(Negocio $negocio, Collection $servicios, array $tiposBloqueo): void
     {
         $maintenanceDate = Carbon::today()->next(Carbon::WEDNESDAY)->addWeek()->toDateString();
         $eventDate = Carbon::today()->next(Carbon::THURSDAY)->addWeek()->toDateString();
 
         Bloqueo::updateOrCreate(
             [
-                'recurso_id' => $recursos['Destileria']->id,
+                'servicio_id' => $servicios['Visita Guiada al Pazo']->id,
                 'tipo_bloqueo_id' => $tiposBloqueo['mantenimiento']->id,
                 'fecha' => $maintenanceDate,
             ],
             [
                 'negocio_id' => $negocio->id,
+                'recurso_id' => null,
                 'hora_inicio' => null,
                 'hora_fin' => null,
                 'motivo' => 'Revision y mantenimiento de los alambiques de la destileria.',
@@ -487,7 +495,7 @@ class DemoPazoSenoransSeeder extends Seeder
 
         Bloqueo::updateOrCreate(
             [
-                'recurso_id' => $recursos['Sala de Catas Privada']->id,
+                'servicio_id' => $servicios['Cata Premium con Seleccion de Añada']->id,
                 'tipo_bloqueo_id' => $tiposBloqueo['evento']->id,
                 'fecha' => $eventDate,
                 'hora_inicio' => '12:30:00',
@@ -495,6 +503,7 @@ class DemoPazoSenoransSeeder extends Seeder
             ],
             [
                 'negocio_id' => $negocio->id,
+                'recurso_id' => null,
                 'motivo' => 'Cata privada para prensa especializada ya cerrada.',
                 'activo' => true,
                 'es_recurrente' => false,

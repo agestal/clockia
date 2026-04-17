@@ -3,11 +3,14 @@
 namespace Tests\Feature;
 
 use App\Mail\ReservaConfirmada;
+use App\Models\Bloqueo;
+use App\Models\Cliente;
 use App\Models\Disponibilidad;
 use App\Models\EstadoReserva;
 use App\Models\Negocio;
 use App\Models\Reserva;
 use App\Models\Servicio;
+use App\Models\TipoBloqueo;
 use App\Models\TipoNegocio;
 use App\Models\TipoPrecio;
 use App\Models\TipoRecurso;
@@ -179,6 +182,109 @@ class CreateBookingToolTest extends TestCase
         $this->assertNotNull($reserva->mail_confirmacion_enviado_en);
     }
 
+    public function test_it_returns_dynamic_experience_slots_with_remaining_capacity(): void
+    {
+        [$negocio, $servicio] = $this->createDynamicExperienceFixture();
+        $cliente = Cliente::create(['nombre' => 'Cliente previo']);
+
+        Reserva::create([
+            'negocio_id' => $negocio->id,
+            'servicio_id' => $servicio->id,
+            'cliente_id' => $cliente->id,
+            'fecha' => '2026-04-16',
+            'hora_inicio' => '11:00:00',
+            'hora_fin' => '12:00:00',
+            'numero_personas' => 3,
+            'precio_calculado' => 60,
+            'estado_reserva_id' => EstadoReserva::where('nombre', 'Confirmada')->value('id'),
+            'nombre_responsable' => 'Reserva previa',
+            'telefono_responsable' => '600000001',
+        ]);
+
+        $availability = app(ToolRegistry::class)->executeForConversation('search_availability', [
+            'negocio_id' => $negocio->id,
+            'servicio_id' => $servicio->id,
+            'fecha' => '2026-04-16',
+            'numero_personas' => 4,
+        ]);
+
+        $this->assertTrue($availability['success']);
+        $this->assertSame('experience_schedule', data_get($availability, 'data.availability_mode'));
+        $this->assertSame(2, data_get($availability, 'data.total_slots'));
+        $this->assertCount(2, data_get($availability, 'data.slots'));
+        $this->assertSame(9, data_get($availability, 'data.slots.0.aforo_total'));
+        $this->assertSame(6, data_get($availability, 'data.slots.0.aforo_restante'));
+        $this->assertSame(33, data_get($availability, 'data.slots.0.ocupacion_porcentaje'));
+        $this->assertSame(9, data_get($availability, 'data.slots.1.aforo_restante'));
+    }
+
+    public function test_service_blocks_remove_dynamic_experience_slots(): void
+    {
+        [$negocio, $servicio] = $this->createDynamicExperienceFixture();
+        $tipoBloqueo = TipoBloqueo::create(['nombre' => 'Evento']);
+
+        Bloqueo::create([
+            'negocio_id' => $negocio->id,
+            'servicio_id' => $servicio->id,
+            'tipo_bloqueo_id' => $tipoBloqueo->id,
+            'fecha' => '2026-04-16',
+            'hora_inicio' => '12:00:00',
+            'hora_fin' => '13:00:00',
+            'activo' => true,
+        ]);
+
+        $availability = app(ToolRegistry::class)->executeForConversation('search_availability', [
+            'negocio_id' => $negocio->id,
+            'servicio_id' => $servicio->id,
+            'fecha' => '2026-04-16',
+            'numero_personas' => 2,
+        ]);
+
+        $this->assertTrue($availability['success']);
+        $this->assertCount(1, data_get($availability, 'data.slots'));
+        $this->assertSame('11:00', data_get($availability, 'data.slots.0.hora_inicio'));
+    }
+
+    public function test_it_creates_a_booking_for_a_dynamic_experience_slot_without_session_or_resource(): void
+    {
+        [$negocio, $servicio] = $this->createDynamicExperienceFixture();
+
+        $availability = app(ToolRegistry::class)->executeForConversation('search_availability', [
+            'negocio_id' => $negocio->id,
+            'servicio_id' => $servicio->id,
+            'fecha' => '2026-04-16',
+            'numero_personas' => 4,
+        ]);
+
+        $slot = data_get($availability, 'data.slots.0');
+
+        $result = app(ToolRegistry::class)->executeForConversation('create_booking', [
+            'negocio_id' => $negocio->id,
+            'servicio_id' => $servicio->id,
+            'fecha' => '2026-04-16',
+            'slot_key' => $slot['slot_key'],
+            'hora_inicio' => $slot['hora_inicio'],
+            'numero_personas' => 4,
+            'contact_name' => 'Reserva Dinámica',
+            'contact_phone' => '600444555',
+            'contact_email' => 'dinamica@example.com',
+        ]);
+
+        $this->assertTrue($result['success']);
+        $this->assertSame([], data_get($result, 'data.booking.resource_ids'));
+
+        $this->assertDatabaseHas('reservas', [
+            'id' => data_get($result, 'data.booking.id'),
+            'negocio_id' => $negocio->id,
+            'servicio_id' => $servicio->id,
+            'recurso_id' => null,
+            'sesion_id' => null,
+            'hora_inicio' => '11:00:00',
+            'hora_fin' => '12:00:00',
+            'numero_personas' => 4,
+        ]);
+    }
+
     private function createBookingFixture(): array
     {
         $tipoNegocio = TipoNegocio::create(['nombre' => 'Restaurante']);
@@ -276,5 +382,41 @@ class CreateBookingToolTest extends TestCase
         ]);
 
         return [$negocio, $servicio, $recurso];
+    }
+
+    private function createDynamicExperienceFixture(): array
+    {
+        $tipoNegocio = TipoNegocio::create(['nombre' => 'Bodega']);
+        $tipoPrecio = TipoPrecio::create(['nombre' => 'Por persona']);
+
+        EstadoReserva::create(['nombre' => 'Pendiente']);
+        EstadoReserva::create(['nombre' => 'Confirmada']);
+        EstadoReserva::create(['nombre' => 'Cancelada']);
+        EstadoReserva::create(['nombre' => 'No presentada']);
+
+        $negocio = Negocio::create([
+            'nombre' => 'Bodega Dinámica Test',
+            'tipo_negocio_id' => $tipoNegocio->id,
+            'zona_horaria' => 'Europe/Madrid',
+            'dias_apertura' => [(int) Carbon::parse('2026-04-16')->dayOfWeek],
+            'activo' => true,
+        ]);
+
+        $servicio = Servicio::create([
+            'negocio_id' => $negocio->id,
+            'nombre' => 'Cata Atlántica',
+            'duracion_minutos' => 60,
+            'numero_personas_minimo' => 2,
+            'numero_personas_maximo' => 9,
+            'aforo' => 9,
+            'hora_inicio' => '11:00:00',
+            'hora_fin' => '13:00:00',
+            'precio_base' => 20,
+            'tipo_precio_id' => $tipoPrecio->id,
+            'requiere_pago' => false,
+            'activo' => true,
+        ]);
+
+        return [$negocio, $servicio];
     }
 }

@@ -12,6 +12,7 @@ class BlockResource extends JsonResource
         return [
             'id' => $this->id,
             'business' => new BusinessSummaryResource($this->whenLoaded('negocio')),
+            'service' => new ServiceSummaryResource($this->whenLoaded('servicio')),
             'resource' => new OperationalResourceSummaryResource($this->whenLoaded('recurso')),
             'block_type' => new BlockTypeSummaryResource($this->whenLoaded('tipoBloqueo')),
             'date' => optional($this->fecha)?->toDateString(),

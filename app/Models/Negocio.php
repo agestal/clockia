@@ -50,6 +50,7 @@ class Negocio extends Model
         'email',
         'telefono',
         'zona_horaria',
+        'dias_apertura',
         'activo',
         'descripcion_publica',
         'direccion',
@@ -78,6 +79,7 @@ class Negocio extends Model
         return [
             'tipo_negocio_id' => 'integer',
             'activo' => 'boolean',
+            'dias_apertura' => 'array',
             'horas_minimas_cancelacion' => 'integer',
             'permite_modificacion' => 'boolean',
             'max_recursos_combinables' => 'integer',
@@ -117,6 +119,25 @@ class Negocio extends Model
         return ($this->max_recursos_combinables !== null && $this->max_recursos_combinables >= 1)
             ? $this->max_recursos_combinables
             : 1;
+    }
+
+    public function diasAperturaEfectivos(): array
+    {
+        $dias = collect(is_array($this->dias_apertura) ? $this->dias_apertura : [])
+            ->filter(fn ($value) => is_numeric($value))
+            ->map(fn ($value) => (int) $value)
+            ->filter(fn (int $value) => $value >= 0 && $value <= 6)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        return $dias !== [] ? $dias : [0, 1, 2, 3, 4, 5, 6];
+    }
+
+    public function estaAbiertoEnDiaSemana(int $diaSemana): bool
+    {
+        return in_array($diaSemana, $this->diasAperturaEfectivos(), true);
     }
 
     public function chatRequiredFieldsFor(string $toolName): ?array

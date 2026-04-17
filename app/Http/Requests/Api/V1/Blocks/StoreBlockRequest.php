@@ -20,6 +20,7 @@ class StoreBlockRequest extends FormRequest
 
         $this->merge([
             'resource_id' => $this->filled('resource_id') ? trim((string) $this->input('resource_id')) : null,
+            'service_id' => $this->filled('service_id') ? trim((string) $this->input('service_id')) : null,
             'block_type_id' => $this->filled('block_type_id') ? trim((string) $this->input('block_type_id')) : null,
             'start_time' => $this->normalizeTimeForValidation($this->input('start_time')),
             'end_time' => $this->normalizeTimeForValidation($this->input('end_time')),
@@ -42,6 +43,11 @@ class StoreBlockRequest extends FormRequest
                 'nullable',
                 'integer',
                 Rule::exists('recursos', 'id')->where(fn ($query) => $query->where('negocio_id', $businessId)),
+            ],
+            'service_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('servicios', 'id')->where(fn ($query) => $query->where('negocio_id', $businessId)),
             ],
             'block_type_id' => ['required', 'integer', 'exists:tipos_bloqueo,id'],
             'date' => ['nullable', 'date'],
@@ -110,6 +116,7 @@ class StoreBlockRequest extends FormRequest
         return [
             'negocio_id' => $businessId,
             'recurso_id' => isset($validated['resource_id']) ? (int) $validated['resource_id'] : null,
+            'servicio_id' => isset($validated['service_id']) ? (int) $validated['service_id'] : null,
             'tipo_bloqueo_id' => (int) $validated['block_type_id'],
             'fecha' => $validated['date'] ?? null,
             'fecha_inicio' => $validated['start_date'] ?? null,
@@ -128,6 +135,8 @@ class StoreBlockRequest extends FormRequest
         return [
             'resource_id.integer' => 'The selected resource_id is invalid.',
             'resource_id.exists' => 'The selected resource does not belong to this business.',
+            'service_id.integer' => 'The selected service_id is invalid.',
+            'service_id.exists' => 'The selected service does not belong to this business.',
             'block_type_id.required' => 'The block_type_id field is required.',
             'block_type_id.integer' => 'The selected block_type_id is invalid.',
             'block_type_id.exists' => 'The selected block_type_id does not exist.',

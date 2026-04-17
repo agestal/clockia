@@ -27,12 +27,14 @@ class StoreNegocioRequest extends FormRequest
         $chatBehaviorOverrides = $this->buildChatBehaviorOverrides();
         $mailRecordatorioHorasAntes = trim((string) $this->input('mail_recordatorio_horas_antes', ''));
         $mailEncuestaHorasDespues = trim((string) $this->input('mail_encuesta_horas_despues', ''));
+        $diasApertura = $this->normalizeWeekdays($this->input('dias_apertura', []));
 
         $this->merge([
             'nombre' => $nombre !== '' ? $nombre : null,
             'email' => $email !== '' ? $email : null,
             'telefono' => $telefono !== '' ? $telefono : null,
             'activo' => $this->normalizeBoolean($this->input('activo')),
+            'dias_apertura' => $diasApertura !== [] ? $diasApertura : null,
             'descripcion_publica' => $descripcionPublica !== '' ? $descripcionPublica : null,
             'direccion' => $direccion !== '' ? $direccion : null,
             'url_publica' => $urlPublica !== '' ? $urlPublica : null,
@@ -79,6 +81,8 @@ class StoreNegocioRequest extends FormRequest
             'telefono' => ['nullable', 'string', 'max:255'],
             'zona_horaria' => ['required', 'string', 'timezone'],
             'activo' => ['required', 'boolean'],
+            'dias_apertura' => ['nullable', 'array'],
+            'dias_apertura.*' => ['integer', 'in:0,1,2,3,4,5,6'],
             'descripcion_publica' => ['nullable', 'string'],
             'direccion' => ['nullable', 'string', 'max:500'],
             'url_publica' => ['nullable', 'string', 'url', 'max:500'],
@@ -176,6 +180,22 @@ class StoreNegocioRequest extends FormRequest
     private function normalizeBoolean(mixed $value): bool
     {
         return in_array($value, [true, 1, '1', 'true', 'on', 'yes'], true);
+    }
+
+    private function normalizeWeekdays(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return collect($value)
+            ->filter(fn ($item) => $item !== null && $item !== '')
+            ->map(fn ($item) => (int) $item)
+            ->filter(fn (int $item) => $item >= 0 && $item <= 6)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
     }
 
     private function buildChatBehaviorOverrides(): array

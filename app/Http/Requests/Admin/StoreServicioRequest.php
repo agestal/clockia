@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreServicioRequest extends FormRequest
 {
@@ -23,11 +24,17 @@ class StoreServicioRequest extends FormRequest
         $documentacionRequerida = trim((string) $this->input('documentacion_requerida', ''));
         $horasMinCancelacion = trim((string) $this->input('horas_minimas_cancelacion', ''));
         $porcentajeSenal = trim((string) $this->input('porcentaje_senal', ''));
+        $aforo = trim((string) $this->input('aforo', ''));
+        $horaInicio = $this->normalizeTimeForValidation($this->input('hora_inicio'));
+        $horaFin = $this->normalizeTimeForValidation($this->input('hora_fin'));
 
         $this->merge([
             'nombre' => $nombre !== '' ? $nombre : null,
             'descripcion' => $descripcion !== '' ? $descripcion : null,
             'duracion_minutos' => $duracionMinutos !== '' ? $duracionMinutos : null,
+            'aforo' => $aforo !== '' ? $aforo : null,
+            'hora_inicio' => $horaInicio,
+            'hora_fin' => $horaFin,
             'precio_base' => $precioBase !== '' ? $this->normalizeDecimal($precioBase) : null,
             'requiere_pago' => $this->normalizeBoolean($this->input('requiere_pago')),
             'activo' => $this->normalizeBoolean($this->input('activo')),
@@ -66,6 +73,9 @@ class StoreServicioRequest extends FormRequest
             ],
             'descripcion' => ['nullable', 'string'],
             'duracion_minutos' => ['required', 'integer', 'min:1'],
+            'aforo' => ['nullable', 'integer', 'min:1'],
+            'hora_inicio' => ['nullable', 'date_format:H:i'],
+            'hora_fin' => ['nullable', 'date_format:H:i'],
             'precio_base' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
             'tipo_precio_id' => ['required', 'integer', 'exists:tipos_precio,id'],
             'requiere_pago' => ['required', 'boolean'],
@@ -82,6 +92,31 @@ class StoreServicioRequest extends FormRequest
         ];
     }
 
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $aforo = $this->input('aforo');
+            $horaInicio = $this->input('hora_inicio');
+            $horaFin = $this->input('hora_fin');
+
+            $hasDynamicField = $aforo !== null || $horaInicio !== null || $horaFin !== null;
+
+            if (! $hasDynamicField) {
+                return;
+            }
+
+            if ($aforo === null || $horaInicio === null || $horaFin === null) {
+                $validator->errors()->add('aforo', 'Para activar la programación dinámica debes informar aforo, hora de inicio y hora de fin.');
+
+                return;
+            }
+
+            if ($horaFin <= $horaInicio) {
+                $validator->errors()->add('hora_fin', 'La hora de fin debe ser posterior a la hora de inicio.');
+            }
+        });
+    }
+
     public function validated($key = null, $default = null): array
     {
         $validated = parent::validated();
@@ -92,6 +127,14 @@ class StoreServicioRequest extends FormRequest
 
         if (array_key_exists('porcentaje_senal', $validated) && $validated['porcentaje_senal'] !== null) {
             $validated['porcentaje_senal'] = number_format((float) $validated['porcentaje_senal'], 2, '.', '');
+        }
+
+        if (array_key_exists('hora_inicio', $validated) && $validated['hora_inicio'] !== null) {
+            $validated['hora_inicio'] = $this->normalizeTimeForStorage($validated['hora_inicio']);
+        }
+
+        if (array_key_exists('hora_fin', $validated) && $validated['hora_fin'] !== null) {
+            $validated['hora_fin'] = $this->normalizeTimeForStorage($validated['hora_fin']);
         }
 
         return $validated;
@@ -111,6 +154,10 @@ class StoreServicioRequest extends FormRequest
             'duracion_minutos.required' => 'La duración es obligatoria.',
             'duracion_minutos.integer' => 'La duración debe ser un número entero válido.',
             'duracion_minutos.min' => 'La duración debe ser al menos 1 minuto.',
+            'aforo.integer' => 'El aforo debe ser un número entero válido.',
+            'aforo.min' => 'El aforo debe ser al menos 1 plaza.',
+            'hora_inicio.date_format' => 'La hora de inicio debe tener formato HH:MM.',
+            'hora_fin.date_format' => 'La hora de fin debe tener formato HH:MM.',
             'precio_base.required' => 'El precio base es obligatorio.',
             'precio_base.numeric' => 'El precio base debe ser un número válido.',
             'precio_base.min' => 'El precio base no puede ser negativo.',
@@ -147,5 +194,21 @@ class StoreServicioRequest extends FormRequest
         $normalized = str_replace([' ', ','], ['', '.'], $value);
 
         return number_format((float) $normalized, 2, '.', '');
+    }
+
+    private function normalizeTimeForValidation(mixed $value): ?string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        return strlen($value) >= 5 ? substr($value, 0, 5) : $value;
+    }
+
+    private function normalizeTimeForStorage(string $value): string
+    {
+        return $value.':00';
     }
 }

@@ -60,11 +60,15 @@ class BlockController extends ApiController
         $blocks = Bloqueo::query()
             ->where(function ($query) use ($business) {
                 $query->whereHas('recurso', fn ($inner) => $inner->where('negocio_id', $business->id))
+                    ->orWhereHas('servicio', fn ($inner) => $inner->where('negocio_id', $business->id))
                     ->orWhere('negocio_id', $business->id);
             })
-            ->with(['recurso', 'tipoBloqueo', 'negocio'])
+            ->with(['recurso', 'tipoBloqueo', 'negocio', 'servicio'])
             ->when(filled($filters['resource_id'] ?? null), function ($query) use ($filters) {
                 $query->where('recurso_id', (int) $filters['resource_id']);
+            })
+            ->when(filled($filters['service_id'] ?? null), function ($query) use ($filters) {
+                $query->where('servicio_id', (int) $filters['service_id']);
             })
             ->when(filled($filters['date'] ?? null), function ($query) use ($filters) {
                 $query->whereDate('fecha', $filters['date']);
@@ -115,7 +119,7 @@ class BlockController extends ApiController
     public function store(StoreBlockRequest $request, Negocio $business): JsonResponse
     {
         $block = Bloqueo::create($request->blockAttributes());
-        $block->load(['recurso', 'tipoBloqueo', 'negocio']);
+        $block->load(['recurso', 'tipoBloqueo', 'negocio', 'servicio']);
 
         return (new BlockResource($block))
             ->response()
@@ -201,7 +205,7 @@ class BlockController extends ApiController
     {
         $blockModel = $this->findBlockOrFail($business, $block, withRelations: false);
         $blockModel->update($request->blockAttributes());
-        $blockModel->load(['recurso', 'tipoBloqueo', 'negocio']);
+        $blockModel->load(['recurso', 'tipoBloqueo', 'negocio', 'servicio']);
 
         return new BlockResource($blockModel);
     }
@@ -237,11 +241,12 @@ class BlockController extends ApiController
             ->whereKey($block)
             ->where(function ($builder) use ($business) {
                 $builder->whereHas('recurso', fn ($inner) => $inner->where('negocio_id', $business->id))
+                    ->orWhereHas('servicio', fn ($inner) => $inner->where('negocio_id', $business->id))
                     ->orWhere('negocio_id', $business->id);
             });
 
         if ($withRelations) {
-            $query->with(['recurso', 'tipoBloqueo', 'negocio']);
+            $query->with(['recurso', 'tipoBloqueo', 'negocio', 'servicio']);
         }
 
         return $query->firstOrFail();

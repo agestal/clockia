@@ -91,6 +91,7 @@ class DemoRestauranteSeeder extends Seeder
                 'email' => 'info@culuca.com',
                 'telefono' => '981 97 88 98',
                 'zona_horaria' => 'Europe/Madrid',
+                'dias_apertura' => [0, 1, 2, 3, 4, 5, 6],
                 'activo' => true,
                 'descripcion_publica' => 'Restaurante coruñés de cocina de temporada y producto gallego con carta de sala, selección de vinos, reservado para celebraciones y menús de grupo a medida. La propuesta combina platos clásicos de la casa, mariscos y pescado, carnes a la brasa y opciones para compartir.',
                 'direccion' => 'Avenida Arteixo 10 Bajo, 15004 A Coruña',

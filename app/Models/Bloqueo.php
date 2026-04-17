@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property int $id
  * @property int|null $negocio_id
+ * @property int|null $servicio_id
  * @property int|null $recurso_id
  * @property int $tipo_bloqueo_id
  * @property \Illuminate\Support\Carbon|null $fecha
@@ -25,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read Negocio|null $negocio
+ * @property-read Servicio|null $servicio
  * @property-read Recurso|null $recurso
  * @property-read TipoBloqueo $tipoBloqueo
  */
@@ -36,6 +38,7 @@ class Bloqueo extends Model
 
     protected $fillable = [
         'negocio_id',
+        'servicio_id',
         'recurso_id',
         'tipo_bloqueo_id',
         'fecha',
@@ -53,6 +56,7 @@ class Bloqueo extends Model
     {
         return [
             'negocio_id' => 'integer',
+            'servicio_id' => 'integer',
             'recurso_id' => 'integer',
             'tipo_bloqueo_id' => 'integer',
             'fecha' => 'date',
@@ -72,6 +76,11 @@ class Bloqueo extends Model
     public function recurso(): BelongsTo
     {
         return $this->belongsTo(Recurso::class);
+    }
+
+    public function servicio(): BelongsTo
+    {
+        return $this->belongsTo(Servicio::class);
     }
 
     public function tipoBloqueo(): BelongsTo
@@ -96,6 +105,13 @@ class Bloqueo extends Model
 
     public function esNegocioCompleto(): bool
     {
-        return $this->recurso_id === null && $this->negocio_id !== null;
+        return $this->recurso_id === null
+            && $this->servicio_id === null
+            && $this->negocio_id !== null;
+    }
+
+    public function esServicioEspecifico(): bool
+    {
+        return $this->servicio_id !== null;
     }
 }

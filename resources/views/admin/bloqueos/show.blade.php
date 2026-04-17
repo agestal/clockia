@@ -30,6 +30,9 @@
                 <dt class="col-sm-3">Negocio</dt>
                 <dd class="col-sm-9">{{ $bloqueo->negocio?->nombre ?: '—' }}</dd>
 
+                <dt class="col-sm-3">Experiencia</dt>
+                <dd class="col-sm-9">{{ $bloqueo->servicio?->nombre ?: '—' }}</dd>
+
                 <dt class="col-sm-3">Tipo de bloqueo</dt>
                 <dd class="col-sm-9">{{ $bloqueo->tipoBloqueo?->nombre ?: '—' }}</dd>
 

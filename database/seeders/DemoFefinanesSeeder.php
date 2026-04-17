@@ -76,6 +76,7 @@ class DemoFefinanesSeeder extends Seeder
                 'email' => 'visitas@fefinanes.example',
                 'telefono' => '+34 986 542 204',
                 'zona_horaria' => 'Europe/Madrid',
+                'dias_apertura' => [1, 2, 3, 4, 5, 6],
                 'activo' => true,
                 'descripcion_publica' => 'Bodega instalada en un magnifico palacio del siglo XVII en el centro historico de Cambados, declarado Bien de Interes Cultural. Pioneros en la produccion comercial de Albariño desde 1928, representan el origen mismo del Albariño embotellado, con su iconica etiqueta diseñada hace casi un siglo.',
                 'direccion' => 'Plaza de Fefiñanes s/n, 36630 Cambados, Pontevedra',
@@ -137,7 +138,7 @@ class DemoFefinanesSeeder extends Seeder
         $this->syncServicioRecursos($servicios, $recursos);
         $this->seedDisponibilidades($recursos);
         $this->seedSesiones($negocio, $servicios, $recursos);
-        $this->seedBloqueos($negocio, $recursos, [
+        $this->seedBloqueos($negocio, $servicios, [
             'mantenimiento' => $tipoBloqueoMantenimiento,
             'evento' => $tipoBloqueoEvento,
             'cierre' => $tipoBloqueoCierre,
@@ -254,6 +255,9 @@ class DemoFefinanesSeeder extends Seeder
                 'duracion_minutos' => 45,
                 'numero_personas_minimo' => 2,
                 'numero_personas_maximo' => 20,
+                'aforo' => 20,
+                'hora_inicio' => '10:00:00',
+                'hora_fin' => '12:15:00',
                 'precio_base' => 13.00,
                 'precio_menor' => 0.00,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -281,6 +285,9 @@ class DemoFefinanesSeeder extends Seeder
                 'duracion_minutos' => 60,
                 'numero_personas_minimo' => 2,
                 'numero_personas_maximo' => 16,
+                'aforo' => 16,
+                'hora_inicio' => '11:00:00',
+                'hora_fin' => '13:00:00',
                 'precio_base' => 25.00,
                 'precio_menor' => 0.00,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -308,6 +315,9 @@ class DemoFefinanesSeeder extends Seeder
                 'duracion_minutos' => 90,
                 'numero_personas_minimo' => 3,
                 'numero_personas_maximo' => 10,
+                'aforo' => 10,
+                'hora_inicio' => '12:00:00',
+                'hora_fin' => '15:00:00',
                 'precio_base' => 70.00,
                 'precio_menor' => 0.00,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -531,19 +541,20 @@ class DemoFefinanesSeeder extends Seeder
         }
     }
 
-    private function seedBloqueos(Negocio $negocio, Collection $recursos, array $tiposBloqueo): void
+    private function seedBloqueos(Negocio $negocio, Collection $servicios, array $tiposBloqueo): void
     {
         $fullDayDate = Carbon::today()->next(Carbon::FRIDAY)->addWeek()->toDateString();
         $partialDate = Carbon::today()->next(Carbon::SATURDAY)->addWeek()->toDateString();
 
         Bloqueo::updateOrCreate(
             [
-                'recurso_id' => $recursos['Patio de Armas']->id,
+                'servicio_id' => $servicios['Visita Estandar']->id,
                 'tipo_bloqueo_id' => $tiposBloqueo['mantenimiento']->id,
                 'fecha' => $fullDayDate,
             ],
             [
                 'negocio_id' => $negocio->id,
+                'recurso_id' => null,
                 'hora_inicio' => null,
                 'hora_fin' => null,
                 'motivo' => 'Mantenimiento del Patio de Armas y revision de instalaciones historicas.',
@@ -557,7 +568,7 @@ class DemoFefinanesSeeder extends Seeder
 
         Bloqueo::updateOrCreate(
             [
-                'recurso_id' => $recursos['Sala Privada del Palacio']->id,
+                'servicio_id' => $servicios['Visita Especial Exclusiva']->id,
                 'tipo_bloqueo_id' => $tiposBloqueo['evento']->id,
                 'fecha' => $partialDate,
                 'hora_inicio' => '12:00:00',
@@ -565,6 +576,7 @@ class DemoFefinanesSeeder extends Seeder
             ],
             [
                 'negocio_id' => $negocio->id,
+                'recurso_id' => null,
                 'motivo' => 'Evento privado institucional ya cerrado.',
                 'activo' => true,
                 'es_recurrente' => false,

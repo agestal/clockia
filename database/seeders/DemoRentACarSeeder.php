@@ -62,6 +62,7 @@ class DemoRentACarSeeder extends Seeder
                 'email' => 'contacto@autoscastineira.es',
                 'telefono' => '886 160 902',
                 'zona_horaria' => 'Europe/Madrid',
+                'dias_apertura' => [1, 2, 3, 4, 5],
                 'activo' => true,
                 'descripcion_publica' => 'Empresa de alquiler de vehículos con más de 30 años de experiencia en Pontecaldelas, Pontevedra. Alquiler de turismos, furgonetas y vehículos comerciales por día, semana o larga duración. Todos nuestros vehículos incluyen seguro a todo riesgo con franquicia de 300€ y 350 km/día incluidos.',
                 'direccion' => 'Pazos nº13 A, 36829 Pontecaldelas, Pontevedra',

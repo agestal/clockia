@@ -36,6 +36,22 @@
                         <dd class="col-sm-7">{{ $servicio->tipoPrecio?->nombre ?: '—' }}</dd>
                         <dt class="col-sm-5">Duración</dt>
                         <dd class="col-sm-7">{{ $servicio->duracion_minutos }} min</dd>
+                        <dt class="col-sm-5">Modo agenda</dt>
+                        <dd class="col-sm-7">
+                            <span class="badge {{ $servicio->usaProgramacionDinamica() ? 'badge-info' : 'badge-secondary' }}">
+                                {{ $servicio->usaProgramacionDinamica() ? 'Franja dinámica' : 'Modelo actual' }}
+                            </span>
+                        </dd>
+                        <dt class="col-sm-5">Aforo</dt>
+                        <dd class="col-sm-7">{{ $servicio->aforo ?: '—' }}</dd>
+                        <dt class="col-sm-5">Horario</dt>
+                        <dd class="col-sm-7">
+                            @if($servicio->horaInicioCorta() && $servicio->horaFinCorta())
+                                {{ $servicio->horaInicioCorta() }} - {{ $servicio->horaFinCorta() }}
+                            @else
+                                —
+                            @endif
+                        </dd>
                         <dt class="col-sm-5">Precio base</dt>
                         <dd class="col-sm-7">{{ number_format((float) $servicio->precio_base, 2, ',', '.') }}</dd>
                         <dt class="col-sm-5">Requiere pago</dt>

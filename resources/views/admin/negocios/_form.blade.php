@@ -6,6 +6,10 @@
 
 @php
     $widgetSettings = $negocio->widgetSettingsResolved();
+    $selectedOpeningDays = old('dias_apertura');
+    $selectedOpeningDays = is_array($selectedOpeningDays)
+        ? array_map('intval', $selectedOpeningDays)
+        : (is_array($negocio->dias_apertura) && $negocio->dias_apertura !== [] ? array_map('intval', $negocio->dias_apertura) : [0, 1, 2, 3, 4, 5, 6]);
     $chatBehavior = old() ? [
         'human_role' => old('chat_behavior_human_role'),
         'default_register' => old('chat_behavior_default_register'),
@@ -106,6 +110,32 @@
                     @endforeach
                 </select>
                 @error('zona_horaria')
+                    <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-6">
+                <label class="form-label d-block">Días de apertura</label>
+                <div class="d-flex flex-wrap">
+                    @foreach($dayOptions as $value => $label)
+                        <div class="custom-control custom-checkbox mr-3 mb-2">
+                            <input
+                                type="checkbox"
+                                class="custom-control-input @error('dias_apertura') is-invalid @enderror @error('dias_apertura.*') is-invalid @enderror"
+                                id="dias_apertura_{{ $value }}"
+                                name="dias_apertura[]"
+                                value="{{ $value }}"
+                                @checked(in_array($value, $selectedOpeningDays, true))
+                            >
+                            <label class="custom-control-label" for="dias_apertura_{{ $value }}">{{ $label }}</label>
+                        </div>
+                    @endforeach
+                </div>
+                <small class="form-text text-muted">Esto marca qué días opera la bodega para generar las franjas dinámicas de sus experiencias.</small>
+                @error('dias_apertura')
+                    <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
+                @enderror
+                @error('dias_apertura.*')
                     <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
                 @enderror
             </div>

@@ -19,6 +19,7 @@ class IndexBlockRequest extends FormRequest
             'sort' => (string) $this->input('sort', '-date'),
             'filter' => [
                 'resource_id' => $this->filled('filter.resource_id') ? trim((string) $this->input('filter.resource_id')) : null,
+                'service_id' => $this->filled('filter.service_id') ? trim((string) $this->input('filter.service_id')) : null,
                 'date' => $this->filled('filter.date') ? trim((string) $this->input('filter.date')) : null,
                 'block_type_id' => $this->filled('filter.block_type_id') ? trim((string) $this->input('filter.block_type_id')) : null,
             ],
@@ -40,6 +41,11 @@ class IndexBlockRequest extends FormRequest
                 'nullable',
                 'integer',
                 Rule::exists('recursos', 'id')->where(fn ($query) => $query->where('negocio_id', $businessId)),
+            ],
+            'filter.service_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('servicios', 'id')->where(fn ($query) => $query->where('negocio_id', $businessId)),
             ],
             'filter.date' => ['nullable', 'date'],
             'filter.block_type_id' => ['nullable', 'integer', 'exists:tipos_bloqueo,id'],

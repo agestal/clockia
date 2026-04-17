@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Servicio;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -22,6 +23,7 @@ class UpdateBloqueoRequest extends FormRequest
             'motivo' => $motivo !== '' ? $motivo : null,
             'recurso_id' => $this->filled('recurso_id') ? (int) $this->input('recurso_id') : null,
             'negocio_id' => $this->filled('negocio_id') ? (int) $this->input('negocio_id') : null,
+            'servicio_id' => $this->filled('servicio_id') ? (int) $this->input('servicio_id') : null,
             'fecha' => $this->filled('fecha') ? $this->input('fecha') : null,
             'fecha_inicio' => $this->filled('fecha_inicio') ? $this->input('fecha_inicio') : null,
             'fecha_fin' => $this->filled('fecha_fin') ? $this->input('fecha_fin') : null,
@@ -36,6 +38,7 @@ class UpdateBloqueoRequest extends FormRequest
         return [
             'recurso_id' => ['nullable', 'integer', 'exists:recursos,id'],
             'negocio_id' => ['nullable', 'integer', 'exists:negocios,id'],
+            'servicio_id' => ['nullable', 'integer', 'exists:servicios,id'],
             'tipo_bloqueo_id' => ['required', 'integer', 'exists:tipos_bloqueo,id'],
             'fecha' => ['nullable', 'date'],
             'fecha_inicio' => ['nullable', 'date'],
@@ -93,9 +96,20 @@ class UpdateBloqueoRequest extends FormRequest
 
             $recursoId = $this->input('recurso_id');
             $negocioId = $this->input('negocio_id');
+            $servicioId = $this->input('servicio_id');
 
-            if ($recursoId === null && $negocioId === null) {
-                $validator->errors()->add('recurso_id', 'Debes indicar un recurso o un negocio al que aplicar el bloqueo.');
+            if ($recursoId === null && $negocioId === null && $servicioId === null) {
+                $validator->errors()->add('recurso_id', 'Debes indicar un recurso, un negocio o una experiencia a la que aplicar el bloqueo.');
+            }
+
+            if ($servicioId !== null && $negocioId !== null) {
+                $serviceBusinessId = Servicio::query()
+                    ->whereKey($servicioId)
+                    ->value('negocio_id');
+
+                if ($serviceBusinessId !== null && (int) $serviceBusinessId !== (int) $negocioId) {
+                    $validator->errors()->add('servicio_id', 'La experiencia seleccionada no pertenece al negocio indicado.');
+                }
             }
         });
     }
@@ -116,6 +130,8 @@ class UpdateBloqueoRequest extends FormRequest
             'recurso_id.exists' => 'El recurso seleccionado no existe.',
             'negocio_id.integer' => 'El negocio seleccionado no es válido.',
             'negocio_id.exists' => 'El negocio seleccionado no existe.',
+            'servicio_id.integer' => 'La experiencia seleccionada no es válida.',
+            'servicio_id.exists' => 'La experiencia seleccionada no existe.',
             'tipo_bloqueo_id.required' => 'Debes seleccionar un tipo de bloqueo.',
             'tipo_bloqueo_id.integer' => 'El tipo de bloqueo seleccionado no es válido.',
             'tipo_bloqueo_id.exists' => 'El tipo de bloqueo seleccionado no existe.',

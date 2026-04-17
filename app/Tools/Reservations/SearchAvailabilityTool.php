@@ -11,6 +11,7 @@ use App\Models\Reserva;
 use App\Models\Servicio;
 use App\Models\Sesion;
 use App\Services\Integrations\GoogleCalendarAvailabilityService;
+use App\Services\Reservations\DynamicExperienceAvailabilityService;
 use App\Services\Reservations\ResourceCombinationService;
 use App\Services\Reservations\ServiceSlotMatcher;
 use App\Services\Tools\BusinessComplexityResolver;
@@ -103,6 +104,11 @@ class SearchAvailabilityTool extends ToolDefinition
 
         if (! $servicio) {
             throw new EntityNotFoundException('Servicio', $dto->servicio_id);
+        }
+
+        $dynamicAvailability = app(DynamicExperienceAvailabilityService::class);
+        if ($dynamicAvailability->supports($servicio)) {
+            return $this->respuestaExperienciaDinamica($dto, $negocio, $servicio, $dynamicAvailability);
         }
 
         $complexity = app(BusinessComplexityResolver::class);
@@ -275,6 +281,41 @@ class SearchAvailabilityTool extends ToolDefinition
             'mensaje' => $bloqueadoNegocio
                 ? 'El negocio tiene un bloqueo activo para esta fecha.'
                 : 'Este servicio no tiene agenda detallada. Contacta con el negocio para confirmar disponibilidad.',
+        ]);
+    }
+
+    private function respuestaExperienciaDinamica(
+        SearchAvailabilityInput $dto,
+        Negocio $negocio,
+        Servicio $servicio,
+        DynamicExperienceAvailabilityService $dynamicAvailability
+    ): ToolResult {
+        $slots = $dynamicAvailability->slotsForDate($negocio, $servicio, $dto->fecha, $dto->numero_personas);
+        $summary = $dynamicAvailability->serviceSummaryForDate($negocio, $servicio, $dto->fecha, $dto->numero_personas);
+
+        return ToolResult::ok([
+            'negocio_id' => $dto->negocio_id,
+            'servicio_id' => $servicio->id,
+            'servicio_nombre' => $servicio->nombre,
+            'fecha' => $dto->fecha,
+            'duracion_minutos' => $servicio->duracion_minutos,
+            'numero_personas' => $dto->numero_personas,
+            'total_slots' => $summary['total_slots'],
+            'slots' => $slots,
+            'availability_mode' => 'experience_schedule',
+            'complexity_level' => BusinessComplexityResolver::LEVEL_SCHEDULED,
+            'has_precise_slots' => true,
+            'occupancy_percent' => $summary['occupancy_percent'],
+            'available_slots' => $summary['available_slots'],
+            'capacity_total' => $summary['capacity_total'],
+            'seats_reserved_total' => $summary['seats_reserved_total'],
+            'seats_available_total' => $summary['seats_available_total'],
+            'schedule' => [
+                'is_dynamic_experience' => true,
+                'capacity' => $servicio->aforo,
+                'start_time' => $servicio->horaInicioCorta(),
+                'end_time' => $servicio->horaFinCorta(),
+            ],
         ]);
     }
 

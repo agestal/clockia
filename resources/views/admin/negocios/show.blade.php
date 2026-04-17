@@ -191,6 +191,20 @@
                 </div>
             @endif
 
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white"><h3 class="card-title mb-0">Días de apertura</h3></div>
+                <div class="card-body">
+                    @php($openingDays = $negocio->diasAperturaEfectivos())
+                    <div class="d-flex flex-wrap">
+                        @foreach($dayOptions as $value => $label)
+                            <span class="badge {{ in_array($value, $openingDays, true) ? 'badge-success' : 'badge-light border text-muted' }} mr-2 mb-2 px-3 py-2">
+                                {{ $label }}
+                            </span>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
             @if($negocio->politica_cancelacion)
                 <div class="card shadow-sm border-0">
                     <div class="card-header bg-white"><h3 class="card-title mb-0">Política de cancelación</h3></div>

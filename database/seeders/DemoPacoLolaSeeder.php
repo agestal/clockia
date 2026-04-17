@@ -76,6 +76,7 @@ class DemoPacoLolaSeeder extends Seeder
                 'email' => 'enoturismo@pacolola.example',
                 'telefono' => '+34 986 747 779',
                 'zona_horaria' => 'Europe/Madrid',
+                'dias_apertura' => [0, 1, 2, 3, 4, 5, 6],
                 'activo' => true,
                 'descripcion_publica' => 'Cooperativa moderna fundada en 2005 por viticultores independientes del Valle del Salnes, con mas de 430 socios, la mayor cooperativa de la D.O. Rias Baixas. Su llamativa bodega de lunares combina tecnologia sostenible de vanguardia con generaciones de tradicion viticola para producir Albariños vibrantes.',
                 'direccion' => 'Valdamor 18, 36968 Xil-Meaño, Pontevedra',
@@ -133,7 +134,7 @@ class DemoPacoLolaSeeder extends Seeder
         $this->syncServicioRecursos($servicios, $recursos);
         $this->seedDisponibilidades($recursos);
         $this->seedSesiones($negocio, $servicios, $recursos);
-        $this->seedBloqueos($negocio, $recursos, [
+        $this->seedBloqueos($negocio, $servicios, [
             'mantenimiento' => $tipoBloqueoMantenimiento,
             'evento' => $tipoBloqueoEvento,
             'cierre' => $tipoBloqueoCierre,
@@ -250,6 +251,9 @@ class DemoPacoLolaSeeder extends Seeder
                 'duracion_minutos' => 60,
                 'numero_personas_minimo' => 1,
                 'numero_personas_maximo' => 30,
+                'aforo' => 30,
+                'hora_inicio' => '11:00:00',
+                'hora_fin' => '14:00:00',
                 'precio_base' => 15.00,
                 'precio_menor' => 9.00,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -277,6 +281,9 @@ class DemoPacoLolaSeeder extends Seeder
                 'duracion_minutos' => 90,
                 'numero_personas_minimo' => 1,
                 'numero_personas_maximo' => 30,
+                'aforo' => 30,
+                'hora_inicio' => '13:00:00',
+                'hora_fin' => '16:00:00',
                 'precio_base' => 22.00,
                 'precio_menor' => null,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -495,21 +502,22 @@ class DemoPacoLolaSeeder extends Seeder
         }
     }
 
-    private function seedBloqueos(Negocio $negocio, Collection $recursos, array $tiposBloqueo): void
+    private function seedBloqueos(Negocio $negocio, Collection $servicios, array $tiposBloqueo): void
     {
-        $maintenanceDate = Carbon::today()->next(Carbon::FRIDAY)->addWeek()->toDateString();
+        $maintenanceDate = Carbon::today()->next(Carbon::SATURDAY)->addWeek()->toDateString();
         $eventDate = Carbon::today()->next(Carbon::SATURDAY)->addWeek()->toDateString();
 
         Bloqueo::updateOrCreate(
             [
-                'recurso_id' => $recursos['Terraza Polka']->id,
+                'servicio_id' => $servicios['Visita Clasica']->id,
                 'tipo_bloqueo_id' => $tiposBloqueo['mantenimiento']->id,
                 'fecha' => $maintenanceDate,
+                'hora_inicio' => '11:00:00',
+                'hora_fin' => '12:00:00',
             ],
             [
                 'negocio_id' => $negocio->id,
-                'hora_inicio' => null,
-                'hora_fin' => null,
+                'recurso_id' => null,
                 'motivo' => 'Mantenimiento de la terraza y revision del mobiliario exterior.',
                 'activo' => true,
                 'es_recurrente' => false,
@@ -521,14 +529,15 @@ class DemoPacoLolaSeeder extends Seeder
 
         Bloqueo::updateOrCreate(
             [
-                'recurso_id' => $recursos['Sala de Catas']->id,
+                'servicio_id' => $servicios['Visita Gourmet']->id,
                 'tipo_bloqueo_id' => $tiposBloqueo['evento']->id,
                 'fecha' => $eventDate,
-                'hora_inicio' => '16:00:00',
-                'hora_fin' => '17:00:00',
+                'hora_inicio' => '13:00:00',
+                'hora_fin' => '14:30:00',
             ],
             [
                 'negocio_id' => $negocio->id,
+                'recurso_id' => null,
                 'motivo' => 'Evento privado de presentacion de nueva cosecha.',
                 'activo' => true,
                 'es_recurrente' => false,

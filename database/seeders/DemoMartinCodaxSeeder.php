@@ -76,6 +76,7 @@ class DemoMartinCodaxSeeder extends Seeder
                 'email' => 'enoturismo@martincodax.example',
                 'telefono' => '+34 986 526 040',
                 'zona_horaria' => 'Europe/Madrid',
+                'dias_apertura' => [0, 2, 3, 4, 5, 6],
                 'activo' => true,
                 'descripcion_publica' => 'Cooperativa de mas de 550 familias viticultures del Valle del Salnes. Desde su bodega sobre la colina que domina la Ria de Arousa, elaboran Albariños premiados que capturan la esencia del terroir atlantico gallego.',
                 'direccion' => 'Burgáns 91, 36633 Vilariño, Cambados, Pontevedra',
@@ -136,7 +137,7 @@ class DemoMartinCodaxSeeder extends Seeder
         $this->syncServicioRecursos($servicios, $recursos);
         $this->seedDisponibilidades($recursos);
         $this->seedSesiones($negocio, $servicios, $recursos);
-        $this->seedBloqueos($negocio, $recursos, [
+        $this->seedBloqueos($negocio, $servicios, [
             'mantenimiento' => $tipoBloqueoMantenimiento,
             'evento' => $tipoBloqueoEvento,
             'cierre' => $tipoBloqueoCierre,
@@ -255,6 +256,9 @@ class DemoMartinCodaxSeeder extends Seeder
                 'duracion_minutos' => 75,
                 'numero_personas_minimo' => 1,
                 'numero_personas_maximo' => 24,
+                'aforo' => 24,
+                'hora_inicio' => '11:00:00',
+                'hora_fin' => '13:30:00',
                 'precio_base' => 21.00,
                 'precio_menor' => 8.00,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -282,6 +286,9 @@ class DemoMartinCodaxSeeder extends Seeder
                 'duracion_minutos' => 90,
                 'numero_personas_minimo' => 1,
                 'numero_personas_maximo' => 24,
+                'aforo' => 24,
+                'hora_inicio' => '12:00:00',
+                'hora_fin' => '15:00:00',
                 'precio_base' => 28.00,
                 'precio_menor' => null,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -309,6 +316,9 @@ class DemoMartinCodaxSeeder extends Seeder
                 'duracion_minutos' => 120,
                 'numero_personas_minimo' => 1,
                 'numero_personas_maximo' => 24,
+                'aforo' => 12,
+                'hora_inicio' => '12:00:00',
+                'hora_fin' => '16:00:00',
                 'precio_base' => 50.00,
                 'precio_menor' => null,
                 'tipo_precio_id' => $tipoPrecioPorPersona->id,
@@ -521,7 +531,7 @@ class DemoMartinCodaxSeeder extends Seeder
         }
     }
 
-    private function seedBloqueos(Negocio $negocio, Collection $recursos, array $tiposBloqueo): void
+    private function seedBloqueos(Negocio $negocio, Collection $servicios, array $tiposBloqueo): void
     {
         // Full-day maintenance on Sala de Catas Principal on upcoming Friday
         $fullDayDate = Carbon::today()->next(Carbon::FRIDAY)->addWeek()->toDateString();
@@ -532,12 +542,13 @@ class DemoMartinCodaxSeeder extends Seeder
 
         Bloqueo::updateOrCreate(
             [
-                'recurso_id' => $recursos['Sala de Catas Principal']->id,
+                'servicio_id' => $servicios['Orixe']->id,
                 'tipo_bloqueo_id' => $tiposBloqueo['mantenimiento']->id,
                 'fecha' => $fullDayDate,
             ],
             [
                 'negocio_id' => $negocio->id,
+                'recurso_id' => null,
                 'hora_inicio' => null,
                 'hora_fin' => null,
                 'motivo' => 'Mantenimiento y limpieza profunda de la sala de catas principal.',
@@ -551,14 +562,35 @@ class DemoMartinCodaxSeeder extends Seeder
 
         Bloqueo::updateOrCreate(
             [
-                'recurso_id' => $recursos['Reservado Martin Codax']->id,
-                'tipo_bloqueo_id' => $tiposBloqueo['evento']->id,
-                'fecha' => $partialDate,
-                'hora_inicio' => '18:00:00',
-                'hora_fin' => '22:00:00',
+                'servicio_id' => $servicios['Ondas do Mar']->id,
+                'tipo_bloqueo_id' => $tiposBloqueo['mantenimiento']->id,
+                'fecha' => $fullDayDate,
             ],
             [
                 'negocio_id' => $negocio->id,
+                'recurso_id' => null,
+                'hora_inicio' => null,
+                'hora_fin' => null,
+                'motivo' => 'Mantenimiento y limpieza profunda de la sala de catas principal.',
+                'activo' => true,
+                'es_recurrente' => false,
+                'dia_semana' => null,
+                'fecha_inicio' => null,
+                'fecha_fin' => null,
+            ]
+        );
+
+        Bloqueo::updateOrCreate(
+            [
+                'servicio_id' => $servicios['Creaciones Singulares']->id,
+                'tipo_bloqueo_id' => $tiposBloqueo['evento']->id,
+                'fecha' => $partialDate,
+                'hora_inicio' => '12:00:00',
+                'hora_fin' => '14:00:00',
+            ],
+            [
+                'negocio_id' => $negocio->id,
+                'recurso_id' => null,
                 'motivo' => 'Evento corporativo privado en el reservado.',
                 'activo' => true,
                 'es_recurrente' => false,
@@ -570,7 +602,7 @@ class DemoMartinCodaxSeeder extends Seeder
 
         Bloqueo::updateOrCreate(
             [
-                'recurso_id' => $recursos['Terraza Panoramica']->id,
+                'servicio_id' => $servicios['Orixe']->id,
                 'tipo_bloqueo_id' => $tiposBloqueo['cierre']->id,
                 'fecha' => $closureDate,
                 'hora_inicio' => '11:00:00',
@@ -578,6 +610,7 @@ class DemoMartinCodaxSeeder extends Seeder
             ],
             [
                 'negocio_id' => $negocio->id,
+                'recurso_id' => null,
                 'motivo' => 'Cierre puntual de la terraza por prevision de temporal.',
                 'activo' => true,
                 'es_recurrente' => false,

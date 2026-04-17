@@ -81,6 +81,52 @@
             </div>
 
             <div class="form-group col-lg-3">
+                <label for="aforo" class="form-label">Aforo por franja</label>
+                <input
+                    type="number"
+                    id="aforo"
+                    name="aforo"
+                    value="{{ old('aforo', $servicio->aforo) }}"
+                    class="form-control @error('aforo') is-invalid @enderror"
+                    min="1"
+                    step="1"
+                    placeholder="Ejemplo: 18"
+                >
+                <small class="form-text text-muted">Si completas aforo y horario, esta experiencia funcionará por franjas dinámicas.</small>
+                @error('aforo')
+                    <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-3">
+                <label for="hora_inicio" class="form-label">Horario inicio</label>
+                <input
+                    type="time"
+                    id="hora_inicio"
+                    name="hora_inicio"
+                    value="{{ old('hora_inicio', $servicio->horaInicioCorta()) }}"
+                    class="form-control @error('hora_inicio') is-invalid @enderror"
+                >
+                @error('hora_inicio')
+                    <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-3">
+                <label for="hora_fin" class="form-label">Horario fin</label>
+                <input
+                    type="time"
+                    id="hora_fin"
+                    name="hora_fin"
+                    value="{{ old('hora_fin', $servicio->horaFinCorta()) }}"
+                    class="form-control @error('hora_fin') is-invalid @enderror"
+                >
+                @error('hora_fin')
+                    <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-3">
                 <label for="precio_base" class="form-label">Precio base</label>
                 <input
                     type="number"
@@ -97,6 +143,13 @@
                 @error('precio_base')
                     <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
                 @enderror
+            </div>
+
+            <div class="form-group col-12">
+                <small class="text-muted">
+                    Las franjas se generan automáticamente desde <strong>horario inicio</strong> hasta <strong>horario fin</strong> usando la duración del servicio.
+                    Si dejas estos campos vacíos, el servicio seguirá funcionando con el modelo actual.
+                </small>
             </div>
 
             <div class="form-group col-lg-3 d-flex align-items-center">
@@ -228,7 +281,7 @@
                 @error('recursos.*')
                     <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
                 @enderror
-                <p class="small text-muted mt-2 mb-0">Aquí se sincroniza la relación entre servicios y recursos en esta primera versión.</p>
+                <p class="small text-muted mt-2 mb-0">Si la experiencia usa franjas dinámicas por aforo, los recursos pueden quedar solo como apoyo interno.</p>
             </div>
 
             <div class="form-group col-12">

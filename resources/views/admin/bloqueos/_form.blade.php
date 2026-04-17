@@ -7,7 +7,7 @@
 <div class="card shadow-sm border-0">
     <div class="card-body">
         <div class="form-row">
-            <div class="form-group col-lg-6">
+            <div class="form-group col-lg-4">
                 <label for="recurso_id" class="form-label">Recurso (opcional)</label>
                 <select
                     id="recurso_id"
@@ -28,8 +28,29 @@
                 @enderror
             </div>
 
-            <div class="form-group col-lg-6">
-                <label for="negocio_id" class="form-label">Negocio (obligatorio si no hay recurso)</label>
+            <div class="form-group col-lg-4">
+                <label for="servicio_id" class="form-label">Experiencia (opcional)</label>
+                <select
+                    id="servicio_id"
+                    name="servicio_id"
+                    class="form-control @error('servicio_id') is-invalid @enderror js-select2-servicio"
+                    data-placeholder="Selecciona una experiencia"
+                >
+                    <option value="">— Sin experiencia específica —</option>
+                    @foreach($servicios as $servicio)
+                        <option value="{{ $servicio->id }}" @selected((string) old('servicio_id', $bloqueo->servicio_id) === (string) $servicio->id)>
+                            {{ $servicio->nombre }} @if($servicio->negocio)· {{ $servicio->negocio->nombre }} @endif
+                        </option>
+                    @endforeach
+                </select>
+                <small class="form-text text-muted">Úsalo para bloquear solo una experiencia en una o varias franjas.</small>
+                @error('servicio_id')
+                    <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
+                @enderror
+            </div>
+
+            <div class="form-group col-lg-4">
+                <label for="negocio_id" class="form-label">Negocio</label>
                 <select
                     id="negocio_id"
                     name="negocio_id"
@@ -46,6 +67,7 @@
                 @error('negocio_id')
                     <span class="invalid-feedback d-block" role="alert">{{ $message }}</span>
                 @enderror
+                <small class="form-text text-muted">Si eliges una experiencia, el negocio se completa automáticamente.</small>
             </div>
 
             <div class="form-group col-lg-6">

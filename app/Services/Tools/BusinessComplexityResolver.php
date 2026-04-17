@@ -7,6 +7,7 @@ use App\Models\Negocio;
 use App\Models\OcupacionExterna;
 use App\Models\RecursoCombinacion;
 use App\Models\Servicio;
+use App\Services\Reservations\DynamicExperienceAvailabilityService;
 
 /**
  * Determines the operational complexity level of a business/service.
@@ -52,6 +53,10 @@ class BusinessComplexityResolver
 
     public function negocioTieneDisponibilidadesOperativas(Negocio $negocio, ?Servicio $servicio = null): bool
     {
+        if ($this->negocioTieneExperienciasDinamicas($negocio, $servicio)) {
+            return true;
+        }
+
         $recursoIds = $this->recursoIds($negocio, $servicio);
 
         if (empty($recursoIds)) {
@@ -96,6 +101,20 @@ class BusinessComplexityResolver
         }
 
         return $query->exists();
+    }
+
+    public function negocioTieneExperienciasDinamicas(Negocio $negocio, ?Servicio $servicio = null): bool
+    {
+        $dynamicAvailability = app(DynamicExperienceAvailabilityService::class);
+
+        if ($servicio !== null) {
+            return $dynamicAvailability->supports($servicio);
+        }
+
+        return $negocio->servicios()
+            ->activos()
+            ->get()
+            ->contains(fn (Servicio $item) => $dynamicAvailability->supports($item));
     }
 
     private function recursoIds(Negocio $negocio, ?Servicio $servicio): array

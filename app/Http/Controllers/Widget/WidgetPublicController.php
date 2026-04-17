@@ -7,6 +7,7 @@ use App\Models\Disponibilidad;
 use App\Models\Negocio;
 use App\Models\Servicio;
 use App\Models\Sesion;
+use App\Services\Reservations\DynamicExperienceAvailabilityService;
 use App\Services\Reservations\ReservationFinalizationService;
 use App\Tools\Data\CreateBookingInput;
 use App\Tools\Reservations\CreateQuoteTool;
@@ -24,6 +25,7 @@ class WidgetPublicController extends Controller
         private readonly SearchAvailabilityTool $searchAvailabilityTool,
         private readonly CreateQuoteTool $createQuoteTool,
         private readonly ReservationFinalizationService $reservationFinalizationService,
+        private readonly DynamicExperienceAvailabilityService $dynamicExperienceAvailability,
     ) {}
 
     public function config(Negocio $business): JsonResponse
@@ -63,6 +65,7 @@ class WidgetPublicController extends Controller
 
         $year = (int) $validated['year'];
         $month = (int) $validated['month'];
+        $participants = isset($validated['participants']) ? (int) $validated['participants'] : null;
         $firstDay = Carbon::create($year, $month, 1, 0, 0, 0, $business->zona_horaria);
         $lastDay = $firstDay->copy()->endOfMonth();
         $today = Carbon::today($business->zona_horaria);
@@ -83,19 +86,28 @@ class WidgetPublicController extends Controller
             ]);
         }
 
+        $dynamicServices = $servicios
+            ->filter(fn (Servicio $servicio) => $this->dynamicExperienceAvailability->supports($servicio))
+            ->values();
+        $legacyServices = $servicios
+            ->reject(fn (Servicio $servicio) => $this->dynamicExperienceAvailability->supports($servicio))
+            ->values();
+
         // Precompute which (dayOfWeek, servicio) pairs have any active schedule
-        $serviceHasScheduleByDow = $this->buildServiceScheduleIndex($servicios);
+        $serviceHasScheduleByDow = $this->buildServiceScheduleIndex($legacyServices);
 
         // Precompute which dates have active sessions for any of these services
-        $sessionDates = Sesion::query()
-            ->where('negocio_id', $business->id)
-            ->whereIn('servicio_id', $servicios->pluck('id'))
-            ->where('activo', true)
-            ->whereBetween('fecha', [$firstDay->toDateString(), $lastDay->toDateString()])
-            ->pluck('fecha')
-            ->map(fn ($d) => $d instanceof Carbon ? $d->toDateString() : (string) $d)
-            ->unique()
-            ->flip();
+        $sessionDates = $legacyServices->isEmpty()
+            ? collect()
+            : Sesion::query()
+                ->where('negocio_id', $business->id)
+                ->whereIn('servicio_id', $legacyServices->pluck('id'))
+                ->where('activo', true)
+                ->whereBetween('fecha', [$firstDay->toDateString(), $lastDay->toDateString()])
+                ->pluck('fecha')
+                ->map(fn ($d) => $d instanceof Carbon ? $d->toDateString() : (string) $d)
+                ->unique()
+                ->flip();
 
         $days = [];
         $cursor = $firstDay->copy();
@@ -104,13 +116,25 @@ class WidgetPublicController extends Controller
             $dateString = $cursor->toDateString();
             $isPast = $cursor->lessThan($today);
             $available = false;
+            $dynamicSummary = null;
 
             if (! $isPast) {
-                if (isset($sessionDates[$dateString])) {
+                if ($dynamicServices->isNotEmpty()) {
+                    $dynamicSummary = $this->dynamicExperienceAvailability->daySummaryForServices(
+                        $business,
+                        $dynamicServices,
+                        $cursor,
+                        $participants
+                    );
+
+                    $available = (bool) ($dynamicSummary['available'] ?? false);
+                }
+
+                if (! $available && isset($sessionDates[$dateString])) {
                     $available = true;
-                } else {
+                } elseif (! $available) {
                     $dow = (int) $cursor->dayOfWeek;
-                    foreach ($servicios as $servicio) {
+                    foreach ($legacyServices as $servicio) {
                         if (! empty($serviceHasScheduleByDow[$servicio->id][$dow])) {
                             $available = true;
                             break;
@@ -123,6 +147,10 @@ class WidgetPublicController extends Controller
                 'date' => $dateString,
                 'available' => $available,
                 'is_past' => $isPast,
+                'occupancy_percent' => $dynamicSummary['occupancy_percent'] ?? null,
+                'available_slots' => $dynamicSummary['available_slots'] ?? null,
+                'total_slots' => $dynamicSummary['total_slots'] ?? null,
+                'service_occupancy' => $dynamicSummary['service_occupancy'] ?? [],
             ];
 
             $cursor->addDay();
@@ -163,7 +191,11 @@ class WidgetPublicController extends Controller
 
             $rawSlots = $availability->success ? (array) ($availability->data['slots'] ?? []) : [];
             $mode = $availability->success ? (string) ($availability->data['availability_mode'] ?? 'precise') : 'error';
-            $requiresTimeslot = $mode !== 'simple' && count($rawSlots) > 0;
+            $slotsSummary = $this->summarizeSlots(
+                $rawSlots,
+                $availability->success ? (array) ($availability->data ?? []) : []
+            );
+            $requiresTimeslot = $mode !== 'simple' && ($slotsSummary['total_slots'] > 0 || count($rawSlots) > 0);
 
             $timeslots = collect($rawSlots)
                 ->unique(fn (array $slot) => ($slot['hora_inicio'] ?? '').'|'.($slot['hora_fin'] ?? ''))
@@ -174,6 +206,8 @@ class WidgetPublicController extends Controller
                     'available' => true,
                     'session_id' => $slot['sesion_id'] ?? null,
                     'seats_remaining' => $slot['aforo_restante'] ?? null,
+                    'capacity' => $slot['aforo_total'] ?? $slot['capacidad_total'] ?? null,
+                    'occupancy_percent' => $slot['ocupacion_porcentaje'] ?? null,
                 ])
                 ->values()
                 ->all();
@@ -187,6 +221,10 @@ class WidgetPublicController extends Controller
                 'currency' => 'EUR',
                 'min_participants' => $servicio['numero_personas_minimo'] ?? null,
                 'max_participants' => $servicio['numero_personas_maximo'] ?? null,
+                'capacity' => $servicio['aforo'] ?? null,
+                'start_time' => $servicio['hora_inicio'] ?? null,
+                'end_time' => $servicio['hora_fin'] ?? null,
+                'is_dynamic_experience' => (bool) ($servicio['usa_programacion_dinamica'] ?? false),
                 'requires_timeslot' => $requiresTimeslot,
                 'requires_manual_approval' => (bool) ($servicio['requiere_aprobacion_manual'] ?? false),
                 'requires_documentation' => filled($servicio['documentacion_requerida'] ?? null),
@@ -196,9 +234,15 @@ class WidgetPublicController extends Controller
                 'languages' => $servicio['idiomas'] ?? null,
                 'timeslots' => $timeslots,
                 'availability_mode' => $mode,
+                'occupancy_percent' => $slotsSummary['occupancy_percent'],
+                'available_slots' => $slotsSummary['available_slots'],
+                'total_slots' => $slotsSummary['total_slots'],
+                'capacity_total' => $slotsSummary['capacity_total'],
+                'seats_available_total' => $slotsSummary['seats_available_total'],
+                'seats_reserved_total' => $slotsSummary['seats_reserved_total'],
             ];
         })
-            ->filter(fn (array $service) => $service['availability_mode'] === 'simple' || ! empty($service['timeslots']))
+            ->filter(fn (array $service) => $service['availability_mode'] === 'simple' || ! empty($service['timeslots']) || ($service['total_slots'] ?? 0) > 0)
             ->values()
             ->all();
 
@@ -293,6 +337,8 @@ class WidgetPublicController extends Controller
                 'slot_key' => $firstSlot['slot_key'] ?? null,
                 'start_time' => $firstSlot['hora_inicio'] ?? null,
                 'end_time' => $firstSlot['hora_fin'] ?? null,
+                'seats_remaining' => $firstSlot['aforo_restante'] ?? null,
+                'occupancy_percent' => $firstSlot['ocupacion_porcentaje'] ?? null,
             ],
         ]);
     }
@@ -392,5 +438,44 @@ class WidgetPublicController extends Controller
         }
 
         return $index;
+    }
+
+    private function summarizeSlots(array $slots, array $toolData = []): array
+    {
+        if (array_key_exists('occupancy_percent', $toolData)) {
+            return [
+                'occupancy_percent' => $toolData['occupancy_percent'],
+                'available_slots' => $toolData['available_slots'] ?? count($slots),
+                'total_slots' => $toolData['total_slots'] ?? count($slots),
+                'capacity_total' => $toolData['capacity_total'] ?? null,
+                'seats_available_total' => $toolData['seats_available_total'] ?? null,
+                'seats_reserved_total' => $toolData['seats_reserved_total'] ?? null,
+            ];
+        }
+
+        $capacityTotal = collect($slots)
+            ->map(fn (array $slot) => $slot['aforo_total'] ?? $slot['capacidad_total'] ?? null)
+            ->filter(fn ($value) => is_numeric($value))
+            ->map(fn ($value) => (int) $value)
+            ->sum();
+
+        $availableTotal = collect($slots)
+            ->map(fn (array $slot) => $slot['aforo_restante'] ?? null)
+            ->filter(fn ($value) => is_numeric($value))
+            ->map(fn ($value) => (int) $value)
+            ->sum();
+
+        $reservedTotal = $capacityTotal > 0 ? max(0, $capacityTotal - $availableTotal) : null;
+
+        return [
+            'occupancy_percent' => $capacityTotal > 0 && $reservedTotal !== null
+                ? (int) round(($reservedTotal / $capacityTotal) * 100)
+                : null,
+            'available_slots' => count($slots),
+            'total_slots' => count($slots),
+            'capacity_total' => $capacityTotal > 0 ? $capacityTotal : null,
+            'seats_available_total' => $capacityTotal > 0 ? $availableTotal : null,
+            'seats_reserved_total' => $reservedTotal,
+        ];
     }
 }

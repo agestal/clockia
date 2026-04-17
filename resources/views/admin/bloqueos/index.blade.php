@@ -6,7 +6,7 @@
     <div class="d-flex flex-wrap align-items-start justify-content-between">
         <div>
             <h1 class="mb-1">Bloqueos</h1>
-            <p class="text-muted mb-0">Gestiona los bloqueos puntuales de los recursos.</p>
+            <p class="text-muted mb-0">Gestiona bloqueos de negocio, experiencia o recurso.</p>
         </div>
 
         <div class="mt-3 mt-md-0">
@@ -82,9 +82,14 @@
                                     @if($bloqueo->negocio)
                                         <div class="small text-muted">{{ $bloqueo->negocio->nombre }}</div>
                                     @endif
+                                    @if($bloqueo->servicio)
+                                        <div class="small text-muted">{{ $bloqueo->servicio->nombre }}</div>
+                                    @endif
                                 @elseif($bloqueo->negocio)
                                     <div>{{ $bloqueo->negocio->nombre }}</div>
-                                    <div class="small text-muted">Negocio completo</div>
+                                    <div class="small text-muted">
+                                        {{ $bloqueo->servicio ? $bloqueo->servicio->nombre : 'Negocio completo' }}
+                                    </div>
                                 @else
                                     —
                                 @endif

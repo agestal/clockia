@@ -106,6 +106,7 @@ class NegocioController extends Controller
             ]),
             'selectedTipoNegocio' => $this->resolveSelectedTipoNegocio(),
             'timezones' => $this->timezoneOptions(),
+            'dayOptions' => $this->dayOptions(),
             'conversationBehaviorOptions' => $this->conversationBehaviorOptions(),
             'googleCalendarIntegration' => null,
             'googleCalendarResources' => collect(),
@@ -158,6 +159,7 @@ class NegocioController extends Controller
             'servicios' => $servicios,
             'recursos' => $recursos,
             'reservas' => $reservas,
+            'dayOptions' => $this->dayOptions(),
         ]);
     }
 
@@ -176,6 +178,7 @@ class NegocioController extends Controller
             'negocio' => $negocio,
             'selectedTipoNegocio' => $this->resolveSelectedTipoNegocio($negocio),
             'timezones' => $this->timezoneOptions(),
+            'dayOptions' => $this->dayOptions(),
             'conversationBehaviorOptions' => $this->conversationBehaviorOptions(),
             'googleCalendarIntegration' => $negocio->integracionGoogleCalendar,
             'googleCalendarResources' => $negocio->recursos()
@@ -471,6 +474,19 @@ class NegocioController extends Controller
                 'Si no hay disponibilidad, dilo claramente sin forzar alternativas si no están claras.' => 'Decirlo sin forzar alternativas',
                 'Si no hay disponibilidad, prioriza proponer reformulación o flexibilidad de fecha u hora.' => 'Pedir flexibilidad primero',
             ],
+        ];
+    }
+
+    private function dayOptions(): array
+    {
+        return [
+            0 => 'Domingo',
+            1 => 'Lunes',
+            2 => 'Martes',
+            3 => 'Miércoles',
+            4 => 'Jueves',
+            5 => 'Viernes',
+            6 => 'Sábado',
         ];
     }
 }

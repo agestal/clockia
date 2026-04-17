@@ -4,7 +4,7 @@ import { resolve } from 'path';
 export default defineConfig({
     build: {
         outDir: 'public/widget',
-        emptyOutDir: true,
+        emptyOutDir: false,
         minify: true,
         cssCodeSplit: false,
         lib: {

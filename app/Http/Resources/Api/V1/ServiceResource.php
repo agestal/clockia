@@ -15,6 +15,10 @@ class ServiceResource extends JsonResource
             'name' => $this->nombre,
             'description' => $this->descripcion,
             'duration_minutes' => $this->duracion_minutos,
+            'capacity' => $this->aforo,
+            'start_time' => $this->formatTime($this->hora_inicio),
+            'end_time' => $this->formatTime($this->hora_fin),
+            'is_dynamic_experience' => $this->usaProgramacionDinamica(),
             'base_price' => (string) $this->precio_base,
             'price_type' => new PriceTypeSummaryResource($this->whenLoaded('tipoPrecio')),
             'requires_payment' => (bool) $this->requiere_pago,
@@ -32,5 +36,14 @@ class ServiceResource extends JsonResource
             'created_at' => optional($this->created_at)?->toISOString(),
             'updated_at' => optional($this->updated_at)?->toISOString(),
         ];
+    }
+
+    private function formatTime(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return substr($value, 0, 5);
     }
 }

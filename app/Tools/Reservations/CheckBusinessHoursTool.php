@@ -6,12 +6,14 @@ use App\Models\Bloqueo;
 use App\Models\Disponibilidad;
 use App\Models\Negocio;
 use App\Models\Servicio;
+use App\Services\Reservations\DynamicExperienceAvailabilityService;
 use App\Services\Tools\BusinessComplexityResolver;
 use App\Tools\Data\CheckBusinessHoursInput;
 use App\Tools\Exceptions\EntityNotFoundException;
 use App\Tools\ToolDefinition;
 use App\Tools\ToolResult;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
 class CheckBusinessHoursTool extends ToolDefinition
 {
@@ -84,6 +86,34 @@ class CheckBusinessHoursTool extends ToolDefinition
                 ->first();
         }
 
+        $dynamicAvailability = app(DynamicExperienceAvailabilityService::class);
+        if ($servicio !== null && $dynamicAvailability->supports($servicio)) {
+            return $this->respuestaHorariosDinamicos(
+                $dto,
+                $negocio,
+                collect([$servicio]),
+                $dynamicAvailability,
+                $servicio
+            );
+        }
+
+        if ($servicio === null) {
+            $dynamicServices = $negocio->servicios()
+                ->activos()
+                ->get()
+                ->filter(fn (Servicio $item) => $dynamicAvailability->supports($item))
+                ->values();
+
+            if ($dynamicServices->isNotEmpty()) {
+                return $this->respuestaHorariosDinamicos(
+                    $dto,
+                    $negocio,
+                    $dynamicServices,
+                    $dynamicAvailability
+                );
+            }
+        }
+
         $complexity = app(BusinessComplexityResolver::class);
         $tieneDisponibilidades = $complexity->negocioTieneDisponibilidadesOperativas($negocio, $servicio);
 
@@ -134,6 +164,66 @@ class CheckBusinessHoursTool extends ToolDefinition
 
         if ($dto->fecha !== null) {
             $result['fecha_consultada'] = $this->consultarFecha($dto, $negocio, $horariosPorDia, $recursoIds);
+        }
+
+        return ToolResult::ok($result);
+    }
+
+    /**
+     * @param  Collection<int, Servicio>  $servicios
+     */
+    private function respuestaHorariosDinamicos(
+        CheckBusinessHoursInput $dto,
+        Negocio $negocio,
+        Collection $servicios,
+        DynamicExperienceAvailabilityService $dynamicAvailability,
+        ?Servicio $servicio = null
+    ): ToolResult {
+        $schedule = $dynamicAvailability->weeklySchedule($negocio, $servicio);
+        $horarios = collect($schedule)->map(function (array $day) {
+            return [
+                'dia_semana' => $day['dia_semana'],
+                'dia_nombre' => self::DAY_NAMES[$day['dia_semana']],
+                'abierto' => $day['abierto'],
+                'turnos' => collect($day['turnos'])->map(fn (array $turno) => [
+                    'hora_inicio' => $turno['hora_inicio'],
+                    'hora_fin' => $turno['hora_fin'],
+                    'servicio_id' => $turno['service_id'],
+                    'servicio_nombre' => $turno['service_name'],
+                    'duracion_minutos' => $turno['duracion_minutos'],
+                    'aforo' => $turno['aforo'],
+                ])->values()->all(),
+            ];
+        })->all();
+
+        $result = [
+            'negocio_id' => $negocio->id,
+            'negocio_nombre' => $negocio->nombre,
+            'zona_horaria' => $negocio->zona_horaria,
+            'horarios' => $horarios,
+            'availability_mode' => 'experience_schedule',
+            'has_precise_slots' => true,
+            'dias_apertura' => $negocio->diasAperturaEfectivos(),
+        ];
+
+        if ($servicio !== null) {
+            $result['servicio'] = [
+                'id' => $servicio->id,
+                'nombre' => $servicio->nombre,
+                'duracion_minutos' => $servicio->duracion_minutos,
+                'aforo' => $servicio->aforo,
+                'hora_inicio' => $servicio->horaInicioCorta(),
+                'hora_fin' => $servicio->horaFinCorta(),
+            ];
+        }
+
+        if ($dto->fecha !== null) {
+            $result['fecha_consultada'] = $this->consultarFechaDinamica(
+                $dto->fecha,
+                $negocio,
+                $servicios,
+                $dynamicAvailability
+            );
         }
 
         return ToolResult::ok($result);
@@ -238,6 +328,45 @@ class CheckBusinessHoursTool extends ToolDefinition
             ->exists();
     }
 
+    /**
+     * @param  Collection<int, Servicio>  $servicios
+     */
+    private function consultarFechaDinamica(
+        string $fecha,
+        Negocio $negocio,
+        Collection $servicios,
+        DynamicExperienceAvailabilityService $dynamicAvailability
+    ): array {
+        $fechaCarbon = Carbon::parse($fecha);
+        $summary = $dynamicAvailability->daySummaryForServices($negocio, $servicios, $fechaCarbon);
+
+        return [
+            'fecha' => $fecha,
+            'dia_semana' => (int) $fechaCarbon->dayOfWeek,
+            'dia_nombre' => self::DAY_NAMES[(int) $fechaCarbon->dayOfWeek],
+            'abierto' => collect($summary['service_occupancy'] ?? [])
+                ->contains(fn (array $item) => (int) ($item['total_slots'] ?? 0) > 0),
+            'turnos' => collect($summary['service_occupancy'] ?? [])
+                ->map(fn (array $item) => [
+                    'servicio_id' => $item['service_id'],
+                    'servicio_nombre' => $item['service_name'],
+                    'hora_inicio' => $item['start_time'],
+                    'hora_fin' => $item['end_time'],
+                    'duracion_minutos' => $item['duration_minutes'],
+                    'aforo' => $item['capacity'],
+                    'total_slots' => $item['total_slots'],
+                    'available_slots' => $item['available_slots'],
+                    'occupancy_percent' => $item['occupancy_percent'],
+                ])
+                ->values()
+                ->all(),
+            'occupancy_percent' => $summary['occupancy_percent'] ?? null,
+            'available_slots' => $summary['available_slots'] ?? 0,
+            'total_slots' => $summary['total_slots'] ?? 0,
+            'bloqueos' => [],
+        ];
+    }
+
     public function resultExplanation(array $input, \App\Tools\ToolResult $result): array
     {
         $mode = data_get($result->data, 'availability_mode', 'simple');
@@ -250,7 +379,7 @@ class CheckBusinessHoursTool extends ToolDefinition
             'conversation_memory_hint' => $date !== null
                 ? "Ya tienes contexto horario para {$date}."
                 : 'Ya tienes el contexto general de horarios del negocio.',
-            'next_step_hint' => $mode === 'scheduled'
+            'next_step_hint' => in_array($mode, ['scheduled', 'experience_schedule'], true)
                 ? 'Si el usuario quiere reservar, usa este resultado como contexto pero sigue necesitando la tool de disponibilidad para huecos reales.'
                 : 'Aclara que hay información general, no una agenda operativa cerrada.',
             'public_summary' => $date !== null
