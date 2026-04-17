@@ -1,7 +1,7 @@
 @extends('public.layout')
 
 @section('title', 'Clockia | Reservas de enoturismo con calendario y chatbot')
-@section('meta_description', 'Landing pública de Clockia para enoturismo: calendario widget, chatbot widget, pagos, Google Calendar, mailing y encuestas post-experiencia.')
+@section('meta_description', 'Clockia para enoturismo: calendario y chatbot embebibles, emails de confirmación y recordatorio, encuestas, avisos al administrador, pasarelas de pago, Google Calendar y configurador con IA.')
 
 @section('content')
     <section class="hero" style="background-image: url('{{ asset('images/marketing/white-wine-hero.jpg') }}');">
@@ -9,8 +9,9 @@
             <span class="eyebrow">Clockia para enoturismo</span>
             <h1>Reservas pensadas para visitas, catas y experiencias de bodega.</h1>
             <p>
-                Clockia convierte la disponibilidad real en reservas listas para vender: calendario widget, chatbot widget,
-                respuestas personalizadas, pasarelas de pago, mailing automático y sincronización con Google Calendar en un mismo flujo.
+                Clockia convierte la disponibilidad real en reservas listas para vender: calendario widget, chatbot con IA,
+                emails automatizados, encuestas, avisos al administrador, pasarelas de pago, Google Calendar y un configurador
+                con IA que deja tu negocio operativo desde el primer día.
             </p>
 
             <div class="hero-actions">
@@ -23,8 +24,10 @@
                 <span class="hero-pill">Chatbot widget</span>
                 <span class="hero-pill">Pagos integrados</span>
                 <span class="hero-pill">Google Calendar</span>
-                <span class="hero-pill">Mailing y encuestas</span>
-                <span class="hero-pill">Reservas por experiencia</span>
+                <span class="hero-pill">Emails automatizados</span>
+                <span class="hero-pill">Encuestas post-experiencia</span>
+                <span class="hero-pill">Avisos al administrador</span>
+                <span class="hero-pill">Configurador con IA</span>
             </div>
         </div>
     </section>
@@ -68,12 +71,42 @@
                 </article>
 
                 <article class="feature-card">
+                    <h3>Emails automatizados</h3>
+                    <p>Confirmación, recordatorio y encuesta salen solos en el momento justo, cada uno con su propio interruptor.</p>
+                    <ul class="card-bullets">
+                        <li>Confirmación inmediata con localizador y detalles</li>
+                        <li>Recordatorio configurable (horas antes de la visita)</li>
+                        <li>Encuesta post-experiencia con plantilla propia</li>
+                    </ul>
+                </article>
+
+                <article class="feature-card">
+                    <h3>Avisos al administrador</h3>
+                    <p>El negocio recibe alertas por email en tiempo real cuando pasa algo relevante, sin tener que mirar el panel.</p>
+                    <ul class="card-bullets">
+                        <li>Reserva nueva o anulación al instante</li>
+                        <li>Aviso de aforo lleno en sesión o en el día completo</li>
+                        <li>Notificación de encuesta respondida con valoraciones</li>
+                    </ul>
+                </article>
+
+                <article class="feature-card">
+                    <h3>Configurador con IA</h3>
+                    <p>Arranca con la información del negocio importada y lista en minutos, no en días.</p>
+                    <ul class="card-bullets">
+                        <li>Importa experiencias, horarios y precios desde la web</li>
+                        <li>Genera descripciones comerciales y textos del chatbot</li>
+                        <li>Configura franjas, aforo y políticas desde el primer día</li>
+                    </ul>
+                </article>
+
+                <article class="feature-card">
                     <h3>Reserva y seguimiento</h3>
                     <p>El visitante encuentra fecha, entiende el plan y sigue conectado antes y después de venir.</p>
                     <ul class="card-bullets">
                         <li>Pago con señal o total</li>
-                        <li>Confirmaciones y recordatorios</li>
-                        <li>Encuestas post-experiencia automáticas</li>
+                        <li>Política de cancelación y modificación por servicio</li>
+                        <li>Historial completo por cliente y localizador</li>
                     </ul>
                 </article>
             </div>
@@ -119,17 +152,19 @@
                 <div class="integration-rail" style="margin-top: 1.2rem;">
                     <span class="integration-pill" style="color: var(--clockia-primary); background: var(--clockia-surface-soft); border-color: var(--clockia-border);">Google Calendar</span>
                     <span class="integration-pill" style="color: var(--clockia-primary); background: var(--clockia-surface-soft); border-color: var(--clockia-border);">Pasarelas de pago</span>
-                    <span class="integration-pill" style="color: var(--clockia-primary); background: var(--clockia-surface-soft); border-color: var(--clockia-border);">Email transaccional</span>
-                    <span class="integration-pill" style="color: var(--clockia-primary); background: var(--clockia-surface-soft); border-color: var(--clockia-border);">Encuestas post-experiencia</span>
-                    <span class="integration-pill" style="color: var(--clockia-primary); background: var(--clockia-surface-soft); border-color: var(--clockia-border);">MCP y tools</span>
+                    <span class="integration-pill" style="color: var(--clockia-primary); background: var(--clockia-surface-soft); border-color: var(--clockia-border);">Emails automatizados</span>
+                    <span class="integration-pill" style="color: var(--clockia-primary); background: var(--clockia-surface-soft); border-color: var(--clockia-border);">Encuestas con plantilla</span>
+                    <span class="integration-pill" style="color: var(--clockia-primary); background: var(--clockia-surface-soft); border-color: var(--clockia-border);">Avisos al admin</span>
+                    <span class="integration-pill" style="color: var(--clockia-primary); background: var(--clockia-surface-soft); border-color: var(--clockia-border);">Configurador con IA</span>
                     <span class="integration-pill" style="color: var(--clockia-primary); background: var(--clockia-surface-soft); border-color: var(--clockia-border);">Widget embebido</span>
                 </div>
 
                 <ul class="bullet-list">
                     <li>Las franjas bloqueadas o la agenda externa dejan de mostrarse como disponibles.</li>
                     <li>El cobro forma parte de la reserva y no de un proceso aparte.</li>
-                    <li>Confirmaciones, recordatorios y encuestas salen del mismo ciclo de la reserva.</li>
-                    <li>Las respuestas del asistente se adaptan a cada negocio y experiencia.</li>
+                    <li>Confirmación, recordatorio y encuesta salen automáticos con su propio interruptor por negocio.</li>
+                    <li>El administrador recibe avisos al email cuando hay reservas, anulaciones o el aforo se completa.</li>
+                    <li>El configurador con IA importa la información del negocio y deja todo operativo desde el primer día.</li>
                 </ul>
             </div>
         </div>
