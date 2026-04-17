@@ -121,6 +121,28 @@ class GoogleCalendarClient
         return $this->decodeResponse($response, 'crear un evento en Google Calendar');
     }
 
+    public function updateEvent(string $accessToken, string $calendarId, string $eventId, array $payload): array
+    {
+        $response = Http::withToken($accessToken)
+            ->timeout(20)
+            ->put($this->apiUrl('/calendars/'.rawurlencode($calendarId).'/events/'.rawurlencode($eventId)), $payload);
+
+        return $this->decodeResponse($response, 'actualizar un evento en Google Calendar');
+    }
+
+    public function deleteEvent(string $accessToken, string $calendarId, string $eventId): void
+    {
+        $response = Http::withToken($accessToken)
+            ->timeout(20)
+            ->delete($this->apiUrl('/calendars/'.rawurlencode($calendarId).'/events/'.rawurlencode($eventId)));
+
+        if ($response->status() === 404 || $response->successful()) {
+            return;
+        }
+
+        $this->decodeResponse($response, 'eliminar un evento en Google Calendar');
+    }
+
     public function freeBusy(
         string $accessToken,
         array $calendarIds,

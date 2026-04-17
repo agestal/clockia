@@ -68,6 +68,10 @@ class ConfirmationSummaryBuilder
     {
         $lines = [];
 
+        if ($tool === 'modify_booking' && isset($params['locator'])) {
+            $lines[] = "Localizador: {$params['locator']}";
+        }
+
         if (isset($params['servicio_id'])) {
             $servicio = Servicio::find($params['servicio_id']);
             if ($servicio) {
@@ -93,7 +97,9 @@ class ConfirmationSummaryBuilder
             $lines[] = "Teléfono: {$params['contact_phone']}";
         }
 
-        $summary = "Perfecto 😊 Entonces sería:\n\n";
+        $summary = $tool === 'modify_booking'
+            ? "Perfecto. Voy a modificar la reserva con estos datos:\n\n"
+            : "Perfecto 😊 Entonces sería:\n\n";
         foreach ($lines as $line) {
             $summary .= "• {$line}\n";
         }

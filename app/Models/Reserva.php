@@ -83,7 +83,10 @@ class Reserva extends Model
         'porcentaje_senal',
         'origen_reserva',
         'importada_externamente',
+        'token_cancelacion',
+        'token_cancelacion_expira_en',
         'mail_confirmacion_enviado_en',
+        'mail_modificacion_enviado_en',
         'mail_recordatorio_enviado_en',
         'mail_encuesta_enviado_en',
     ];
@@ -111,7 +114,9 @@ class Reserva extends Model
             'es_reembolsable' => 'boolean',
             'porcentaje_senal' => 'decimal:2',
             'importada_externamente' => 'boolean',
+            'token_cancelacion_expira_en' => 'datetime',
             'mail_confirmacion_enviado_en' => 'datetime',
+            'mail_modificacion_enviado_en' => 'datetime',
             'mail_recordatorio_enviado_en' => 'datetime',
             'mail_encuesta_enviado_en' => 'datetime',
         ];

@@ -42,12 +42,40 @@ class GoogleCalendarSyncService
             return;
         }
 
+        $existingLink = $this->linkService->buscarVinculoPorReserva($reserva, 'google_calendar');
+
         try {
-            $event = $this->client->createEvent(
-                $this->authService->accessToken($integracion),
-                $targetCalendar->external_id,
-                $this->buildEventPayload($reserva)
-            );
+            $accessToken = $this->authService->accessToken($integracion);
+            $payload = $this->buildEventPayload($reserva);
+            $sameCalendar = $existingLink?->external_calendar_id === $targetCalendar->external_id;
+            $hasExistingEvent = filled($existingLink?->external_id) && filled($existingLink?->external_calendar_id);
+
+            if ($hasExistingEvent && $sameCalendar) {
+                $event = $this->client->updateEvent(
+                    $accessToken,
+                    $targetCalendar->external_id,
+                    (string) $existingLink->external_id,
+                    $payload
+                );
+            } else {
+                if ($hasExistingEvent && ! $sameCalendar) {
+                    try {
+                        $this->client->deleteEvent(
+                            $accessToken,
+                            (string) $existingLink->external_calendar_id,
+                            (string) $existingLink->external_id
+                        );
+                    } catch (\Throwable $cleanupException) {
+                        report($cleanupException);
+                    }
+                }
+
+                $event = $this->client->createEvent(
+                    $accessToken,
+                    $targetCalendar->external_id,
+                    $payload
+                );
+            }
 
             $this->linkService->vincularReservaConExterna(
                 reserva: $reserva,

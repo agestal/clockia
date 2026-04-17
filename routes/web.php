@@ -1,30 +1,33 @@
 <?php
 
-use App\Http\Controllers\Admin\TipoNegocioController;
-use App\Http\Controllers\Admin\TipoPrecioController;
-use App\Http\Controllers\Admin\TipoRecursoController;
-use App\Http\Controllers\Admin\TipoBloqueoController;
-use App\Http\Controllers\Admin\EstadoReservaController;
-use App\Http\Controllers\Admin\TipoPagoController;
-use App\Http\Controllers\Admin\EstadoPagoController;
+use App\Http\Controllers\Admin\AdminNotificationSettingController;
+use App\Http\Controllers\Admin\BloqueoController;
+use App\Http\Controllers\Admin\BusinessOnboardingSessionController;
+use App\Http\Controllers\Admin\CalendarioController;
+use App\Http\Controllers\Admin\ChatTestController;
 use App\Http\Controllers\Admin\ClienteController;
+use App\Http\Controllers\Admin\ConceptoPagoController;
+use App\Http\Controllers\Admin\DisponibilidadController;
+use App\Http\Controllers\Admin\EncuestaPlantillaController;
+use App\Http\Controllers\Admin\EstadoPagoController;
+use App\Http\Controllers\Admin\EstadoReservaController;
+use App\Http\Controllers\Admin\GoogleCalendarIntegrationController;
+use App\Http\Controllers\Admin\IntegracionController;
+use App\Http\Controllers\Admin\IntegracionMapeoController;
 use App\Http\Controllers\Admin\NegocioController;
+use App\Http\Controllers\Admin\OcupacionExternaController;
+use App\Http\Controllers\Admin\PagoController;
+use App\Http\Controllers\Admin\PlantillaEmailController;
+use App\Http\Controllers\Admin\RecursoCombinacionController;
 use App\Http\Controllers\Admin\RecursoController;
 use App\Http\Controllers\Admin\ReservaController;
 use App\Http\Controllers\Admin\ServicioController;
-use App\Http\Controllers\Admin\PagoController;
-use App\Http\Controllers\Admin\DisponibilidadController;
-use App\Http\Controllers\Admin\BloqueoController;
-use App\Http\Controllers\Admin\ConceptoPagoController;
-use App\Http\Controllers\Admin\RecursoCombinacionController;
-use App\Http\Controllers\Admin\IntegracionController;
-use App\Http\Controllers\Admin\IntegracionMapeoController;
-use App\Http\Controllers\Admin\OcupacionExternaController;
-use App\Http\Controllers\Admin\CalendarioController;
-use App\Http\Controllers\Admin\ChatTestController;
-use App\Http\Controllers\Admin\EncuestaPlantillaController;
-use App\Http\Controllers\Admin\GoogleCalendarIntegrationController;
-use App\Http\Controllers\Admin\PlantillaEmailController;
+use App\Http\Controllers\Admin\TipoBloqueoController;
+use App\Http\Controllers\Admin\TipoNegocioController;
+use App\Http\Controllers\Admin\TipoPagoController;
+use App\Http\Controllers\Admin\TipoPrecioController;
+use App\Http\Controllers\Admin\TipoRecursoController;
+use App\Http\Controllers\CancelacionPublicaController;
 use App\Http\Controllers\EncuestaPublicaController;
 use App\Http\Controllers\PublicSiteController;
 use App\Livewire\Admin\Dashboard;
@@ -38,6 +41,8 @@ Route::controller(PublicSiteController::class)->group(function () {
     Route::get('/integraciones', 'integrations')->name('public.integrations');
     Route::get('/servicios', 'services')->name('public.services');
 });
+
+Route::get('/cancelar-reserva/{token}', [CancelacionPublicaController::class, 'confirm'])->name('cancelacion.confirm');
 
 Route::get('/encuesta/{token}', [EncuestaPublicaController::class, 'show'])->name('encuesta.show');
 Route::post('/encuesta/{token}', [EncuestaPublicaController::class, 'submit'])->name('encuesta.submit');
@@ -84,6 +89,9 @@ Route::prefix('admin')
             ->parameters(['clientes' => 'cliente']);
         Route::resource('negocios', NegocioController::class)
             ->parameters(['negocios' => 'negocio']);
+        Route::resource('configurador-negocios', BusinessOnboardingSessionController::class)
+            ->only(['index', 'create', 'store', 'show'])
+            ->parameters(['configurador-negocios' => 'business_onboarding_session']);
         Route::resource('servicios', ServicioController::class)
             ->parameters(['servicios' => 'servicio']);
         Route::resource('reservas', ReservaController::class)
@@ -99,6 +107,9 @@ Route::prefix('admin')
         Route::resource('plantillas-email', PlantillaEmailController::class)
             ->only(['index', 'edit', 'update'])
             ->parameters(['plantillas-email' => 'plantilla_email']);
+        Route::resource('avisos-admin', AdminNotificationSettingController::class)
+            ->only(['index', 'edit', 'update'])
+            ->parameters(['avisos-admin' => 'negocio']);
         Route::resource('encuesta-plantillas', EncuestaPlantillaController::class)
             ->parameters(['encuesta-plantillas' => 'encuesta_plantilla']);
         Route::resource('recurso-combinaciones', RecursoCombinacionController::class)
@@ -144,6 +155,10 @@ Route::prefix('admin')
             ->name('negocios.inline-update');
         Route::post('negocios/{negocio}/widget/regenerate-key', [NegocioController::class, 'regenerateWidgetKey'])
             ->name('negocios.widget.regenerate-key');
+        Route::post('configurador-negocios/{business_onboarding_session}/rediscover', [BusinessOnboardingSessionController::class, 'rediscover'])
+            ->name('configurador-negocios.rediscover');
+        Route::post('configurador-negocios/{business_onboarding_session}/provision', [BusinessOnboardingSessionController::class, 'provision'])
+            ->name('configurador-negocios.provision');
         Route::patch('servicios/{servicio}/inline', [ServicioController::class, 'inlineUpdate'])
             ->name('servicios.inline-update');
         Route::patch('reservas/{reserva}/inline', [ReservaController::class, 'inlineUpdate'])

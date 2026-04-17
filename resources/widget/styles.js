@@ -202,5 +202,82 @@ button.ck-btn:hover { border-color: var(--ck-primary); }
 @keyframes ck-spin { to { transform: rotate(360deg); } }
 
 .ck-back { margin-right: auto; }
+
+/* Cancel link in header */
+.ck-link-cancel {
+    background: none;
+    border: none;
+    color: var(--ck-muted);
+    font-size: 0.8em;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 4px 0;
+    font-family: var(--ck-font);
+}
+.ck-link-cancel:hover { color: #dc3545; }
+
+/* Cancel components */
+.ck-divider-text {
+    text-align: center;
+    margin: 12px 0;
+    color: var(--ck-muted);
+    font-size: 0.85em;
+}
+.ck-booking-list { display: flex; flex-direction: column; gap: 10px; }
+.ck-booking-card {
+    border: 1px solid var(--ck-border);
+    border-radius: var(--ck-radius);
+    padding: 14px;
+    background: var(--ck-bg);
+}
+.ck-booking-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.ck-booking-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    font-size: 0.88em;
+    color: var(--ck-muted);
+    margin-bottom: 10px;
+}
+.ck-booking-locator { font-family: monospace; font-weight: 600; color: var(--ck-text); }
+.ck-badge {
+    font-size: 0.75em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 600;
+}
+.ck-badge-ok { background: #d1fae5; color: #065f46; }
+.ck-badge-warn { background: #fef3c7; color: #92400e; }
+.ck-btn-danger {
+    width: 100%;
+    padding: 8px 16px;
+    background: #dc3545;
+    color: #fff;
+    border: none;
+    border-radius: var(--ck-radius);
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--ck-font);
+    font-size: 0.88em;
+}
+.ck-btn-danger:hover { background: #c82333; }
+.ck-btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
+.ck-hint { font-size: 0.82em; color: var(--ck-muted); margin: 4px 0 0; }
+.ck-empty { text-align: center; padding: 24px; color: var(--ck-muted); }
+.ck-success-box {
+    background: #d1fae5;
+    border: 1px solid #6ee7b7;
+    border-radius: var(--ck-radius);
+    padding: 16px;
+    margin-bottom: 16px;
+}
+.ck-success-title { font-weight: 700; color: #065f46; margin-bottom: 6px; }
+.ck-success-box p { color: #064e3b; font-size: 0.9em; line-height: 1.5; }
+.ck-subtitle { color: var(--ck-muted); font-size: 0.9em; margin-top: 4px; }
 `;
 }

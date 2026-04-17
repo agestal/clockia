@@ -5,8 +5,8 @@ namespace Tests\Feature;
 use App\Models\Cliente;
 use App\Models\EstadoReserva;
 use App\Models\Negocio;
-use App\Models\Reserva;
 use App\Models\Recurso;
+use App\Models\Reserva;
 use App\Models\Servicio;
 use App\Models\TipoNegocio;
 use App\Models\TipoPrecio;
@@ -40,6 +40,7 @@ class AdminRoleAccessTest extends TestCase
             ->assertSeeText('Negocios')
             ->assertSeeText('Reservas')
             ->assertSeeText('Plantillas de email')
+            ->assertSeeText('Avisos al administrador')
             ->assertSeeText('Encuestas')
             ->assertDontSeeText('Configurar la app')
             ->assertDontSeeText('Chat Test')
@@ -120,6 +121,7 @@ class AdminRoleAccessTest extends TestCase
             ->assertSeeText('Dashboard')
             ->assertSeeText('Configurar la app')
             ->assertSeeText('Plantillas de email')
+            ->assertSeeText('Avisos al administrador')
             ->assertSeeText('Encuestas')
             ->assertSeeText('Chat Test');
     }
@@ -136,6 +138,7 @@ class AdminRoleAccessTest extends TestCase
             ->assertSeeText('Dashboard')
             ->assertSeeText('Configurar la app')
             ->assertSeeText('Plantillas de email')
+            ->assertSeeText('Avisos al administrador')
             ->assertSeeText('Encuestas')
             ->assertSeeText('Chat Test');
     }

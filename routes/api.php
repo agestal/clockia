@@ -95,6 +95,8 @@ Route::prefix('widget')->name('widget.')->group(function () {
         Route::get('availability/date', [WidgetPublicController::class, 'date'])->name('date');
         Route::post('availability/check', [WidgetPublicController::class, 'check'])->name('check');
         Route::post('bookings', [WidgetPublicController::class, 'book'])->name('book');
+        Route::post('bookings/lookup', [WidgetPublicController::class, 'lookupBooking'])->name('bookings.lookup');
+        Route::post('bookings/cancel', [WidgetPublicController::class, 'requestCancellation'])->name('bookings.cancel');
     });
 
     Route::prefix('businesses/{business}/chat')->middleware(['widget.key:chat', 'throttle:30,1'])->group(function () {

@@ -4,14 +4,16 @@ namespace App\Providers;
 
 use App\Events\BookingCancelled;
 use App\Events\BookingCreated;
+use App\Events\BookingModified;
 use App\Listeners\NotifyAdminBookingCancelled;
 use App\Listeners\NotifyAdminBookingCreated;
+use App\Listeners\NotifyAdminBookingModified;
 use App\Listeners\SyncBookingToGoogleCalendar;
 use App\Models\User;
-use Laravel\Passport\Passport;
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\ServiceProvider;
+use Laravel\Passport\Passport;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,6 +32,8 @@ class AppServiceProvider extends ServiceProvider
     {
         Event::listen(BookingCreated::class, SyncBookingToGoogleCalendar::class);
         Event::listen(BookingCreated::class, NotifyAdminBookingCreated::class);
+        Event::listen(BookingModified::class, SyncBookingToGoogleCalendar::class);
+        Event::listen(BookingModified::class, NotifyAdminBookingModified::class);
         Event::listen(BookingCancelled::class, NotifyAdminBookingCancelled::class);
 
         Gate::before(function (User $user, string $ability): ?bool {

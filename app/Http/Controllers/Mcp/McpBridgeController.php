@@ -116,16 +116,6 @@ class McpBridgeController extends Controller
             ];
         }
 
-        // Also include future tools that require confirmation
-        foreach (['create_booking', 'cancel_booking', 'modify_booking'] as $futureTool) {
-            if (! isset($requirements[$futureTool])) {
-                $requirements[$futureTool] = [
-                    'required_fields' => $this->requirementsResolver->requiredFieldsFor($futureTool, $profile),
-                    'requires_confirmation' => true,
-                ];
-            }
-        }
-
         return response()->json([
             'requirements' => $requirements,
         ]);

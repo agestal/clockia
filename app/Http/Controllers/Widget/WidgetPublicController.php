@@ -7,6 +7,7 @@ use App\Models\Disponibilidad;
 use App\Models\Negocio;
 use App\Models\Servicio;
 use App\Models\Sesion;
+use App\Services\Reservations\BookingCancellationService;
 use App\Services\Reservations\DynamicExperienceAvailabilityService;
 use App\Services\Reservations\ReservationFinalizationService;
 use App\Tools\Data\CreateBookingInput;
@@ -26,6 +27,7 @@ class WidgetPublicController extends Controller
         private readonly CreateQuoteTool $createQuoteTool,
         private readonly ReservationFinalizationService $reservationFinalizationService,
         private readonly DynamicExperienceAvailabilityService $dynamicExperienceAvailability,
+        private readonly BookingCancellationService $cancellationService,
     ) {}
 
     public function config(Negocio $business): JsonResponse
@@ -406,6 +408,78 @@ class WidgetPublicController extends Controller
                 'Reserva creada correctamente.',
             ],
         ], 201);
+    }
+
+    public function lookupBooking(Request $request, Negocio $business): JsonResponse
+    {
+        $validated = Validator::make($request->all(), [
+            'locator' => ['nullable', 'string', 'max:40'],
+            'email' => ['nullable', 'email', 'max:255'],
+        ])->validate();
+
+        if (empty($validated['locator']) && empty($validated['email'])) {
+            return response()->json(['error' => 'Indica un localizador o un email para buscar tu reserva.'], 422);
+        }
+
+        if (! empty($validated['locator'])) {
+            $reserva = $this->cancellationService->lookupByLocator($business->id, $validated['locator']);
+            $reservas = $reserva ? collect([$reserva]) : collect();
+        } else {
+            $reservas = $this->cancellationService->lookupByEmail($business->id, $validated['email']);
+        }
+
+        $items = $reservas->map(fn ($r) => [
+            'id' => $r->id,
+            'locator' => $r->localizador,
+            'service_name' => $r->servicio?->nombre,
+            'date' => $r->fecha?->toDateString(),
+            'date_human' => $r->fecha?->locale('es')->translatedFormat('l j \d\e F'),
+            'time' => substr((string) $r->hora_inicio, 0, 5),
+            'participants' => $r->numero_personas,
+            'status' => $r->estadoReserva?->nombre,
+            'cancellable' => $this->cancellationService->isCancellable($r),
+            'hours_until_deadline' => $this->cancellationService->hoursUntilDeadline($r),
+            'min_hours_cancellation' => $r->horas_minimas_cancelacion,
+        ])->values()->all();
+
+        return response()->json(['bookings' => $items]);
+    }
+
+    public function requestCancellation(Request $request, Negocio $business): JsonResponse
+    {
+        $validated = Validator::make($request->all(), [
+            'locator' => ['required', 'string', 'max:40'],
+        ])->validate();
+
+        $reserva = $this->cancellationService->lookupByLocator($business->id, $validated['locator']);
+
+        if ($reserva === null) {
+            return response()->json(['error' => 'No se encontro la reserva indicada.'], 404);
+        }
+
+        try {
+            $this->cancellationService->requestCancellation($reserva);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        $email = $reserva->email_responsable ?? $reserva->cliente?->email;
+        $masked = $email ? $this->maskEmail($email) : null;
+
+        return response()->json([
+            'success' => true,
+            'message' => $masked
+                ? "Hemos enviado un email a {$masked} para confirmar la cancelacion. Revisa tu bandeja de entrada."
+                : 'Hemos enviado un email de confirmacion.',
+        ]);
+    }
+
+    private function maskEmail(string $email): string
+    {
+        [$user, $domain] = explode('@', $email, 2);
+        $visible = min(3, strlen($user));
+
+        return substr($user, 0, $visible).str_repeat('*', max(0, strlen($user) - $visible)).'@'.$domain;
     }
 
     /**

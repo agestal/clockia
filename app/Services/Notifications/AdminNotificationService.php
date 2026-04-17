@@ -6,6 +6,7 @@ use App\Mail\Admin\AforoLlenoDiaAdmin;
 use App\Mail\Admin\AforoLlenoExperienciaAdmin;
 use App\Mail\Admin\AnulacionReservaAdmin;
 use App\Mail\Admin\EncuestaRespondidaAdmin;
+use App\Mail\Admin\ReservaModificadaAdmin;
 use App\Mail\Admin\ReservaNuevaAdmin;
 use App\Models\EstadoReserva;
 use App\Models\Negocio;
@@ -53,6 +54,27 @@ class AdminNotificationService
         $reserva->loadMissing(['servicio', 'recurso', 'cliente', 'estadoReserva']);
 
         Mail::to($email)->send(new AnulacionReservaAdmin($reserva));
+    }
+
+    public function reservaModificada(Reserva $reserva, array $changeSummary): void
+    {
+        $negocio = $reserva->negocio;
+
+        if (! $negocio?->notif_reserva_modificada) {
+            return;
+        }
+
+        $email = $this->resolveEmail($negocio);
+
+        if ($email === null) {
+            return;
+        }
+
+        $reserva->loadMissing(['servicio', 'recurso', 'cliente', 'estadoReserva', 'sesion']);
+
+        Mail::to($email)->send(new ReservaModificadaAdmin($reserva, $changeSummary));
+
+        $this->checkAforoLleno($reserva);
     }
 
     public function encuestaRespondida(Reserva $reserva, array $respuestas, ?string $comentario): void

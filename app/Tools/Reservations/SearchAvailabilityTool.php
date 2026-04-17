@@ -4,6 +4,7 @@ namespace App\Tools\Reservations;
 
 use App\Models\Bloqueo;
 use App\Models\Disponibilidad;
+use App\Models\EstadoReserva;
 use App\Models\Negocio;
 use App\Models\OcupacionExterna;
 use App\Models\Recurso;
@@ -59,6 +60,7 @@ class SearchAvailabilityTool extends ToolDefinition
             'servicio_id' => 'Debe ser un servicio real del negocio que encaje con la intención del usuario.',
             'fecha' => 'Usa una fecha absoluta YYYY-MM-DD ya resuelta desde expresiones como mañana o pasado mañana.',
             'numero_personas' => 'Si el usuario ya lo indicó, inclúyelo. Es clave para filtrar capacidad cuando aplica.',
+            'exclude_reserva_id' => 'Uso interno para recalcular huecos al modificar una reserva, evitando que la reserva actual bloquee su propia franja.',
         ];
     }
 
@@ -82,6 +84,7 @@ class SearchAvailabilityTool extends ToolDefinition
                 'servicio_id' => ['type' => 'integer'],
                 'fecha' => ['type' => 'string', 'format' => 'date'],
                 'numero_personas' => ['type' => 'integer', 'nullable' => true, 'minimum' => 1],
+                'exclude_reserva_id' => ['type' => 'integer', 'nullable' => true, 'description' => 'ID de reserva a excluir del calculo de ocupacion, pensado para modificaciones'],
             ],
             'required' => ['negocio_id', 'servicio_id', 'fecha'],
         ];
@@ -201,7 +204,7 @@ class SearchAvailabilityTool extends ToolDefinition
         ]);
     }
 
-    public function resultExplanation(array $input, \App\Tools\ToolResult $result): array
+    public function resultExplanation(array $input, ToolResult $result): array
     {
         $serviceName = data_get($result->data, 'servicio_nombre');
         $date = data_get($result->data, 'fecha');
@@ -290,8 +293,20 @@ class SearchAvailabilityTool extends ToolDefinition
         Servicio $servicio,
         DynamicExperienceAvailabilityService $dynamicAvailability
     ): ToolResult {
-        $slots = $dynamicAvailability->slotsForDate($negocio, $servicio, $dto->fecha, $dto->numero_personas);
-        $summary = $dynamicAvailability->serviceSummaryForDate($negocio, $servicio, $dto->fecha, $dto->numero_personas);
+        $slots = $dynamicAvailability->slotsForDate(
+            $negocio,
+            $servicio,
+            $dto->fecha,
+            $dto->numero_personas,
+            $dto->exclude_reserva_id
+        );
+        $summary = $dynamicAvailability->serviceSummaryForDate(
+            $negocio,
+            $servicio,
+            $dto->fecha,
+            $dto->numero_personas,
+            $dto->exclude_reserva_id
+        );
 
         return ToolResult::ok([
             'negocio_id' => $dto->negocio_id,
@@ -328,8 +343,7 @@ class SearchAvailabilityTool extends ToolDefinition
         bool $checkExternal,
         Collection $googleBusyRanges,
         ?Servicio $servicio = null
-    ): array
-    {
+    ): array {
         $slots = [];
         $matcher = app(ServiceSlotMatcher::class);
 
@@ -365,7 +379,15 @@ class SearchAvailabilityTool extends ToolDefinition
                 $slotsDisp = $this->generarSlots($fecha, $disp, $duracion, $buffer);
 
                 foreach ($slotsDisp as $slot) {
-                    if ($this->slotOcupado($recurso->id, $dto->negocio_id, $slot['inicio'], $slot['fin'], $checkExternal, $googleBusyRanges)) {
+                    if ($this->slotOcupado(
+                        $recurso->id,
+                        $dto->negocio_id,
+                        $slot['inicio'],
+                        $slot['fin'],
+                        $checkExternal,
+                        $googleBusyRanges,
+                        $dto->exclude_reserva_id
+                    )) {
                         continue;
                     }
 
@@ -408,8 +430,7 @@ class SearchAvailabilityTool extends ToolDefinition
         bool $checkExternal,
         Collection $googleBusyRanges,
         ?Servicio $servicio = null
-    ): array
-    {
+    ): array {
         /** @var Collection $recursos */
         $recursos = $combinacion['recursos'];
         $slotsComunes = null;
@@ -445,7 +466,15 @@ class SearchAvailabilityTool extends ToolDefinition
             foreach ($disponibilidades as $disp) {
                 $buffer = $disp->buffer_minutos ?? 0;
                 foreach ($this->generarSlots($fecha, $disp, $duracion, $buffer) as $slot) {
-                    if ($this->slotOcupado($recurso->id, $dto->negocio_id, $slot['inicio'], $slot['fin'], $checkExternal, $googleBusyRanges)) {
+                    if ($this->slotOcupado(
+                        $recurso->id,
+                        $dto->negocio_id,
+                        $slot['inicio'],
+                        $slot['fin'],
+                        $checkExternal,
+                        $googleBusyRanges,
+                        $dto->exclude_reserva_id
+                    )) {
                         continue;
                     }
                     if ($this->slotBloqueadoParcial($recurso->id, $dto->negocio_id, $dto->fecha, $diaSemana, $slot['hora_inicio'], $slot['hora_fin'])) {
@@ -550,12 +579,13 @@ class SearchAvailabilityTool extends ToolDefinition
         Carbon $inicio,
         Carbon $fin,
         bool $checkExternal,
-        Collection $googleBusyRanges
-    ): bool
-    {
+        Collection $googleBusyRanges,
+        ?int $excludeReservaId = null
+    ): bool {
         $reservaOcupada = Reserva::query()
             ->where('recurso_id', $recursoId)
             ->whereNotIn('estado_reserva_id', $this->estadosCancelados())
+            ->when($excludeReservaId !== null, fn ($query) => $query->where('id', '<>', $excludeReservaId))
             ->where('inicio_datetime', '<', $fin)
             ->where('fin_datetime', '>', $inicio)
             ->exists();
@@ -667,6 +697,7 @@ class SearchAvailabilityTool extends ToolDefinition
             $reservados = Reserva::query()
                 ->where('sesion_id', $sesion->id)
                 ->whereNotIn('estado_reserva_id', $this->estadosCancelados())
+                ->when($dto->exclude_reserva_id !== null, fn ($query) => $query->where('id', '<>', $dto->exclude_reserva_id))
                 ->sum('numero_personas');
 
             $aforoRestante = max(0, ($sesion->aforo_total ?? 0) - (int) $reservados);
@@ -726,7 +757,7 @@ class SearchAvailabilityTool extends ToolDefinition
         static $ids = null;
 
         if ($ids === null) {
-            $ids = \App\Models\EstadoReserva::query()
+            $ids = EstadoReserva::query()
                 ->whereIn('nombre', ['Cancelada', 'No presentada'])
                 ->pluck('id')
                 ->all();

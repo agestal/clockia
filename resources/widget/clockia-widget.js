@@ -3,6 +3,7 @@ import { buildStyles } from './styles.js';
 import { renderCalendar } from './components/calendar.js';
 import { renderExperienceList } from './components/experience-list.js';
 import { renderBookingForm } from './components/booking-form.js';
+import { renderCancelLookup, renderCancelResults } from './components/cancel-form.js';
 import { h, clearElement, formatDateHuman, formatPrice, pad } from './utils.js';
 
 const DEFAULT_API_BASE = '/api/widget';
@@ -46,6 +47,12 @@ export class ClockiaWidget extends HTMLElement {
             bookingError: null,
             confirmation: null,
             view: 'calendar',
+            // Cancel state
+            cancelBookings: [],
+            cancelSearching: false,
+            cancelCancelling: false,
+            cancelError: null,
+            cancelSuccess: null,
         };
     }
 
@@ -254,6 +261,54 @@ export class ClockiaWidget extends HTMLElement {
         }
     }
 
+    goToCancel() {
+        this.state.view = 'cancel-lookup';
+        this.state.cancelBookings = [];
+        this.state.cancelError = null;
+        this.state.cancelSuccess = null;
+        this.renderRoot();
+    }
+
+    async lookupForCancel(data) {
+        this.state.cancelSearching = true;
+        this.state.cancelError = null;
+        this.renderRoot();
+
+        try {
+            const payload = {};
+            if (data.locator) payload.locator = data.locator;
+            else if (data.email) payload.email = data.email;
+
+            const result = await this.state.api.lookupBooking(payload);
+            this.state.cancelBookings = result.bookings || [];
+            this.state.cancelSearching = false;
+            this.state.view = 'cancel-results';
+            this.renderRoot();
+        } catch (err) {
+            this.state.cancelSearching = false;
+            this.state.cancelError = err.message || 'No se pudo buscar la reserva.';
+            this.renderRoot();
+        }
+    }
+
+    async requestCancel(locator) {
+        this.state.cancelCancelling = true;
+        this.state.cancelError = null;
+        this.renderRoot();
+
+        try {
+            const result = await this.state.api.requestCancellation({ locator });
+            this.state.cancelCancelling = false;
+            this.state.cancelSuccess = result.message;
+            this.state.view = 'cancel-results';
+            this.renderRoot();
+        } catch (err) {
+            this.state.cancelCancelling = false;
+            this.state.cancelError = err.message || 'No se pudo procesar la cancelacion.';
+            this.renderRoot();
+        }
+    }
+
     reset() {
         const theme = this.state.theme;
         const business = this.state.business;
@@ -298,6 +353,13 @@ export class ClockiaWidget extends HTMLElement {
                 h('h2', {}, 'Reserva tu experiencia'),
                 this.state.business ? h('div', { class: 'ck-business' }, this.state.business.name) : null,
             ]),
+            this.state.view.startsWith('cancel')
+                ? null
+                : h('button', {
+                    class: 'ck-link-cancel',
+                    type: 'button',
+                    onclick: () => this.goToCancel(),
+                }, 'Cancelar reserva'),
         ]);
         root.appendChild(header);
 
@@ -319,6 +381,36 @@ export class ClockiaWidget extends HTMLElement {
 
         if (this.state.view === 'done' && this.state.confirmation) {
             this.renderDone(root);
+            this.shadowRoot.appendChild(root);
+            return;
+        }
+
+        if (this.state.view === 'cancel-lookup') {
+            const cancelContainer = h('div', { class: 'ck-section' });
+            renderCancelLookup({
+                container: cancelContainer,
+                onLookup: (data) => this.lookupForCancel(data),
+                onBack: () => this.reset(),
+                searching: this.state.cancelSearching,
+                errorMessage: this.state.cancelError,
+            });
+            root.appendChild(cancelContainer);
+            this.shadowRoot.appendChild(root);
+            return;
+        }
+
+        if (this.state.view === 'cancel-results') {
+            const resultsContainer = h('div', { class: 'ck-section' });
+            renderCancelResults({
+                container: resultsContainer,
+                bookings: this.state.cancelBookings,
+                onRequestCancel: (locator) => this.requestCancel(locator),
+                onBack: () => this.reset(),
+                cancelling: this.state.cancelCancelling,
+                successMessage: this.state.cancelSuccess,
+                errorMessage: this.state.cancelError,
+            });
+            root.appendChild(resultsContainer);
             this.shadowRoot.appendChild(root);
             return;
         }

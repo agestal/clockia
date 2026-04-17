@@ -47,5 +47,7 @@ export function createApiClient({ apiBase, businessId, widgetKey }) {
         date: (date, participants = null) => request('/availability/date', { query: { date, participants } }),
         check: (payload) => request('/availability/check', { method: 'POST', body: payload }),
         book: (payload) => request('/bookings', { method: 'POST', body: payload }),
+        lookupBooking: (payload) => request('/bookings/lookup', { method: 'POST', body: payload }),
+        requestCancellation: (payload) => request('/bookings/cancel', { method: 'POST', body: payload }),
     };
 }

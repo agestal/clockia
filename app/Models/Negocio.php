@@ -7,9 +7,11 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 /**
  * App\Models\Negocio
@@ -21,8 +23,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @property string|null $telefono
  * @property string $zona_horaria
  * @property bool $activo
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read TipoNegocio $tipoNegocio
  * @property-read Collection<int, Servicio> $servicios
  * @property-read Collection<int, Sesion> $sesiones
@@ -39,7 +41,7 @@ class Negocio extends Model
     {
         static::creating(function (self $negocio): void {
             if (empty($negocio->widget_public_key)) {
-                $negocio->widget_public_key = (string) \Illuminate\Support\Str::uuid();
+                $negocio->widget_public_key = (string) Str::uuid();
             }
         });
     }
@@ -70,6 +72,7 @@ class Negocio extends Model
         'mail_encuesta_horas_despues',
         'notif_email_destino',
         'notif_reserva_nueva',
+        'notif_reserva_modificada',
         'notif_anulacion_reserva',
         'notif_encuesta_respondida',
         'notif_aforo_lleno_experiencia',
@@ -97,6 +100,7 @@ class Negocio extends Model
             'mail_encuesta_activo' => 'boolean',
             'mail_encuesta_horas_despues' => 'integer',
             'notif_reserva_nueva' => 'boolean',
+            'notif_reserva_modificada' => 'boolean',
             'notif_anulacion_reserva' => 'boolean',
             'notif_encuesta_respondida' => 'boolean',
             'notif_aforo_lleno_experiencia' => 'boolean',

@@ -22,7 +22,7 @@ class SurveyModulesTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_business_admin_can_access_email_templates_and_surveys_modules(): void
+    public function test_business_admin_can_access_email_templates_surveys_and_admin_alerts_modules(): void
     {
         $user = User::factory()->businessAdmin()->create();
         $business = $this->createBusiness('Bodega Prueba');
@@ -46,6 +46,18 @@ class SurveyModulesTest extends TestCase
             ->assertSeeText('Confirmacion');
 
         $this->actingAs($user)
+            ->get(route('admin.avisos-admin.index'))
+            ->assertOk()
+            ->assertSeeText('Avisos al administrador')
+            ->assertSeeText('Bodega Prueba');
+
+        $this->actingAs($user)
+            ->get(route('admin.avisos-admin.edit', $business))
+            ->assertOk()
+            ->assertSeeText('Configurar avisos al administrador')
+            ->assertSeeText('Nueva reserva');
+
+        $this->actingAs($user)
             ->get(route('admin.encuesta-plantillas.index'))
             ->assertOk()
             ->assertSeeText('Encuestas')
@@ -55,6 +67,42 @@ class SurveyModulesTest extends TestCase
             ->get(route('admin.encuesta-plantillas.create'))
             ->assertOk()
             ->assertSeeText('Nueva encuesta');
+    }
+
+    public function test_business_admin_can_update_only_own_admin_alert_settings(): void
+    {
+        $user = User::factory()->businessAdmin()->create();
+        $business = $this->createBusiness('Bodega Avisos');
+        $otherBusiness = $this->createBusiness('Bodega Ajena');
+
+        $user->negocios()->attach($business);
+
+        $this->actingAs($user)
+            ->put(route('admin.avisos-admin.update', $business), [
+                'notif_email_destino' => 'avisos@bodega.test',
+                'notif_reserva_nueva' => '1',
+                'notif_reserva_modificada' => '1',
+                'notif_anulacion_reserva' => '0',
+                'notif_encuesta_respondida' => '1',
+                'notif_aforo_lleno_experiencia' => '0',
+                'notif_aforo_lleno_dia' => '1',
+            ])
+            ->assertRedirect(route('admin.avisos-admin.edit', $business));
+
+        $this->assertDatabaseHas('negocios', [
+            'id' => $business->id,
+            'notif_email_destino' => 'avisos@bodega.test',
+            'notif_reserva_nueva' => true,
+            'notif_reserva_modificada' => true,
+            'notif_anulacion_reserva' => false,
+            'notif_encuesta_respondida' => true,
+            'notif_aforo_lleno_experiencia' => false,
+            'notif_aforo_lleno_dia' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('admin.avisos-admin.edit', $otherBusiness))
+            ->assertForbidden();
     }
 
     public function test_public_survey_token_is_single_use_and_uses_snapshot_content(): void

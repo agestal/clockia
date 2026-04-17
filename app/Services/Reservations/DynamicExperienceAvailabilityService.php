@@ -8,7 +8,6 @@ use App\Models\Negocio;
 use App\Models\Reserva;
 use App\Models\Servicio;
 use Carbon\Carbon;
-use Illuminate\Support\Collection;
 
 class DynamicExperienceAvailabilityService
 {
@@ -21,9 +20,14 @@ class DynamicExperienceAvailabilityService
         return $servicio !== null && $servicio->usaProgramacionDinamica();
     }
 
-    public function slotsForDate(Negocio $negocio, Servicio $servicio, Carbon|string $date, ?int $partySize = null): array
-    {
-        $slots = $this->rawSlotsForDate($negocio, $servicio, $this->normalizeDate($date));
+    public function slotsForDate(
+        Negocio $negocio,
+        Servicio $servicio,
+        Carbon|string $date,
+        ?int $partySize = null,
+        ?int $excludeReservationId = null
+    ): array {
+        $slots = $this->rawSlotsForDate($negocio, $servicio, $this->normalizeDate($date), $excludeReservationId);
 
         if ($partySize === null || $partySize < 1) {
             return $slots;
@@ -40,9 +44,10 @@ class DynamicExperienceAvailabilityService
         Servicio $servicio,
         Carbon|string $date,
         string $horaInicio,
-        ?string $horaFin = null
+        ?string $horaFin = null,
+        ?int $excludeReservationId = null
     ): ?array {
-        foreach ($this->rawSlotsForDate($negocio, $servicio, $this->normalizeDate($date)) as $slot) {
+        foreach ($this->rawSlotsForDate($negocio, $servicio, $this->normalizeDate($date), $excludeReservationId) as $slot) {
             if (($slot['hora_inicio'] ?? null) !== $horaInicio) {
                 continue;
             }
@@ -61,9 +66,10 @@ class DynamicExperienceAvailabilityService
         Negocio $negocio,
         Servicio $servicio,
         Carbon|string $date,
-        ?int $partySize = null
+        ?int $partySize = null,
+        ?int $excludeReservationId = null
     ): array {
-        $rawSlots = $this->rawSlotsForDate($negocio, $servicio, $this->normalizeDate($date));
+        $rawSlots = $this->rawSlotsForDate($negocio, $servicio, $this->normalizeDate($date), $excludeReservationId);
         $availableSlots = $partySize !== null && $partySize > 0
             ? array_values(array_filter($rawSlots, fn (array $slot) => (int) ($slot['aforo_restante'] ?? 0) >= $partySize))
             : $rawSlots;
@@ -95,7 +101,8 @@ class DynamicExperienceAvailabilityService
         Negocio $negocio,
         iterable $servicios,
         Carbon|string $date,
-        ?int $partySize = null
+        ?int $partySize = null,
+        ?int $excludeReservationId = null
     ): array {
         $fecha = $this->normalizeDate($date);
         $serviceSummaries = [];
@@ -106,9 +113,9 @@ class DynamicExperienceAvailabilityService
                 continue;
             }
 
-            $summary = $this->serviceSummaryForDate($negocio, $servicio, $fecha, $partySize);
+            $summary = $this->serviceSummaryForDate($negocio, $servicio, $fecha, $partySize, $excludeReservationId);
             $serviceSummaries[] = $summary;
-            $allSlots = array_merge($allSlots, $this->rawSlotsForDate($negocio, $servicio, $fecha));
+            $allSlots = array_merge($allSlots, $this->rawSlotsForDate($negocio, $servicio, $fecha, $excludeReservationId));
         }
 
         $aggregate = $this->aggregateSlots($allSlots);
@@ -164,13 +171,13 @@ class DynamicExperienceAvailabilityService
         return $days;
     }
 
-    private function rawSlotsForDate(Negocio $negocio, Servicio $servicio, Carbon $date): array
+    private function rawSlotsForDate(Negocio $negocio, Servicio $servicio, Carbon $date, ?int $excludeReservationId = null): array
     {
         if (! $this->supports($servicio)) {
             return [];
         }
 
-        $cacheKey = implode('|', [$negocio->id, $servicio->id, $date->toDateString()]);
+        $cacheKey = implode('|', [$negocio->id, $servicio->id, $date->toDateString(), $excludeReservationId ?? 'none']);
 
         if (array_key_exists($cacheKey, $this->slotsCache)) {
             return $this->slotsCache[$cacheKey];
@@ -208,10 +215,11 @@ class DynamicExperienceAvailabilityService
 
             if ($this->slotHasPartialBlock($negocio, $servicio, $date, $cursor, $slotEnd)) {
                 $cursor = $slotEnd;
+
                 continue;
             }
 
-            $reservedSeats = $this->reservedSeatsForSlot($negocio, $servicio, $date, $cursor, $slotEnd);
+            $reservedSeats = $this->reservedSeatsForSlot($negocio, $servicio, $date, $cursor, $slotEnd, $excludeReservationId);
             $remainingSeats = max(0, $capacity - $reservedSeats);
             $occupancyPercent = $capacity > 0
                 ? (int) round(min(1, $reservedSeats / $capacity) * 100)
@@ -325,7 +333,8 @@ class DynamicExperienceAvailabilityService
         Servicio $servicio,
         Carbon $date,
         Carbon $slotStart,
-        Carbon $slotEnd
+        Carbon $slotEnd,
+        ?int $excludeReservationId = null
     ): int {
         $cacheKey = implode('|', [
             $negocio->id,
@@ -333,6 +342,7 @@ class DynamicExperienceAvailabilityService
             $date->toDateString(),
             $slotStart->format('H:i'),
             $slotEnd->format('H:i'),
+            $excludeReservationId ?? 'none',
         ]);
 
         if (array_key_exists($cacheKey, $this->reservationsCache)) {
@@ -344,6 +354,7 @@ class DynamicExperienceAvailabilityService
             ->where('servicio_id', $servicio->id)
             ->whereDate('fecha', $date->toDateString())
             ->whereNotIn('estado_reserva_id', $this->cancelledReservationStateIds())
+            ->when($excludeReservationId !== null, fn ($query) => $query->where('id', '<>', $excludeReservationId))
             ->where(function ($query) use ($slotStart, $slotEnd) {
                 $query->where(function ($datetimeQuery) use ($slotStart, $slotEnd) {
                     $datetimeQuery->whereNotNull('inicio_datetime')

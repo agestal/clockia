@@ -1,5 +1,13 @@
 <?php
 
+use JeroenNoten\LaravelAdminLte\Menu\Filters\ActiveFilter;
+use JeroenNoten\LaravelAdminLte\Menu\Filters\ClassesFilter;
+use JeroenNoten\LaravelAdminLte\Menu\Filters\DataFilter;
+use JeroenNoten\LaravelAdminLte\Menu\Filters\GateFilter;
+use JeroenNoten\LaravelAdminLte\Menu\Filters\HrefFilter;
+use JeroenNoten\LaravelAdminLte\Menu\Filters\LangFilter;
+use JeroenNoten\LaravelAdminLte\Menu\Filters\SearchFilter;
+
 return [
 
     /*
@@ -324,6 +332,13 @@ return [
                             'active' => ['admin/negocios', 'admin/negocios/*'],
                         ],
                         [
+                            'text' => 'Configurador IA',
+                            'route' => 'admin.configurador-negocios.index',
+                            'icon' => 'far fa-fw fa-circle',
+                            'can' => 'manage-platform-admin',
+                            'active' => ['admin/configurador-negocios*'],
+                        ],
+                        [
                             'text' => 'Servicios',
                             'route' => 'admin.servicios.index',
                             'icon' => 'far fa-fw fa-circle',
@@ -425,6 +440,12 @@ return [
                             'route' => 'admin.plantillas-email.index',
                             'icon' => 'far fa-fw fa-circle',
                             'active' => ['admin/plantillas-email', 'admin/plantillas-email/*'],
+                        ],
+                        [
+                            'text' => 'Avisos al administrador',
+                            'route' => 'admin.avisos-admin.index',
+                            'icon' => 'far fa-fw fa-circle',
+                            'active' => ['admin/avisos-admin', 'admin/avisos-admin/*'],
                         ],
                         [
                             'text' => 'Encuestas',
@@ -565,13 +586,13 @@ return [
     */
 
     'filters' => [
-        JeroenNoten\LaravelAdminLte\Menu\Filters\GateFilter::class,
-        JeroenNoten\LaravelAdminLte\Menu\Filters\HrefFilter::class,
-        JeroenNoten\LaravelAdminLte\Menu\Filters\SearchFilter::class,
-        JeroenNoten\LaravelAdminLte\Menu\Filters\ActiveFilter::class,
-        JeroenNoten\LaravelAdminLte\Menu\Filters\ClassesFilter::class,
-        JeroenNoten\LaravelAdminLte\Menu\Filters\LangFilter::class,
-        JeroenNoten\LaravelAdminLte\Menu\Filters\DataFilter::class,
+        GateFilter::class,
+        HrefFilter::class,
+        SearchFilter::class,
+        ActiveFilter::class,
+        ClassesFilter::class,
+        LangFilter::class,
+        DataFilter::class,
     ],
 
     /*

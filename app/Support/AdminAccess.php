@@ -154,6 +154,7 @@ class AdminAccess
             'admin.pagos.*',
             'admin.calendario.*',
             'admin.plantillas-email.*',
+            'admin.avisos-admin.*',
             'admin.encuesta-plantillas.*',
             'admin.ajax.negocios.search',
             'admin.ajax.servicios.search',
