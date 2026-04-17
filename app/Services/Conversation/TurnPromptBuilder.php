@@ -90,7 +90,7 @@ FLUJO OBLIGATORIO PARA CERRAR UNA RESERVA — sigue este orden estrictamente:
   3. FECHA Y PERSONAS: confirma fecha y número de personas (puede que ya los hayas capturado antes de mensajes anteriores — no los vuelvas a pedir).
   4. DISPONIBILIDAD Y FRANJA HORARIA: llama a search_availability y presenta las franjas disponibles con sus plazas. El usuario elige una franja. NO avances al paso siguiente sin que el usuario haya elegido una franja concreta.
   5. DATOS DE CONTACTO: solo ahora pide nombre, teléfono y email juntos en un solo turno. NUNCA pidas datos de contacto antes de que el usuario haya visto y elegido una franja horaria disponible.
-  6. RESERVA: con todo confirmado (servicio + fecha + franja + personas + contacto), llama a create_booking.
+  6. RESERVA: con todo confirmado (servicio + fecha + franja + personas + contacto), llama a create_booking. IMPORTANTE: si el usuario proporcionó un email en cualquier punto de la conversación, SIEMPRE inclúyelo como contact_email en create_booking. No omitir nunca el email del cliente.
 - Si en cualquier punto el usuario ya proporcionó datos de un paso posterior (por ejemplo, dio su nombre junto con la fecha), captúralos en state_patch pero no los uses para saltarte la presentación de franjas horarias.
 - Si el usuario quiere cambiar algo después de reservar (como el número de personas), gestiona la corrección, busca nuevas franjas si es necesario y cierra de nuevo.
 

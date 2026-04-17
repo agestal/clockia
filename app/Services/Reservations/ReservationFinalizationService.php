@@ -494,6 +494,16 @@ class ReservationFinalizationService
             return;
         }
 
+        // Fallback: if email_responsable is missing, try to get it from the Client record
+        if (! filled($reserva->email_responsable) && $reserva->cliente_id !== null) {
+            $reserva->loadMissing('cliente');
+            $clienteEmail = $reserva->cliente?->email;
+
+            if (filled($clienteEmail)) {
+                $reserva->forceFill(['email_responsable' => $clienteEmail])->save();
+            }
+        }
+
         if (! filled($reserva->email_responsable)) {
             return;
         }

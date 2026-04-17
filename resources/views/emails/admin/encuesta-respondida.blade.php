@@ -5,42 +5,128 @@
 @endphp
 <!DOCTYPE html>
 <html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f6f8;">
-    <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-        <div style="background:#6f42c1;padding:28px 32px;">
-            <h1 style="margin:0;color:#fff;font-size:1.3rem;font-weight:600;">Encuesta respondida</h1>
-            <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:0.88rem;">{{ $negocio?->nombre }}</p>
-        </div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Encuesta respondida</title>
+</head>
+<body style="margin:0;padding:0;background:#f3f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#1f2937;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f5f9;margin:0;padding:0;width:100%;">
+        <tr>
+            <td align="center" style="padding:32px 16px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:640px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 12px 34px rgba(15,23,42,0.08);">
+                    <tr>
+                        <td style="padding:0;">
+                            <div style="height:6px;background:linear-gradient(90deg,#0f766e 0%,#14b8a6 100%);font-size:0;line-height:0;">&nbsp;</div>
+                        </td>
+                    </tr>
 
-        <div style="padding:28px 32px;">
-            <p style="margin:0 0 20px;color:#333;font-size:0.95rem;line-height:1.6;">
-                <strong>{{ $cliente }}</strong> ha respondido a la encuesta de satisfacción sobre la experiencia <strong>{{ $servicio?->nombre }}</strong>.
-            </p>
+                    <tr>
+                        <td style="padding:32px 36px 24px;background:linear-gradient(180deg,#f4fffd 0%,#ffffff 100%);border-bottom:1px solid #e5e7eb;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td style="vertical-align:top;padding-right:16px;">
+                                        <p style="margin:0 0 10px;font-size:12px;line-height:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#0f766e;">
+                                            Clockia Admin
+                                        </p>
+                                        <h1 style="margin:0 0 10px;font-size:30px;line-height:36px;font-weight:800;color:#111827;">
+                                            Encuesta respondida
+                                        </h1>
+                                        <p style="margin:0;font-size:15px;line-height:24px;color:#4b5563;">
+                                            <strong style="color:#111827;">{{ $cliente }}</strong> ha dejado su valoración sobre
+                                            <strong style="color:#111827;">{{ $servicio?->nombre }}</strong>.
+                                        </p>
+                                    </td>
+                                    <td align="right" style="vertical-align:top;white-space:nowrap;">
+                                        <span style="display:inline-block;padding:10px 14px;border-radius:999px;background:#e8fcf8;color:#0f766e;font-size:13px;font-weight:700;">
+                                            FEEDBACK
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
 
-            <div style="background:#f8f9fa;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
-                <p style="margin:0 0 10px;font-size:0.82rem;color:#555;font-weight:600;">Respuestas:</p>
-                <table style="width:100%;border-collapse:collapse;font-size:0.88rem;">
-                    @foreach($respuestas as $resp)
+                    <tr>
+                        <td style="padding:28px 36px 8px;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td width="50%" style="padding:0 8px 16px 0;vertical-align:top;">
+                                        <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:14px;padding:18px 18px 16px;">
+                                            <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#6b7280;">
+                                                Cliente
+                                            </p>
+                                            <p style="margin:0;font-size:22px;line-height:28px;font-weight:800;color:#111827;">
+                                                {{ $cliente }}
+                                            </p>
+                                        </div>
+                                    </td>
+                                    <td width="50%" style="padding:0 0 16px 8px;vertical-align:top;">
+                                        <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:14px;padding:18px 18px 16px;">
+                                            <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#6b7280;">
+                                                Experiencia
+                                            </p>
+                                            <p style="margin:0;font-size:20px;line-height:26px;font-weight:700;color:#111827;">
+                                                {{ $servicio?->nombre }}
+                                            </p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding:8px 36px 0;">
+                            <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;">
+                                <div style="padding:16px 20px;background:#f9fafb;border-bottom:1px solid #e5e7eb;">
+                                    <p style="margin:0;font-size:15px;line-height:20px;font-weight:800;color:#111827;">Valoraciones recibidas</p>
+                                </div>
+
+                                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;">
+                                    @foreach($respuestas as $resp)
+                                        <tr>
+                                            <td style="padding:14px 20px;border-bottom:1px solid #eef2f7;font-size:14px;line-height:22px;color:#4b5563;width:75%;">
+                                                {{ $resp['pregunta'] ?? 'Pregunta' }}
+                                            </td>
+                                            <td align="right" style="padding:14px 20px;border-bottom:1px solid #eef2f7;">
+                                                <span style="display:inline-block;min-width:38px;padding:6px 10px;border-radius:999px;background:#eefcf9;color:#0f766e;font-size:12px;font-weight:800;text-align:center;">
+                                                    {{ $resp['valor'] ?? '-' }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+
+                    @if($comentario)
                         <tr>
-                            <td style="padding:5px 0;color:#888;width:60%;">{{ $resp['pregunta'] ?? 'Pregunta' }}</td>
-                            <td style="padding:5px 0;color:#333;font-weight:600;">{{ $resp['valor'] ?? '-' }}</td>
+                            <td style="padding:20px 36px 0;">
+                                <div style="background:linear-gradient(180deg,#f0fdfa 0%,#ffffff 100%);border:1px solid #99f6e4;border-radius:16px;padding:18px 20px;">
+                                    <p style="margin:0 0 8px;font-size:15px;line-height:20px;font-weight:800;color:#0f766e;">Comentario del cliente</p>
+                                    <p style="margin:0;font-size:14px;line-height:24px;color:#334155;">{{ $comentario }}</p>
+                                </div>
+                            </td>
                         </tr>
-                    @endforeach
+                    @endif
+
+                    <tr>
+                        <td style="padding:28px 36px 34px;">
+                            <div style="padding-top:18px;border-top:1px solid #e5e7eb;">
+                                <p style="margin:0 0 6px;font-size:13px;line-height:20px;color:#6b7280;">
+                                    Usa esta respuesta para revisar servicio, atención y margen de mejora en la experiencia.
+                                </p>
+                                <p style="margin:0;font-size:12px;line-height:18px;color:#9ca3af;">
+                                    Notificación automática de {{ $negocio?->nombre }} via Clockia.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
                 </table>
-            </div>
-
-            @if($comentario)
-                <div style="background:#f3f0ff;border:1px solid #d8cff0;border-radius:8px;padding:12px 16px;">
-                    <p style="margin:0;font-size:0.82rem;color:#6f42c1;font-weight:600;">Comentario del cliente</p>
-                    <p style="margin:6px 0 0;font-size:0.88rem;color:#333;line-height:1.5;">{{ $comentario }}</p>
-                </div>
-            @endif
-        </div>
-
-        <div style="padding:16px 32px;background:#f8f9fa;text-align:center;">
-            <p style="margin:0;font-size:0.75rem;color:#aaa;">Notificación automática de {{ $negocio?->nombre }} via Clockia.</p>
-        </div>
-    </div>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>

@@ -51,7 +51,7 @@ class CreateBookingTool extends ToolDefinition
             'slot_key' => 'Si dispones del identificador interno del hueco devuelto por search_availability, puedes usarlo para fijar el slot exacto.',
             'contact_name' => 'Nombre de la persona responsable de la reserva.',
             'contact_phone' => 'Teléfono real de contacto del responsable. Es obligatorio para cerrar la reserva.',
-            'contact_email' => 'Email del responsable cuando el usuario lo haya dado. Si no lo tienes, puede ir vacío.',
+            'contact_email' => 'Email del responsable. OBLIGATORIO incluirlo siempre que el usuario lo haya proporcionado en la conversación. No lo omitas aunque el schema lo marque como nullable.',
             'document_type' => 'Tipo de documento cuando el servicio exija documentación, por ejemplo DNI, pasaporte o carné de conducir.',
             'document_value' => 'Valor del documento cuando el servicio exija documentación.',
         ];
